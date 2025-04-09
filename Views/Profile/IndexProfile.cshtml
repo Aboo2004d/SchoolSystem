@@ -1,0 +1,47 @@
+@model SchoolSystem.Models.ProfileViewModel
+
+@{
+    ViewData["Title"] = "Profile";
+}
+<br>
+<br>
+<br>
+<h1>Profile</h1>
+
+<div>
+    <h4>User Information</h4>
+    <hr />
+    <dl class="row">
+        <dt class="col-sm-2">Full Name:</dt>
+        <dd class="col-sm-10">@Model.Name</dd>
+
+        <dt class="col-sm-2">Email:</dt>
+        <dd class="col-sm-10">@Model.Email</dd>
+
+        <dt class="col-sm-2">Phone:</dt>
+        <dd class="col-sm-10">@Model.Phone</dd>
+
+        <dt class="col-sm-2">Role:</dt>
+        <dd class="col-sm-10">@Model.Role</dd>
+
+        <!-- أضيفت هذه السطر -->
+        <dt class="col-sm-2">Username:</dt>
+        <dd class="col-sm-10">@Model.UserName</dd>
+    </dl>
+</div>
+
+<!-- الروابط لتعديل البروفايل -->
+@if (Model.Role == "admin")
+{
+    <a asp-action="EditAdmin" class="btn btn-primary" asp-route-id="@Model.Id">Edit Profile</a>
+}
+else if (Model.Role == "Student")
+{
+    <a asp-action="EditStudent" class="btn btn-primary" asp-route-id="@Model.Id">Edit Profile</a>
+}
+else if (Model.Role == "Teacher")
+{
+    <a asp-action="EditTeacher" class="btn btn-primary" asp-route-id="@Model.Id">Edit Profile</a>
+}
+
+<a asp-controller="Home" asp-action="Index" class="btn btn-secondary">Back to Home</a>

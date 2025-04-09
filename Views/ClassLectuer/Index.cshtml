@@ -1,0 +1,88 @@
+@model IEnumerable<SchoolSystem.Data.ClassLectuer>
+
+@{
+    ViewData["Title"] = "Index";
+}
+<br>
+<br>
+<br>
+<h1>class And Leactuer</h1>
+
+<p>
+    <a class="btn btn-success" asp-action="Create">Create class And Leactuer</a>
+</p>
+<table class="table">
+    <thead>
+        <tr>
+            <th>
+                @Html.DisplayNameFor(model => model.IdClassNavigation)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.IdLectuerNavigation)
+            </th>
+        </tr>
+    </thead>
+    <tbody>
+@foreach (var item in Model) {
+        <tr>
+            <td>
+                @Html.DisplayFor(modelItem => item.IdClassNavigation.Name)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.IdLectuerNavigation.Name)
+            </td>
+            <td>
+                <a class="btn btn-info" asp-action="Edit" asp-route-id="@item.Id">Edit</a> 
+                <a class="btn btn-warning" asp-action="Details" asp-route-id="@item.Id">Details</a> 
+                <a class="btn btn-danger delete" data-id="@item.Id">Delete</a>
+            </td>
+        </tr>
+}
+    </tbody>
+</table>
+<form asp-action="Delete" id="DeleteClassLectuer" >
+    <input type="hidden" name="Id" id="classlectuerid" />
+</form>
+
+@section Scripts {
+    <script>
+        $(function() {
+            // تفعيل DataTable
+            new DataTable('.table');
+            
+            // التعامل مع زر الحذف
+            $('.delete').click(function(e) {
+                e.preventDefault();
+
+                var btn = $(this);
+                var id = btn.data('id');
+
+                // استخدام SweetAlert لتأكيد الحذف
+                Swal.fire({
+                    title: "Are you sure?",
+                    text: "You won't be able to revert this!",
+                    icon: "warning",
+                    showCancelButton: true,
+                    confirmButtonColor: "#3085d6",
+                    cancelButtonColor: "#d33",
+                    confirmButtonText: "Yes, delete it!"
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // وضع الـ id في الحقل المخفي
+                        $('#classlectuerid').val(id);
+
+                        // تقديم النموذج
+                        $('#DeleteClassLectuer').submit();
+
+                        // إظهار رسالة النجاح
+                        Swal.fire({
+                            title: "Deleted!",
+                            text: "Class leacher has been deleted.",
+                            icon: "success"
+                        });
+                    }
+                });
+            });
+        });
+    </script>
+}

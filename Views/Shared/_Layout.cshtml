@@ -1,0 +1,152 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - SchoolSystem</title>
+
+    <!-- تضمين Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- الأنماط الخاصة بالمشروع -->
+    <style>
+        /* محاذاة العنوان في المنتصف */
+        .navbar-brand-centered {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        /* إخفاء القائمة المعزولة على الأجهزة الكبيرة */
+        .offcanvas-menu {
+            display: none;
+        }
+
+        /* إظهار القائمة المعزولة على الأجهزة الصغيرة */
+        @@media (max-width: 991.98px) {
+            .navbar-brand-centered {
+                display: none;
+            }
+            .offcanvas-menu {
+                display: block;
+            }
+        }
+    </style>
+
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/SchoolSystem.styles.css" asp-append-version="true" />
+</head>
+<body>
+
+    <header>
+        <!-- شريط التنقل -->
+        <nav class="navbar navbar-expand-lg fixed-top navbar-dark bg-dark" aria-label="Main navigation">
+            <div class="container-fluid">
+                <!-- العنوان في المنتصف -->
+                <a class="navbar-brand navbar-brand-centered" asp-area="" asp-controller="Home" asp-action="Index">School Mangment App MVC</a>
+
+                <!-- زر الثلاث خطوط -->
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- الروابط في اليمين -->
+                <div class="collapse navbar-collapse justify-content-start" id="navbarNav">
+                    <ul class="navbar-nav">
+                        <li class="nav-item">
+                            <a class="nav-link active" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="" asp-controller="Home" asp-action="About">About</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+                        </li>
+                    </ul>
+                </div>
+                <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
+                    <ul class="navbar-nav">
+                        @if (Context.Session.GetString("UserName") != null)
+                        {
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">@Context.Session.GetString("UserName")</a>
+                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                                    
+                                    @if(Context.Session.GetString("Role").Equals("admin")){
+                                        <li><a class="dropdown-item" asp-area="" asp-controller="Menegar" asp-action="Index">Manager</a></li>
+                                    }else if (Context.Session.GetString("Role").Equals("Teacher")){
+                                        <li><a class="dropdown-item" asp-area="" asp-controller="Teacher" asp-action="Index">Manager</a></li>
+                                    }else if (Context.Session.GetString("Role").Equals("Student")){
+                                        <li><a class="dropdown-item" asp-area="" asp-controller="Student" asp-action="Index">Manager</a></li>
+                                    }
+                                    
+                                    <li><a class="dropdown-item" asp-area="" asp-controller="Profile" asp-action="IndexProfile">Profile</a></li>
+                                    <li><a class="dropdown-item" asp-area="" asp-controller="Account" asp-action="Logout">Logout</a></li>
+                                </ul>
+                            </li>
+                        }
+                        else
+                        {
+                        <a class="btn btn-info" asp-area="" asp-controller="Account" asp-action="Login">Log in</a>
+                        }
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <!-- القائمة المعزولة (للأجهزة الصغيرة فقط) -->
+        <div class="offcanvas offcanvas-start offcanvas-menu" tabindex="-1" id="offcanvasMenu" aria-labelledby="offcanvasMenuLabel">
+            <div class="offcanvas-header">
+                <h5 class="offcanvas-title" id="offcanvasMenuLabel">@Context.Session.GetString("UserName")</h5>
+                <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+            </div>
+            <div class="offcanvas-body">
+                @if (Context.Session.GetString("UserName") != null)
+                {
+                    <ul class="list-unstyled">
+                        <li><a class="dropdown-item" asp-area="" asp-controller="Profile" asp-action="IndexProfile">Profile</a></li>
+                        <li><a class="dropdown-item" asp-area="" asp-controller="Account" asp-action="Logout">Logout</a></li>
+                    </ul>
+                }
+                else
+                {
+                    <ul class="list-unstyled">
+                        <li><a class="dropdown-item" asp-area="" asp-controller="Account" asp-action="Login">Log in</a></li>
+                        <li><a class="dropdown-item" asp-area="" asp-controller="Account" asp-action="Register">Sign up</a></li>
+                    </ul>
+                }
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <main role="main" class="pb-3">
+            @RenderBody()
+        </main>
+    </div>
+
+    <footer class="border-top footer text-muted">
+        <div class="container">
+            &copy; 2025 - Powered by Abdolly Techno - <a href="Https://wa.me/message/FT7DT2UF5WZQM1">Contact Us</a>
+        </div>
+    </footer>
+
+    <!-- تضمين jQuery -->
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+
+    <!-- تضمين Bootstrap JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- تضمين SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <!-- تضمين DataTables -->
+    <script src="https://cdn.datatables.net/2.2.1/js/dataTables.js"></script>
+    <script src="https://cdn.datatables.net/2.2.1/js/dataTables.bootstrap5.js"></script>
+
+    <!-- تضمين ملف JavaScript الخاص بالمشروع -->
+    <script src="~/js/site.js" asp-append-version="true"></script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

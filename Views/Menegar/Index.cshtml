@@ -1,0 +1,103 @@
+@model IEnumerable<SchoolSystem.Data.Menegar>
+
+@{
+    ViewData["Title"] = "Index";
+}
+<br>
+<br>
+<br>
+<h1>Index</h1>
+
+<p>
+    <a class="btn btn-success" asp-action="Create">Create New Menegar</a>
+    <a class="btn btn-dark" asp-controller="Home" asp-action="Index">Home</a>
+</p>
+<table class="table">
+    <thead>
+        <tr>
+            <th style="width: 20%;">
+                @Html.DisplayNameFor(model => model.Name)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Phone)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Email)
+            </th>
+            <th style="width: 40%;" >
+                Optiones
+            </th>
+        </tr>
+    </thead>
+    <tbody>
+@foreach (var item in Model) {
+    var email = Context.Session.GetString("Email");
+    @if(email == item.Email){
+            <tr>
+                <td>
+                    @Html.DisplayFor(modelItem => item.Name)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.Phone)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.Email)
+                </td>
+                <td>
+                    <a class="btn btn-info" asp-action="ManagerMenegarStudent" >Stud Mgr</a> 
+                    <a class="btn btn-info" asp-controller="Teacher" asp-action="Index" >Teach Mgr</a>
+                    <a class="btn btn-info" asp-action="ManagerMenegarClass" asp-controller="Menegar" >Class Mgr</a> 
+                    <a class="btn btn-info" asp-action="Index" asp-controller="Lectuer">Lect Mgr</a> 
+                </td>
+            </tr>
+    }
+}
+    </tbody>
+</table>
+
+<form asp-action="Delete" id="DeleteMenegar" >
+    <input type="hidden" name="Id" id="menegarid" />
+</form>
+
+@section Scripts {
+    <script>
+        $(function() {
+            // تفعيل DataTable
+            new DataTable('.table');
+            
+            // التعامل مع زر الحذف
+            $('.delete').click(function(e) {
+                e.preventDefault();
+
+                var btn = $(this);
+                var id = btn.data('id');
+
+                // استخدام SweetAlert لتأكيد الحذف
+                Swal.fire({
+                    title: "Are you sure?",
+                    text: "You won't be able to revert this!",
+                    icon: "warning",
+                    showCancelButton: true,
+                    confirmButtonColor: "#3085d6",
+                    cancelButtonColor: "#d33",
+                    confirmButtonText: "Yes, delete it!"
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // وضع الـ id في الحقل المخفي
+                        $('#menegarid').val(id);
+
+                        // تقديم النموذج
+                        $('#DeleteMenegar').submit();
+
+                        // إظهار رسالة النجاح
+                        Swal.fire({
+                            title: "Deleted!",
+                            text: "Menegar has been deleted.",
+                            icon: "success"
+                        });
+                    }
+                });
+            });
+        });
+    </script>
+}

@@ -1,0 +1,34 @@
+@model SchoolSystem.Data.StudentClass
+
+@{
+    ViewData["Title"] = "Add Student To Class";
+}
+<br>
+<br>
+<br>
+<h1>Add Student To Class</h1>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <form asp-action="AddStudentWithClass">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <div class="form-group">
+                <label asp-for="IdClass" class="control-label">Class</label>
+                <select asp-for="IdClass" class="form-control" asp-items="ViewBag.IdClass" ></select>
+            </div>
+            <div class="form-group"> 
+                <label asp-for="IdStudent" class="control-label">Student name</label>
+                <select asp-for="IdStudent" class ="form-control" asp-items="ViewBag.IdStudent" disabled></select>
+                <input type="hidden" asp-for="IdStudent" />
+            </div>
+            <div class="form-group">
+                <input type="submit" value="Create" class="btn btn-primary"  />
+                <a class="btn btn-dark" asp-controller="Menegar" asp-action="ManagerMenegarStudent" >Back to The List</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

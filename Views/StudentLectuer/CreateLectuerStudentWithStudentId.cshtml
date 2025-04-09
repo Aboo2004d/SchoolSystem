@@ -1,0 +1,40 @@
+@model SchoolSystem.Data.StudentLectuer
+
+@{
+    ViewData["Title"] = "Create New Lectuer";
+}
+<br>
+<br>
+<br>
+<h1>Add Lectuer To Student</h1>
+<hr /> 
+<div class="row">
+    <div class="col-md-4">
+        <form asp-action="CreateLectuerStudentForNewStudent">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <div class="form-group">
+                <label asp-for="IdStudent" class="control-label">Student Name</label>
+                <select asp-for="IdStudent" class="form-control" asp-items="ViewBag.Stu" disabled></select>
+                <input type="hidden" asp-for="IdStudent" />
+            </div>
+            <div class="form-group">
+                <label asp-for="IdLectuer" class="control-label">Lectuer name</label>
+                <select asp-for="IdLectuer" class ="form-control" asp-items="ViewBag.IdLectuer"></select>
+            </div>
+            <div class="form-group">
+                <input type="submit" value="Create" class="btn btn-primary"  />
+                @{
+                    var item = ViewBag.IdStudent;
+                        <a class="btn btn-dark" asp-controller="Student" asp-action="StudentLectuerReturn" asp-route-idstudent="@item">Back to The List</a>
+                    
+                }
+                
+                
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

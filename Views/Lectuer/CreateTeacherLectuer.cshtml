@@ -1,0 +1,44 @@
+@model SchoolSystem.Models.LectuerTeacherViewModel
+
+@{
+    ViewData["Title"] = "Add Teacher In Lectuer";
+}
+<br>
+<br>
+<br>
+<h1>Add Teacher To Lectuer</h1>
+<hr /> 
+<div class="row">
+    <div class="col-md-4">
+        <form asp-action="CreateTeacherInLectuer">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <div class="form-group">
+                <label asp-for="IdLectuer" class="control-label">Lectuer</label>
+                <select asp-for="IdLectuer" class="form-control" asp-items="ViewBag.Lec" disabled></select>
+                <input type="hidden" asp-for="IdLectuer" />
+            </div>
+            <div class="form-group">
+                <label asp-for="IdTeacher" class="control-label">Teacher name</label>
+                <select asp-for="IdTeacher" class ="form-control" asp-items="ViewBag.IdTeacher"></select>
+            </div>
+            <div class="form-group">
+                <label asp-for="IdClass" class="control-label">Class</label>
+                <select asp-for="IdClass" class ="form-control" asp-items="ViewBag.IdClass"></select>
+            </div>
+            <div class="form-group">
+                <input type="submit" value="Create" class="btn btn-primary"  />
+                @{
+                    var item = ViewBag.IdLectuer;
+                        <a class="btn btn-dark" asp-action="ManagerTeacherLectuer" asp-route-idLectuer="@item">@item Back to The List</a>
+                    
+                }
+                
+                
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

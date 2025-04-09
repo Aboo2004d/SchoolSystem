@@ -1,0 +1,32 @@
+@model SchoolSystem.Data.StudentLectuer
+
+@{
+    ViewData["Title"] = "Details";
+}
+<br>
+<br>
+<br>
+<h1>Details Student In Lectuer</h1>
+
+<div>
+    <hr />
+    <dl class="row">
+        
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.IdLectuerNavigation)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.IdLectuerNavigation.Id)
+        </dd>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.IdStudentNavigation)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.IdStudentNavigation.Id)
+        </dd>
+    </dl>
+</div>
+<div>
+    <a class="btn btn-warning" asp-action="Edit" asp-route-id="@Model?.Id">Edit</a> 
+    <a class="btn btn-dark" asp-action="Index">Back to List</a>
+</div>

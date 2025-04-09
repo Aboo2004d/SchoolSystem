@@ -1,0 +1,83 @@
+@model IEnumerable<SchoolSystem.Models.MenegarTeacherViewModel>
+
+@{
+    ViewData["Title"] = "Manager Teacher";
+}
+<br>
+<br>
+<br>
+<a class="btn btn-dark" asp-action="Index">Back to List</a>
+<table class="table">
+    <hr/>
+    <thead>
+        <tr>
+            <th>Teacher Name</th>
+            <th>Phone Number</th>
+            <th>Email Address</th>
+        </tr>
+    </thead>
+    <tbody> 
+        @foreach (var teacher in Model)
+        {
+            <tr >
+                <td >
+                    @teacher.TeacherName
+                </td>
+                <td >
+                    @teacher.Phone
+                </td>
+                <td >
+                    @teacher.EmailAddress
+                </td>
+                
+            </tr>
+        }
+    </tbody>
+</table>
+
+<form asp-action="Delete" id="DeleteTeacher" >
+    <input type="hidden" name="Id" id="teacherid" />
+</form>
+
+@section Scripts {
+    <script>
+        $(function() {
+            // تفعيل DataTable
+            new DataTable('.table');
+            
+            // التعامل مع زر الحذف
+            $('.delete').click(function(e) {
+                e.preventDefault();
+
+                var btn = $(this);
+                var id = btn.data('id');
+
+                // استخدام SweetAlert لتأكيد الحذف
+                Swal.fire({
+                    title: "Are you sure?",
+                    text: "You won't be able to revert this!",
+                    icon: "warning",
+                    showCancelButton: true,
+                    confirmButtonColor: "#3085d6",
+                    cancelButtonColor: "#d33",
+                    confirmButtonText: "Yes, delete it!"
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // وضع الـ id في الحقل المخفي
+                        $('#teacherid').val(id);
+
+                        // تقديم النموذج
+                        $('#DeleteTeacher').submit();
+
+                        // إظهار رسالة النجاح
+                        Swal.fire({
+                            title: "Deleted!",
+                            text: "Teacher has been deleted.",
+                            icon: "success"
+                        });
+                    }
+                });
+            });
+        });
+    </script>
+}
