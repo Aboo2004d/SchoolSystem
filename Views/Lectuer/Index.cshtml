@@ -16,13 +16,13 @@
     <thead>
         <tr>
             <th>
-                @Html.DisplayNameFor(model => model.Name)
+                Lectuer
+            </th>
+            <th >
+                Students 
             </th>
             <th>
-                Number of Student 
-            </th>
-            <th>
-                Number of Teacher 
+                Teachers 
             </th>
             <th>
             Options
@@ -41,11 +41,18 @@
             <td>
                 @item.NumberOfTeacherInLectuer
             </td>
-            <td>
-                <a class="btn btn-warning" asp-action="Edit" asp-route-id="@item.Id">Edit</a>
-                <a class="btn btn-info" asp-action="ManagerLectuer" asp-route-idLectuer="@item.Id">Manager Lectuer</a>
-                <a class="btn btn-info" asp-action="ManagerTeacherLectuer" asp-route-idLectuer="@item.Id">Manager Teacher</a>
-                <a class="btn btn-danger delete" data-id="@item.Id">Delete</a>
+            <td >
+                <div class="dropdown">
+                    <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+                        Manager
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                        <li><a class="dropdown-item" asp-action="Edit" asp-route-id="@item.Id">Edit</a></li>
+                        <li><a class="dropdown-item"  asp-action="ManagerLectuer" asp-route-idLectuer="@item.Id">Lectuer</a></li>
+                        <li><a class="dropdown-item" asp-action="ManagerTeacherLectuer" asp-route-idLectuer="@item.Id">Teacher</a></li>
+                        <li><a class="dropdown-item"  data-id="@item.Id">Delete</a></li>
+                    </ul>
+                </div>
             </td>
         </tr>
 }

@@ -31,7 +31,17 @@ break;
         {
             <tr >
                 <td >
-                    @teacher.TeacherName 
+                    @{
+                        var fullname = @teacher.TeacherName .Split(' ');
+                        var firstName = fullname.FirstOrDefault();
+                        var lastName = fullname.LastOrDefault();
+                        if(fullname.Length > 1){
+                            lastName = fullname.LastOrDefault();
+                            <p>@firstName - @lastName</p> 
+                        }else{
+                            @firstName
+                        }
+                    }
                 </td>
                 <td >
                     @if(teacher.ClassroomName != null){

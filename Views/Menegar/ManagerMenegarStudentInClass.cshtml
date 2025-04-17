@@ -6,6 +6,9 @@
 <br>
 <br>
 <br>
+<h1>Manager Student In Class</h1>
+<hr />
+
 @foreach(var item in Model){
     <a class="btn btn-success" asp-controller="Menegar" asp-action="CreateStudentWithClass" asp-route-idClass="@item.IdClass">Add Student To Class</a>
     <a class="btn btn-dark" asp-controller="Menegar" asp-action="ManagerMenegarClass">Back to List</a>
@@ -14,13 +17,14 @@
 <br>
 @if (Model.Any(m => m.StudentName != null))
 {
-<table class="table">
     <hr/>
+<table class="table">
+    
     <thead>
         <tr>
             <th>Student</th>
             <th>Class</th>
-            <th></th>
+            <th>Optiones</th>
         </tr>
     </thead>
     <tbody> 
@@ -28,7 +32,17 @@
         {
             <tr >
                 <td >
-                    @TheClass.StudentName
+                    @{
+                        var fullname = TheClass.StudentName.Split(' ');
+                        var firstName = fullname.FirstOrDefault();
+                        var lastName = fullname.LastOrDefault();
+                        if(fullname.Length > 1){
+                            lastName = fullname.LastOrDefault();
+                            <p>@firstName - @lastName</p> 
+                        }else{
+                            @firstName
+                        }
+                    }
                 </td>
                 <td >
                     @TheClass.ClassroomName

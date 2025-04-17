@@ -9,10 +9,10 @@ public partial class Menegar
     
     public int Id { get; set; }
 
-    [Display(Name="Full Name")]
+    [Display(Name="Name")]
     public string Name { get; set; } = null!;
 
-    [Display(Name="Phone Number")]
+    [Display(Name="Phone")]
     public int Phone { get; set; }
 
     [Display(Name="Email Address")]

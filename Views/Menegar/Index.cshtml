@@ -12,19 +12,19 @@
     <a class="btn btn-success" asp-action="Create">Create New Menegar</a>
     <a class="btn btn-dark" asp-controller="Home" asp-action="Index">Home</a>
 </p>
-<table class="table">
+<table class="table" id="myTable">
     <thead>
         <tr>
-            <th style="width: 20%;">
+            <th class="w-40 w-sm-20">
                 @Html.DisplayNameFor(model => model.Name)
             </th>
-            <th>
+            <th class="d-none d-sm-table-cell">
                 @Html.DisplayNameFor(model => model.Phone)
             </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Email)
+            <th >
+                Email
             </th>
-            <th style="width: 40%;" >
+            <th class="w-30 w-sm-40" >
                 Optiones
             </th>
         </tr>
@@ -34,20 +34,50 @@
     var email = Context.Session.GetString("Email");
     @if(email == item.Email){
             <tr>
-                <td>
-                    @Html.DisplayFor(modelItem => item.Name)
+                <td class="w-75 w-sm-20">
+                    @{
+                        var fullname = item.Name.Split(' ');
+                        var firstName = fullname.FirstOrDefault();
+                        var lastName = fullname.LastOrDefault();
+                        if(fullname.Length > 1){
+                            lastName = fullname.LastOrDefault();
+                            <p>@firstName - @lastName</p> 
+                        }else{
+                            @firstName
+                        }
+                    }
                 </td>
-                <td>
+                <td class="d-none d-sm-table-cell">
                     @Html.DisplayFor(modelItem => item.Phone)
                 </td>
-                <td>
-                    @Html.DisplayFor(modelItem => item.Email)
+                <td >
+                    @{
+                        if(item.Email != null){
+                            var emailParts = item.Email.Split('@');
+                            var emailName = emailParts[0];
+                            var emailDomain = emailParts[1];
+                            string visibleName = new string(emailName.Take(3).ToArray());
+
+                            // الجزء الأخير من النطاق
+                            var lastDomainPart = emailDomain.Split('.').Last();
+
+                            // الطباعة في سطر واحد:
+                            <text>@visibleName***@@***.@lastDomainPart</text>
+                            } 
+                    }
                 </td>
-                <td>
-                    <a class="btn btn-info" asp-action="ManagerMenegarStudent" >Stud Mgr</a> 
-                    <a class="btn btn-info" asp-controller="Teacher" asp-action="Index" >Teach Mgr</a>
-                    <a class="btn btn-info" asp-action="ManagerMenegarClass" asp-controller="Menegar" >Class Mgr</a> 
-                    <a class="btn btn-info" asp-action="Index" asp-controller="Lectuer">Lect Mgr</a> 
+                <td class="w-25 w-sm-40">
+                    <div class="dropdown">
+                        <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+                            Manager
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                            <li><a class="dropdown-item" asp-action="ManagerMenegarStudent">Student</a></li>
+                            <li><a class="dropdown-item" asp-controller="Teacher" asp-action="Index">Teacher</a></li>
+                            <li><a class="dropdown-item" asp-controller="Menegar" asp-action="ManagerMenegarClass">Class</a></li>
+                            <li><a class="dropdown-item" asp-controller="Lectuer" asp-action="Index">Lectuer</a></li>
+                        </ul>
+                    </div>
                 </td>
             </tr>
     }
@@ -55,6 +85,16 @@
     </tbody>
 </table>
 
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            $('#myTable').DataTable();  // تفعيل DataTables على الجدول الذي يحمل id="myTable"
+        });
+    </script>
+}
+
+
+@*
 <form asp-action="Delete" id="DeleteMenegar" >
     <input type="hidden" name="Id" id="menegarid" />
 </form>
@@ -101,3 +141,4 @@
         });
     </script>
 }
+*@

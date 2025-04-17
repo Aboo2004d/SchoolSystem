@@ -5,7 +5,8 @@
 }
 <br>
 <br>
-
+<br>
+<h1>Manager Student</h1>
 <br>
 <div>
     <a class="btn btn-success" asp-controller="Student" asp-action="Create">Create New Student</a>
@@ -16,9 +17,9 @@
     <hr/>
     <thead>
         <tr>
-            <th >Name Student</th>
-            <th style="width: 50%;">Class</th>
-            <th style="width: 20%;">Options</th>
+            <th >Name</th>
+            <th >Class</th>
+            <th >Options</th>
         </tr>
     </thead>
     <tbody> 
@@ -26,7 +27,17 @@
         {
             <tr >
                 <td >
-                    @student.StudentName
+                    @{
+                        var fullname = student.StudentName.Split(' ');
+                        var firstName = fullname.FirstOrDefault();
+                        var lastName = fullname.LastOrDefault();
+                        if(fullname.Length > 1){
+                            lastName = fullname.LastOrDefault();
+                            <p>@firstName - @lastName</p> 
+                        }else{
+                            @firstName
+                        }
+                    }
                 </td>
                 <td >
                     @if(student.ClassroomName != null){
@@ -35,9 +46,17 @@
                         <a class="btn btn-success" asp-controller="Menegar" asp-action="AddStudentWithClass" asp-route-idstudent="@student.IdStudent">Add Student</a>
                     }
                 </td>
-                <td >
-                    <a class="btn btn-primary" asp-controller="Student" asp-action="Details" asp-route-id="@student.IdStudent">Details</a>
-                   <a class="btn btn-danger delete" data-id="@student.IdStudent">Delete</a>
+                
+                <td class="w-25 w-sm-40">
+                    <div class="dropdown">
+                        <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+                            Manager
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                            <a class="btn btn-primary" asp-controller="Student" asp-action="Details" asp-route-id="@student.IdStudent">Details</a>
+                            <a class="btn btn-danger delete" data-id="@student.IdStudent">Delete</a>
+                        </ul>
+                    </div>
                 </td>
             </tr>
         }

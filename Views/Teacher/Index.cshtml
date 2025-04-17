@@ -21,36 +21,68 @@
 <table class="table">
     <thead>
         <tr>
-            <th>
-                @Html.DisplayNameFor(model => model.Name)
+            <th class="w-75 w-sm-20">
+                Name
             </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Phone)
+            <th class="d-none d-sm-table-cell">
+                Phone
             </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Email)
+            <th >
+                Email
             </th>
-            <th></th>
+            <th class="w-25 w-sm-40">@if(role == "admin"){
+                <span>Optiones</span>
+                }</th>
         </tr>
     </thead>
     <tbody>
         @if(role == "admin"){
            @foreach (var item in Model) {
                 <tr>
-                    <td>
-                        @Html.DisplayFor(modelItem => item.Name)
+                    <td class="w-75 w-sm-20">
+                        @{
+                            var fullname = item.Name.Split(' ');
+                            var firstName = fullname.FirstOrDefault();
+                            var lastName = fullname.LastOrDefault();
+                            if(fullname.Length > 1){
+                                lastName = fullname.LastOrDefault();
+                                <p>@firstName - @lastName</p> 
+                            }else{
+                                @firstName
+                            }
+                        }
                     </td>
-                    <td>
+                    <td class="d-none d-sm-table-cell">
                         @Html.DisplayFor(modelItem => item.Phone)
                     </td>
-                    <td>
-                        @Html.DisplayFor(modelItem => item.Email)
+                    <td >
+                        @{
+                            if(item.Email != null){
+                                var emailParts = item.Email.Split('@');
+                                var emailName = emailParts[0];
+                                var emailDomain = emailParts[1];
+                                string visibleName = new string(emailName.Take(3).ToArray());
+
+                                // الجزء الأخير من النطاق
+                                var lastDomainPart = emailDomain.Split('.').Last();
+
+                                // الطباعة في سطر واحد:
+                                <text>@visibleName***@@***.@lastDomainPart</text>
+                                } 
+                        }
                     </td>
-                    <td>
-                        <a class="btn btn-warning" asp-action="Edit" asp-route-id="@item.Id">Edit</a>
-                        <a class="btn btn-info" asp-action="ManagerTeacher" asp-route-teacherId="@item.Id">Manager</a>
-                        <a class="btn btn-danger delete" data-id="@item.Id">Delete</a>
-                        
+                    
+                    <td class="w-25 w-sm-40">
+                        <div class="dropdown">
+                            <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+                                Manager
+                            </button>
+                            <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                                <li><a class="dropdown-item"  asp-action="Edit" asp-route-id="@item.Id">Edit</a></li>
+                                <li><a class="dropdown-item"  asp-action="ManagerTeacher" asp-route-teacherId="@item.Id">Manager</a></li>
+                                <li><a class="dropdown-item" data-id="@item.Id">Delete</a></li>
+                            </ul>
+                        </div>
                     </td>
                 </tr>
                 
@@ -60,22 +92,28 @@
                 var email = Context.Session.GetString("Email");
                 @if(email == item.Email){
                     <tr>
-                        <td>
-                            role == "admin"
+                        <td class="w-75 w-sm-20">
                             @Html.DisplayFor(modelItem => item.Name)
                         </td>
-                        <td>
+                        <td class="d-none d-sm-table-cell">
                             @Html.DisplayFor(modelItem => item.Phone)
                         </td>
-                        <td>
+                        <td class="d-none d-sm-table-cell">
                             @Html.DisplayFor(modelItem => item.Email)
                         </td>
-                        <td>
-                            @if(role == "admin"){
-                                <a class="btn btn-warning" asp-action="Edit" asp-route-id="@item.Id">Edit</a>
-                                <a class="btn btn-info" asp-action="ManagerTeacher" asp-route-teacherId="@item.Id">Manager</a>
-                                <a class="btn btn-danger delete" data-id="@item.Id">Delete</a>
-                            }
+                        <td class="w-25 w-sm-40">
+                            <div class="dropdown">
+                                <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+                                    Manager
+                                </button>
+                                <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                                    @if(role == "admin"){
+                                        <a class="btn btn-warning" style="width: 30%;" asp-action="Edit" asp-route-id="@item.Id">Edit</a>
+                                        <a class="btn btn-info" style="width: 30%; asp-action="ManagerTeacher" asp-route-teacherId="@item.Id">Manager</a>
+                                        <a class="btn btn-danger delete" style="width: 30%;" data-id="@item.Id">Delete</a>
+                                    }
+                                </ul>
+                            </div>
                         </td>
                     </tr>
                 }

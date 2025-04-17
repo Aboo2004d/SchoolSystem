@@ -9,7 +9,7 @@
 @foreach(var lectuer in Model){
 <h1>Student Registered with the Lectuer: @lectuer.LectureName</h1>
 <br>
-<a class="btn btn-success" asp-controller="Lectuer" asp-action="CreateStudentLectuer" asp-route-idLectuer="@lectuer.IdLectuer">@lectuer.IdLectuer Add Student In Lectuer</a>
+<a class="btn btn-success" asp-controller="Lectuer" asp-action="CreateStudentLectuer" asp-route-idLectuer="@lectuer.IdLectuer">Add Student In Lectuer</a>
 <a class="btn btn-dark" asp-action="Index">Back to List</a>
 break;
 }
@@ -21,10 +21,10 @@ break;
     <hr/>
     <thead>
         <tr>
-            <th>Name Student</th>
-            <th>Name Class</th>
-            <th>Teacher Name</th>
-            <th></th>
+            <th>Student</th>
+            <th>Class</th>
+            <th>Teacher</th>
+            <th>Optiones</th>
         </tr>
     </thead>
     <tbody> 
@@ -32,14 +32,34 @@ break;
         {
             <tr >
                 <td >
-                    @student.StudentName
+                    @{
+                        var fullname = student.StudentName.Split(' ');
+                        var firstName = fullname.FirstOrDefault();
+                        var lastName = fullname.LastOrDefault();
+                        if(fullname.Length > 1){
+                            lastName = fullname.LastOrDefault();
+                            <p>@firstName - @lastName</p> 
+                        }else{
+                            @firstName
+                        }
+                    }
                 </td>
                 <td >
                     @student.ClassroomName
                 </td>
                 <td >
                     @if(student.TeacherName != null){
-                        @student.TeacherName 
+                        var Teafullname = student.TeacherName.Split(' ');
+                        var TeafirstName = Teafullname.FirstOrDefault();
+                        var TealastName = Teafullname.LastOrDefault();
+                        if(Teafullname.Length > 1){
+                            TealastName = Teafullname.LastOrDefault();
+                            <p>@TeafirstName - @TealastName</p> 
+                        }else{
+                            @TeafirstName
+                        }
+                        
+                        
                     }else {
                         <a class="btn btn-success" asp-action="Create" asp-controller="TeacherLectuer" asp-route-idLectuer="@student.IdLectuer">@student.IdLectuer Add Teacher</a>
                     }

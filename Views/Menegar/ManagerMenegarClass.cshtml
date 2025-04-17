@@ -6,6 +6,8 @@
 <br>
 <br>
 <br>
+<h1>Manager Class</h1>
+<hr />
 <a class="btn btn-success" asp-controller="TheClass" asp-action="Create" asp-action="Create">Create New Class</a>
 <a class="btn btn-dark" asp-action="Index">Back to List</a>
 <table class="table">
@@ -13,8 +15,8 @@
     <thead>
         <tr>
             <th>Class</th>
-            <th>Number of students</th>
-            <th></th>
+            <th style="font-size: small;">Number of students</th>
+            <th>Optiones</th>
         </tr>
     </thead>
     <tbody> 
@@ -27,10 +29,17 @@
                 <td >
                     @TheClass.NumberOfStudents
                 </td>
-                <td>
-                    <a class="btn btn-warning" asp-controller="TheClass" asp-action="Edit" asp-route-id="@TheClass.id">Edit</a>
-                    <a class="btn btn-info" asp-action="ManagerMenegarStudentInClass" asp-route-idClass="@TheClass.id" >Stud Mgr</a> 
-                    <a class="btn btn-danger delete" data-id="@TheClass.id">Delete</a>
+                <td class="w-25 w-sm-40">
+                    <div class="dropdown">
+                        <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+                            Manager
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                            <li><a class="dropdown-item" asp-controller="TheClass" asp-action="Edit" asp-route-id="@TheClass.id">Edit</a></li>
+                            <li><a class="dropdown-item"  asp-action="ManagerMenegarStudentInClass" asp-route-idClass="@TheClass.id" >Student</a> </li>
+                            <li><a class="dropdown-item"  data-id="@TheClass.id">Delete</a></li>
+                        </ul>
+                    </div>
                 </td>
             </tr>
         }
