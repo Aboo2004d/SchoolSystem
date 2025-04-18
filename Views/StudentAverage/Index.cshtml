@@ -1,0 +1,47 @@
+@model IEnumerable<SchoolSystem.Data.StudentAverage>
+
+@{
+    ViewData["Title"] = "Index";
+}
+
+<h1>Index</h1>
+
+<p>
+    <a asp-action="Create">Create New</a>
+</p>
+<table class="table">
+    <thead>
+        <tr>
+            <th>
+                @Html.DisplayNameFor(model => model.AverageGrade)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.IdClassNavigation)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.IdStudentNavigation)
+            </th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+@foreach (var item in Model) {
+        <tr>
+            <td>
+                @Html.DisplayFor(modelItem => item.AverageGrade)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.IdClassNavigation.Id)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.IdStudentNavigation.Id)
+            </td>
+            <td>
+                <a asp-action="Edit" asp-route-id="@item.IdStudentAvg">Edit</a> |
+                <a asp-action="Details" asp-route-id="@item.IdStudentAvg">Details</a> |
+                <a asp-action="Delete" asp-route-id="@item.IdStudentAvg">Delete</a>
+            </td>
+        </tr>
+}
+    </tbody>
+</table>

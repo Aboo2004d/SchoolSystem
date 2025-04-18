@@ -200,7 +200,7 @@ public AccountController(SystemSchoolDbContext context)
         }
 
         // إنشاء حساب جديد
-        var account = new Account
+        var account = new Acount
         {
             UserName = model.UserName,
             Password = hashedPassword, // تخزين القيمة المشفرة
@@ -211,7 +211,7 @@ public AccountController(SystemSchoolDbContext context)
         };
 
         // إضافة الحساب إلى قاعدة البيانات
-        _context.Acounts.Add(account);
+        _context.Add(account);
         _context.SaveChanges();
 
         // إنشاء مطالبات الهوية (Claims)

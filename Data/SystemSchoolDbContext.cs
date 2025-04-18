@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using SchoolSystem.Models;
+using SchoolSystem.Data;
 
 namespace SchoolSystem.Data;
 
@@ -16,11 +17,15 @@ public partial class SystemSchoolDbContext : DbContext
 
     public virtual DbSet<Lectuer> Lectuers { get; set; }
 
+    public virtual DbSet<Grade> Grades { get; set; }
+
     public virtual DbSet<Menegar> Menegars { get; set; }
 
     public virtual DbSet<Student> Students { get; set; }
 
-     public DbSet<Account> Acounts { get; set; }
+    public virtual DbSet<Acount> Acounts { get; set; }
+
+    public virtual DbSet<StudentAverage> StudentAverages { get; set; }
 
     public virtual DbSet<StudentClass> StudentClasses { get; set; }
 
@@ -38,6 +43,19 @@ public partial class SystemSchoolDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+
+        modelBuilder.Entity<Acount>(entity =>
+        {
+            entity.ToTable("Acounts"); // تحديد اسم الجدول في قاعدة البيانات
+            entity.HasKey(e => e.Id); // تعيين العمود Id كمفتاح أساسي
+            entity.Property(e => e.UserName).IsRequired().HasMaxLength(50); // تحديد الحقل UsersName
+            entity.Property(e => e.Password).IsRequired().HasMaxLength(500); // تحديد الحقل Passwords
+            entity.Property(e => e.Email).HasMaxLength(50); // تحديد الحقل Email
+            entity.Property(e => e.Role).HasMaxLength(50); // تحديد الحقل Role
+            entity.Property(e => e.ResetToken).IsRequired().HasMaxLength(200); // تحديد الحقل ResetToken
+            entity.Property(e => e.ResetTokenExpiry).IsRequired(); // تحديد الحقل ResetTokenExpiry
+        });
+
         modelBuilder.Entity<ClassLectuer>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__ClassLec__3213E83F8327C66B");
@@ -55,7 +73,35 @@ public partial class SystemSchoolDbContext : DbContext
                 .HasForeignKey(d => d.IdLectuer)
                 .HasConstraintName("FK__ClassLect__IdLec__6754599E");
         });
+        
+        modelBuilder.Entity<Grade>(entity =>
+        {
+            entity.HasKey(e => e.GradesId); // المفتاح الأساسي
+            entity.Property(e => e.FirstMonth).HasDefaultValue(0);
+            entity.Property(e => e.Mid).HasDefaultValue(0);
+            entity.Property(e => e.SecondMonth).HasDefaultValue(0);
+            entity.Property(e => e.Activity).HasDefaultValue(0);
+            entity.Property(e => e.Final).HasDefaultValue(0);
+            
+            // تعريف الحقل المحسوب
+            entity.Property(e => e.Total)
+                .HasComputedColumnSql("[FirstMonth] + [Mid] + [SecondMonth] + [Activity] + [Final]", stored: true);
 
+            // تحديد العلاقات مع الكائنات الأخرى
+            entity.HasOne(e => e.IdStudentNavigation)
+                .WithMany()
+                .HasForeignKey(e => e.IdStudent)
+                .OnDelete(DeleteBehavior.Cascade); // عندما يتم حذف الطالب، يتم حذف درجاته
+
+            entity.HasOne(e => e.IdTeacherNavigation)
+                .WithMany()
+                .HasForeignKey(e => e.IdTeacher);
+
+            entity.HasOne(e => e.IdLectuerNavigation)
+                .WithMany()
+                .HasForeignKey(e => e.IdLectuer);
+        });
+        
         modelBuilder.Entity<Lectuer>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__Lectuer__3213E83FBA6843F5");
@@ -66,6 +112,36 @@ public partial class SystemSchoolDbContext : DbContext
             entity.Property(e => e.Name)
                 .HasMaxLength(50)
                 .IsUnicode(false);
+        });
+
+        modelBuilder.Entity<StudentAverage>(entity =>
+        {
+            entity.HasKey(e => e.IdStudentAvg);
+
+            entity.Property(e => e.AverageGrade).HasDefaultValue(0);
+
+            entity.HasOne(e => e.IdStudentNavigation)
+                .WithMany()
+                .HasForeignKey(e => e.IdStudent);
+
+            entity.HasOne(e => e.IdClassNavigation)
+                .WithMany()
+                .HasForeignKey(e => e.IdClass);
+        });
+
+        modelBuilder.Entity<Attendance>(entity =>
+        {
+            entity.HasKey(e => e.AttendanceId);
+
+            // تعريف الحقول المحسوبة
+            entity.Property(e => e.TotalDays)
+                .HasComputedColumnSql("[PresentDays] + [AbsentDays]", stored: true);
+
+            // تحديد العلاقة مع جدول الطلاب
+            entity.HasOne(e => e.IdStudentNavigation)
+                .WithMany()
+                .HasForeignKey(e => e.IdStudent)
+                .OnDelete(DeleteBehavior.Cascade); // عندما يتم حذف الطالب، يتم حذف سجلات الحضور والغياب الخاصة به
         });
 
         modelBuilder.Entity<Menegar>(entity =>
@@ -219,4 +295,6 @@ public partial class SystemSchoolDbContext : DbContext
     }
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
+
+public DbSet<SchoolSystem.Data.Attendance> Attendance { get; set; } = default!;
 }
