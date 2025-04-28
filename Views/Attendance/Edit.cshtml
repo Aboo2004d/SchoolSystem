@@ -11,14 +11,22 @@
 <div class="row">
     <div class="col-md-4">
         <form asp-action="Edit">
-
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-            <input type="hidden" asp-for="Id" />
-            <input type="hidden" asp-for="IdStudent" value="@ViewBag.IdStudent" class="form-control" />
-            <input type="hidden" asp-for="IdLectuer" value="@ViewBag.IdLectuer" class="form-control" />
-            <input type="hidden" asp-for="IdTeacher" value="@ViewBag.IdTeacher" class="form-control" />
-            <input type="hidden" asp-for="DateAndTime" value="@ViewBag.DateAndTime" class="form-control" />
+
             <div class="form-group">
+                @{
+                    int IdStudent = ViewBag.IdStudent;
+                    int IdTeacher = ViewBag.IdTeacher;
+                    int IdLectuer = ViewBag.IdLectuer;
+                    int IdClass = ViewBag.IdClass;
+                    DateOnly DateAndTime = ViewBag.DateAndTime;
+                }
+                <input type="hidden" asp-for="Id" />
+                <input type="hidden" asp-for="IdStudent" value="@IdStudent" class="form-control" />
+                <input type="hidden" asp-for="IdTeacher" value="@IdTeacher" class="form-control" />
+                <input type="hidden" asp-for="IdLectuer" value="@IdLectuer" class="form-control" />
+                <input type="hidden" asp-for="IdClass" value="@IdClass" class="form-control" />
+                <input type="hidden" asp-for="DateAndTime" value="@DateAndTime" class="form-control" />
                 <label asp-for="AttendanceStatus" class="control-label"></label>
                 <span asp-validation-for="AttendanceStatus" class="text-danger"></span>
                 <select asp-for="AttendanceStatus" asp-items="ViewBag.Status" class="form-control attendance-status"></select>

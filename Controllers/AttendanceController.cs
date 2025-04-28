@@ -231,10 +231,16 @@ namespace SchoolSystem.Controllers
                     {
                         return NotFound("Student not found.");
                     }
+                    Console.WriteLine($"Teacher: {attendance.IdTeacher}");
+                    Console.WriteLine($"Student: {student.Name}");
+                    Console.WriteLine($"IdStudent: {attendance.IdStudent}");
+                    Console.WriteLine($"IdLectuer: {attendance.IdLectuer}");
+                    Console.WriteLine($"IdClass: {attendance.IdClass}");
                     ViewData["NameStudent"] =student.Name;
                     ViewData["IdLectuer"] =  attendance.IdLectuer;
                     ViewData["IdStudent"] = attendance.IdStudent;
                     ViewData["IdTeacher"] = attendance.IdTeacher;
+                    ViewData["IdClass"] = attendance.IdClass;
                     ViewData["DateAndTime"] = attendance.DateAndTime;
                     ViewData["Status"] = new SelectList(new List<SelectListItem> {  
                         new SelectListItem { Text = "Present", Value = "1" },
@@ -261,7 +267,7 @@ namespace SchoolSystem.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,AttendanceStatus,DateAndTime,Excuse,IdTeacher,IdLectuer,IdStudent")] Attendance attendance)
+        public async Task<IActionResult> Edit(int id, [Bind("Id,AttendanceStatus,DateAndTime,Excuse,IdTeacher,IdLectuer,IdStudent,IdClass")] Attendance attendance)
         {
             if (id != attendance.Id)
             {
@@ -272,6 +278,14 @@ namespace SchoolSystem.Controllers
             {
                 try
                 {
+                    Console.WriteLine($"Id: {attendance.Id}");
+                    Console.WriteLine($"IdStudent: {attendance.IdStudent}");
+                    Console.WriteLine($"IdLectuer: {attendance.IdLectuer}");
+                    Console.WriteLine($"IdClass: {attendance.IdClass}");
+                    Console.WriteLine($"IdTeacher: {attendance.IdTeacher}");
+                    Console.WriteLine($"AttendanceStatus: {attendance.AttendanceStatus}");
+                    Console.WriteLine($"DateAndTime: {attendance.DateAndTime}");
+                    Console.WriteLine($"Excuse: {attendance.Excuse}");
                     _context.Update(attendance);
                     await _context.SaveChangesAsync();
                 }
