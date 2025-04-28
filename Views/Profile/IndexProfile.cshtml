@@ -30,18 +30,7 @@
     </dl>
 </div>
 
-<!-- الروابط لتعديل البروفايل -->
-@if (Model.Role == "admin")
-{
-    <a asp-action="EditAdmin" class="btn btn-primary" asp-route-id="@Model.Id">Edit Profile</a>
-}
-else if (Model.Role == "Student")
-{
-    <a asp-action="EditStudent" class="btn btn-primary" asp-route-id="@Model.Id">Edit Profile</a>
-}
-else if (Model.Role == "Teacher")
-{
-    <a asp-action="EditTeacher" class="btn btn-primary" asp-route-id="@Model.Id">Edit Profile</a>
-}
-
-<a asp-controller="Home" asp-action="Index" class="btn btn-secondary">Back to Home</a>
+<div>
+    <a asp-action="Edit" class="btn btn-primary" asp-route-id="@Model.Id">Edit Profile</a>
+    <a asp-controller="Home" asp-action="Index" class="btn btn-secondary">Back to Home</a>
+</div>

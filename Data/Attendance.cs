@@ -1,21 +1,31 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SchoolSystem.Data;
 
 public partial class Attendance
 {
-    public int AttendanceId { get; set; }
+    public int Id { get; set; }
 
-    public int PresentDays { get; set; }
+    public string AttendanceStatus { get; set; } = null!;
 
-    public int AbsentDays { get; set; }
+    public DateOnly? DateAndTime { get; set; }
 
-    public int? TotalDays { get; set; }
+    public string? Excuse { get; set; }
 
-    public int IdStudent { get; set; }
+    public int? IdTeacher { get; set; }
 
-    [ForeignKey("IdStudent")]
+    public int? IdLectuer { get; set; }
+
+    public int? IdStudent { get; set; }
+
+    public int? IdClass { get; set; }
+
+    public virtual TheClass? IdClassNavigation { get; set; }
+
+    public virtual Lectuer? IdLectuerNavigation { get; set; }
+
     public virtual Student? IdStudentNavigation { get; set; }
+
+    public virtual Teacher? IdTeacherNavigation { get; set; }
 }

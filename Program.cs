@@ -40,7 +40,8 @@ var app = builder.Build();
 // تكوين خط الأنابيب HTTP
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Home/Error");
+    app.UseDeveloperExceptionPage();
+    //app.UseExceptionHandler("/Home/Error");
     app.UseHsts(); // استخدام HSTS لتحسين الأمان
 }
 

@@ -77,9 +77,9 @@
                                     }else if (Context.Session.GetString("Role").Equals("Teacher")){
                                         <li><a class="dropdown-item" asp-area="" asp-controller="Teacher" asp-action="Index">Manager</a></li>
                                     }else if (Context.Session.GetString("Role").Equals("Student")){
-                                        <li><a class="dropdown-item" asp-area="" asp-controller="Student" asp-action="Index">Manager</a></li>
+                                        int id = int.Parse(Context.Session.GetString("Id").ToString());
+                                        <li><a class="dropdown-item" asp-area="" asp-controller="Student" asp-action="Index" asp-route-StudentId="@id">Manager</a></li>
                                     }
-                                    
                                     <li><a class="dropdown-item" asp-area="" asp-controller="Profile" asp-action="IndexProfile">Profile</a></li>
                                     <li><a class="dropdown-item" asp-area="" asp-controller="Account" asp-action="Logout">Logout</a></li>
                                 </ul>

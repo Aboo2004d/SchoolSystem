@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SchoolSystem.Data;
 
@@ -8,15 +7,15 @@ public partial class Grade
 {
     public int GradesId { get; set; }
 
-    public int FirstMonth { get; set; }
+    public int? FirstMonth { get; set; }
 
-    public int Mid { get; set; }
+    public int? Mid { get; set; }
 
-    public int SecondMonth { get; set; }
+    public int? SecondMonth { get; set; }
 
-    public int Activity { get; set; }
+    public int? Activity { get; set; }
 
-    public int Final { get; set; }
+    public int? Final { get; set; }
 
     public int? Total { get; set; }
 
@@ -26,12 +25,9 @@ public partial class Grade
 
     public int? IdLectuer { get; set; }
 
-    [ForeignKey("IdLectuer")]
     public virtual Lectuer? IdLectuerNavigation { get; set; }
 
-    [ForeignKey("IdStudent")]
     public virtual Student? IdStudentNavigation { get; set; }
 
-    [ForeignKey("IdTeacher")]
     public virtual Teacher? IdTeacherNavigation { get; set; }
 }

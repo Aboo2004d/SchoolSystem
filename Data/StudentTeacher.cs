@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SchoolSystem.Data;
 
@@ -12,9 +11,7 @@ public partial class StudentTeacher
 
     public int IdTeacher { get; set; }
 
-    [ForeignKey("IdStudent")]
     public virtual Student IdStudentNavigation { get; set; } = null!;
-    
-    [ForeignKey("IdTeacher")]
+
     public virtual Teacher IdTeacherNavigation { get; set; } = null!;
 }

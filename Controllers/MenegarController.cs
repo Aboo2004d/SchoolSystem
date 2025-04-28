@@ -162,15 +162,35 @@ namespace SchoolSystem.Controllers
         {
             try{
                 var allstudents = await _context.Students
-                .Select(ts => new MenegarStudentViewModel{
-                    StudentName = ts.Name,
-                    IdStudent = ts.Id,
-                    ClassroomName = ts.StudentClasses.Any()? ts.StudentClasses.First().IdClassNavigation.Name:null
-                    })
+                    .GroupJoin(
+                        _context.Grades.Where(g => g.Total != null),
+                        student => student.Id,
+                        grade => grade.IdStudent,
+                        (student, grades) => new { student, grades })
+                        .Select(x => new MenegarStudentViewModel
+                        {
+                            IdStudent = x.student.Id,
+                            StudentName = x.student.Name,
+                            ClassroomName = x.student.StudentClasses.Any()
+                                ? x.student.StudentClasses.First().IdClassNavigation.Name
+                                : null,
+                            Average = x.grades.Any() ? x.grades.Average(g => g.Total.Value) : 0,
+                            Day = _context.Attendances
+                                .Where(att => att.IdStudent == x.student.Id && att.AttendanceStatus == "1").Count(),
+                            TotalDay = _context.Attendances
+                                .Where(att => att.IdStudent == x.student.Id).Count()
+                            
+                        })
                     .ToListAsync();
+
                     if (!allstudents.Any()){
                         return RedirectToAction(nameof(Index));
                     }
+                    foreach (var student in allstudents)
+                    {
+                        Console.WriteLine($"Student: {student.StudentName}, Average: {student.Average}, Day: {student.Day}, TotalDay: {student.TotalDay}");
+                    }
+                    
                 return View(allstudents);
                     
             }catch(Exception e){

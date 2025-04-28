@@ -9,6 +9,8 @@ public partial class TheClass
 
     public string Name { get; set; } = null!;
 
+    public virtual ICollection<Attendance> Attendances { get; set; } = new List<Attendance>();
+
     public virtual ICollection<ClassLectuer> ClassLectuers { get; set; } = new List<ClassLectuer>();
 
     public virtual ICollection<StudentAverage> StudentAverages { get; set; } = new List<StudentAverage>();

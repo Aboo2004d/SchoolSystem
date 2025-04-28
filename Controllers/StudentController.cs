@@ -21,8 +21,16 @@ namespace SchoolSystem.Controllers
         }
 
         // GET: Student
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(int StudentId)
         {
+            var avg = _context.Grades
+            .Where(g => g.IdStudent == StudentId && g.Total != null)
+            .Select(g => g.Total.Value)
+            .ToList()  // تحويل النتيجة لقائمة في الذاكرة
+            .DefaultIfEmpty(0)
+            .Average(); // حساب المتوسط
+            ViewBag.Avg = avg;
+            Console.WriteLine($"Avg: {avg}");
             return View(await _context.Students.ToListAsync());
         }
 

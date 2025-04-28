@@ -13,6 +13,8 @@ public partial class Teacher
 
     public string? Email { get; set; }
 
+    public virtual ICollection<Attendance> Attendances { get; set; } = new List<Attendance>();
+
     public virtual ICollection<Grade> Grades { get; set; } = new List<Grade>();
 
     public virtual ICollection<StudentTeacher> StudentTeachers { get; set; } = new List<StudentTeacher>();

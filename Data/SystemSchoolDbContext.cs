@@ -1,8 +1,6 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
-using SchoolSystem.Models;
-using SchoolSystem.Data;
 
 namespace SchoolSystem.Data;
 
@@ -13,17 +11,19 @@ public partial class SystemSchoolDbContext : DbContext
     {
     }
 
+    public virtual DbSet<Acount> Acounts { get; set; }
+
+    public virtual DbSet<Attendance> Attendances { get; set; }
+
     public virtual DbSet<ClassLectuer> ClassLectuers { get; set; }
 
-    public virtual DbSet<Lectuer> Lectuers { get; set; }
-
     public virtual DbSet<Grade> Grades { get; set; }
+
+    public virtual DbSet<Lectuer> Lectuers { get; set; }
 
     public virtual DbSet<Menegar> Menegars { get; set; }
 
     public virtual DbSet<Student> Students { get; set; }
-
-    public virtual DbSet<Acount> Acounts { get; set; }
 
     public virtual DbSet<StudentAverage> StudentAverages { get; set; }
 
@@ -43,17 +43,50 @@ public partial class SystemSchoolDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-
         modelBuilder.Entity<Acount>(entity =>
         {
-            entity.ToTable("Acounts"); // تحديد اسم الجدول في قاعدة البيانات
-            entity.HasKey(e => e.Id); // تعيين العمود Id كمفتاح أساسي
-            entity.Property(e => e.UserName).IsRequired().HasMaxLength(50); // تحديد الحقل UsersName
-            entity.Property(e => e.Password).IsRequired().HasMaxLength(500); // تحديد الحقل Passwords
-            entity.Property(e => e.Email).HasMaxLength(50); // تحديد الحقل Email
-            entity.Property(e => e.Role).HasMaxLength(50); // تحديد الحقل Role
-            entity.Property(e => e.ResetToken).IsRequired().HasMaxLength(200); // تحديد الحقل ResetToken
-            entity.Property(e => e.ResetTokenExpiry).IsRequired(); // تحديد الحقل ResetTokenExpiry
+            entity.HasKey(e => e.Id).HasName("PK__Acounts__3213E83F1B5AE3B5");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Email).HasMaxLength(50);
+            entity.Property(e => e.Passwords).HasMaxLength(500);
+            entity.Property(e => e.ResetToken).HasMaxLength(200);
+            entity.Property(e => e.ResetTokenExpiry).HasColumnType("datetime");
+            entity.Property(e => e.Role).HasMaxLength(50);
+            entity.Property(e => e.UsersName)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+        });
+
+        modelBuilder.Entity<Attendance>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__Attendan__3213E83FAD8350D2");
+
+            entity.ToTable("Attendance");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.AttendanceStatus)
+                .HasMaxLength(1)
+                .IsUnicode(false)
+                .HasDefaultValue("0")
+                .IsFixedLength();
+            entity.Property(e => e.Excuse).HasColumnType("text");
+
+            entity.HasOne(d => d.IdClassNavigation).WithMany(p => p.Attendances)
+                .HasForeignKey(d => d.IdClass)
+                .HasConstraintName("FK__Attendanc__IdCla__65F62111");
+
+            entity.HasOne(d => d.IdLectuerNavigation).WithMany(p => p.Attendances)
+                .HasForeignKey(d => d.IdLectuer)
+                .HasConstraintName("FK__Attendanc__IdLec__5D60DB10");
+
+            entity.HasOne(d => d.IdStudentNavigation).WithMany(p => p.Attendances)
+                .HasForeignKey(d => d.IdStudent)
+                .HasConstraintName("FK__Attendanc__IdStu__5E54FF49");
+
+            entity.HasOne(d => d.IdTeacherNavigation).WithMany(p => p.Attendances)
+                .HasForeignKey(d => d.IdTeacher)
+                .HasConstraintName("FK__Attendanc__IdTea__5C6CB6D7");
         });
 
         modelBuilder.Entity<ClassLectuer>(entity =>
@@ -63,45 +96,40 @@ public partial class SystemSchoolDbContext : DbContext
             entity.ToTable("ClassLectuer");
 
             entity.Property(e => e.Id).HasColumnName("id");
-            
 
             entity.HasOne(d => d.IdClassNavigation).WithMany(p => p.ClassLectuers)
                 .HasForeignKey(d => d.IdClass)
+                .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__ClassLect__IdCla__66603565");
 
             entity.HasOne(d => d.IdLectuerNavigation).WithMany(p => p.ClassLectuers)
                 .HasForeignKey(d => d.IdLectuer)
+                .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__ClassLect__IdLec__6754599E");
         });
-        
+
         modelBuilder.Entity<Grade>(entity =>
         {
-            entity.HasKey(e => e.GradesId); // المفتاح الأساسي
-            entity.Property(e => e.FirstMonth).HasDefaultValue(0);
-            entity.Property(e => e.Mid).HasDefaultValue(0);
-            entity.Property(e => e.SecondMonth).HasDefaultValue(0);
-            entity.Property(e => e.Activity).HasDefaultValue(0);
-            entity.Property(e => e.Final).HasDefaultValue(0);
-            
-            // تعريف الحقل المحسوب
-            entity.Property(e => e.Total)
-                .HasComputedColumnSql("[FirstMonth] + [Mid] + [SecondMonth] + [Activity] + [Final]", stored: true);
+            entity.HasKey(e => e.GradesId).HasName("PK__Grades__931A40BF88D8CDCA");
 
-            // تحديد العلاقات مع الكائنات الأخرى
-            entity.HasOne(e => e.IdStudentNavigation)
-                .WithMany()
-                .HasForeignKey(e => e.IdStudent)
-                .OnDelete(DeleteBehavior.Cascade); // عندما يتم حذف الطالب، يتم حذف درجاته
+            entity.ToTable(tb => tb.HasTrigger("trg_UpdateStudentAverage"));
 
-            entity.HasOne(e => e.IdTeacherNavigation)
-                .WithMany()
-                .HasForeignKey(e => e.IdTeacher);
+            entity.Property(e => e.GradesId).HasColumnName("GradesID");
+            entity.Property(e => e.Total).HasComputedColumnSql("(((([FirstMonth]+[Mid])+[SecondMonth])+[Activity])+[Final])", true);
 
-            entity.HasOne(e => e.IdLectuerNavigation)
-                .WithMany()
-                .HasForeignKey(e => e.IdLectuer);
+            entity.HasOne(d => d.IdLectuerNavigation).WithMany(p => p.Grades)
+                .HasForeignKey(d => d.IdLectuer)
+                .HasConstraintName("FK__Grades__IdLectue__7EF6D905");
+
+            entity.HasOne(d => d.IdStudentNavigation).WithMany(p => p.Grades)
+                .HasForeignKey(d => d.IdStudent)
+                .HasConstraintName("FK__Grades__IdStuden__7D0E9093");
+
+            entity.HasOne(d => d.IdTeacherNavigation).WithMany(p => p.Grades)
+                .HasForeignKey(d => d.IdTeacher)
+                .HasConstraintName("FK__Grades__IdTeache__7E02B4CC");
         });
-        
+
         modelBuilder.Entity<Lectuer>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__Lectuer__3213E83FBA6843F5");
@@ -112,36 +140,6 @@ public partial class SystemSchoolDbContext : DbContext
             entity.Property(e => e.Name)
                 .HasMaxLength(50)
                 .IsUnicode(false);
-        });
-
-        modelBuilder.Entity<StudentAverage>(entity =>
-        {
-            entity.HasKey(e => e.IdStudentAvg);
-
-            entity.Property(e => e.AverageGrade).HasDefaultValue(0);
-
-            entity.HasOne(e => e.IdStudentNavigation)
-                .WithMany()
-                .HasForeignKey(e => e.IdStudent);
-
-            entity.HasOne(e => e.IdClassNavigation)
-                .WithMany()
-                .HasForeignKey(e => e.IdClass);
-        });
-
-        modelBuilder.Entity<Attendance>(entity =>
-        {
-            entity.HasKey(e => e.AttendanceId);
-
-            // تعريف الحقول المحسوبة
-            entity.Property(e => e.TotalDays)
-                .HasComputedColumnSql("[PresentDays] + [AbsentDays]", stored: true);
-
-            // تحديد العلاقة مع جدول الطلاب
-            entity.HasOne(e => e.IdStudentNavigation)
-                .WithMany()
-                .HasForeignKey(e => e.IdStudent)
-                .OnDelete(DeleteBehavior.Cascade); // عندما يتم حذف الطالب، يتم حذف سجلات الحضور والغياب الخاصة به
         });
 
         modelBuilder.Entity<Menegar>(entity =>
@@ -174,6 +172,21 @@ public partial class SystemSchoolDbContext : DbContext
                 .IsUnicode(false);
         });
 
+        modelBuilder.Entity<StudentAverage>(entity =>
+        {
+            entity.HasKey(e => e.IdStudentAvg).HasName("PK__StudentA__9A002AFC4CA4B91A");
+
+            entity.ToTable("StudentAverage");
+
+            entity.HasOne(d => d.IdClassNavigation).WithMany(p => p.StudentAverages)
+                .HasForeignKey(d => d.IdClass)
+                .HasConstraintName("FK__StudentAv__IdCla__03BB8E22");
+
+            entity.HasOne(d => d.IdStudentNavigation).WithMany(p => p.StudentAverages)
+                .HasForeignKey(d => d.IdStudent)
+                .HasConstraintName("FK__StudentAv__IdStu__02C769E9");
+        });
+
         modelBuilder.Entity<StudentClass>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__StudentC__3213E83F95F82A92");
@@ -181,14 +194,15 @@ public partial class SystemSchoolDbContext : DbContext
             entity.ToTable("StudentClass");
 
             entity.Property(e => e.Id).HasColumnName("id");
-            
 
             entity.HasOne(d => d.IdClassNavigation).WithMany(p => p.StudentClasses)
                 .HasForeignKey(d => d.IdClass)
+                .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__StudentCl__IdCla__5812160E");
 
             entity.HasOne(d => d.IdStudentNavigation).WithMany(p => p.StudentClasses)
                 .HasForeignKey(d => d.IdStudent)
+                .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__StudentCl__IdStu__571DF1D5");
         });
 
@@ -199,14 +213,15 @@ public partial class SystemSchoolDbContext : DbContext
             entity.ToTable("StudentLectuer");
 
             entity.Property(e => e.Id).HasColumnName("id");
-           
 
             entity.HasOne(d => d.IdLectuerNavigation).WithMany(p => p.StudentLectuers)
                 .HasForeignKey(d => d.IdLectuer)
+                .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__StudentLe__IdLec__5BE2A6F2");
 
             entity.HasOne(d => d.IdStudentNavigation).WithMany(p => p.StudentLectuers)
                 .HasForeignKey(d => d.IdStudent)
+                .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__StudentLe__IdStu__5AEE82B9");
         });
 
@@ -217,14 +232,15 @@ public partial class SystemSchoolDbContext : DbContext
             entity.ToTable("StudentTeacher");
 
             entity.Property(e => e.Id).HasColumnName("id");
-           
 
             entity.HasOne(d => d.IdStudentNavigation).WithMany(p => p.StudentTeachers)
                 .HasForeignKey(d => d.IdStudent)
+                .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__StudentTe__IdStu__534D60F1");
 
             entity.HasOne(d => d.IdTeacherNavigation).WithMany(p => p.StudentTeachers)
                 .HasForeignKey(d => d.IdTeacher)
+                .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__StudentTe__IdTea__5441852A");
         });
 
@@ -250,14 +266,15 @@ public partial class SystemSchoolDbContext : DbContext
             entity.ToTable("TeacherClass");
 
             entity.Property(e => e.Id).HasColumnName("id");
-            
 
             entity.HasOne(d => d.IdClassNavigation).WithMany(p => p.TeacherClasses)
                 .HasForeignKey(d => d.IdClass)
+                .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__TeacherCl__IdCla__5FB337D6");
 
             entity.HasOne(d => d.IdTeacherNavigation).WithMany(p => p.TeacherClasses)
                 .HasForeignKey(d => d.IdTeacher)
+                .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__TeacherCl__IdTea__5EBF139D");
         });
 
@@ -268,14 +285,15 @@ public partial class SystemSchoolDbContext : DbContext
             entity.ToTable("TeacherLectuer");
 
             entity.Property(e => e.Id).HasColumnName("id");
-            
 
             entity.HasOne(d => d.IdLectuerNavigation).WithMany(p => p.TeacherLectuers)
                 .HasForeignKey(d => d.IdLectuer)
+                .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__TeacherLe__IdLec__6383C8BA");
 
             entity.HasOne(d => d.IdTeacherNavigation).WithMany(p => p.TeacherLectuers)
                 .HasForeignKey(d => d.IdTeacher)
+                .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__TeacherLe__IdTea__628FA481");
         });
 
@@ -295,6 +313,4 @@ public partial class SystemSchoolDbContext : DbContext
     }
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
-
-public DbSet<SchoolSystem.Data.Attendance> Attendance { get; set; } = default!;
 }

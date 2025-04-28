@@ -57,10 +57,10 @@ public AccountController(SystemSchoolDbContext context)
         Console.WriteLine($"username: {model.UserNameOrEmail}");
         Console.WriteLine($"password: {model.Password}");
         if (ModelState.IsValid)
-        {//proplem
+        {
             Console.WriteLine($"username1: {model.UserNameOrEmail}");
             var account = _context.Acounts
-                .FirstOrDefault(a => a.UserName == model.UserNameOrEmail || a.Email == model.UserNameOrEmail);
+                .FirstOrDefault(a => a.UsersName == model.UserNameOrEmail || a.Email == model.UserNameOrEmail);
             Console.WriteLine($"Account: {account != null}");
             Console.WriteLine(account);
             if (account != null)
@@ -68,20 +68,44 @@ public AccountController(SystemSchoolDbContext context)
                 Console.WriteLine($"username2: {model.UserNameOrEmail}");
                 // تشفير كلمة المرور المدخلة باستخدام SHA512
                 string hashedInputPassword = HashPassword(model.Password);
+                Console.WriteLine($"hashedInputPassword: {HashPassword(model.Password)}");
 
                 // التحقق من أن القيمة المشفرة تطابق القيمة المخزنة
                     
-                if (hashedInputPassword == account.Password)
+                if (hashedInputPassword == account.Passwords)
                 {
-                    HttpContext.Session.SetString("UserName", account.UserName);
-                    HttpContext.Session.SetString("Role", account.Role);
-                    HttpContext.Session.SetString("Email", account.Email);
+                    var role = _context.Acounts.FirstOrDefault(s => s.Email == account.Email);
+
+                    if (role.Role == "admin")
+                    {
+                        var manager = _context.Menegars.FirstOrDefault(s => s.Email == account.Email);
+                        HttpContext.Session.SetString("UserName", account.UsersName);
+                        HttpContext.Session.SetString("Role", account.Role);
+                        HttpContext.Session.SetString("Email", account.Email);
+                        HttpContext.Session.SetString("Id", manager.Id.ToString());
+                    }
+                    else if (role.Role == "Teacher")
+                    {
+                        var teacher = _context.Teachers.FirstOrDefault(s => s.Email == account.Email);
+                        HttpContext.Session.SetString("UserName", account.UsersName);
+                        HttpContext.Session.SetString("Role", account.Role);
+                        HttpContext.Session.SetString("Email", account.Email);
+                        HttpContext.Session.SetString("Id", teacher.Id.ToString());
+                    }
+                    else if (role.Role == "Student")
+                    {
+                        var Student = _context.Students.FirstOrDefault(s => s.Email == account.Email);
+                        HttpContext.Session.SetString("UserName", account.UsersName);
+                        HttpContext.Session.SetString("Role", account.Role);
+                        HttpContext.Session.SetString("Email", account.Email);
+                        HttpContext.Session.SetString("Id", Student.Id.ToString());
+                    }
+                    
                     var claims = new List<Claim>
                     {
-                        new Claim(ClaimTypes.Name, account.UserName),
+                        new Claim(ClaimTypes.Name, account.UsersName),
                         new Claim(ClaimTypes.Email, account.Email),
-                        new Claim(ClaimTypes.Role, account.Role)
-                    };
+                        new Claim(ClaimTypes.Role, account.Role)                    };
 
                     var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
                     var principal = new ClaimsPrincipal(identity);
@@ -152,23 +176,23 @@ public AccountController(SystemSchoolDbContext context)
     // GET: /Account/SetCredentials
     [HttpGet]
     public IActionResult SetCredentials(string email, string role)
-{
-    if (chick_user())
     {
-        // إذا كان المستخدم مصادقًا عليه بالفعل، قم بإعادة توجيهه إلى الصفحة الرئيسية
-        return RedirectToAction("Index", "Home");
+        if (chick_user())
+        {
+            // إذا كان المستخدم مصادقًا عليه بالفعل، قم بإعادة توجيهه إلى الصفحة الرئيسية
+            return RedirectToAction("Index", "Home");
+        }
+
+        // إنشاء نموذج لعرض الصفحة
+        var model = new SetCredentialsViewModel
+        {
+            Email = email,
+            Role = role
+        };
+
+        // عرض الصفحة مع النموذج
+        return View(model);
     }
-
-    // إنشاء نموذج لعرض الصفحة
-    var model = new SetCredentialsViewModel
-    {
-        Email = email,
-        Role = role
-    };
-
-    // عرض الصفحة مع النموذج
-    return View(model);
-}
 
     // POST: /Account/SetCredentials
     [HttpPost]
@@ -192,7 +216,7 @@ public AccountController(SystemSchoolDbContext context)
         }
 
         // التحقق مما إذا كان اسم المستخدم أو البريد الإلكتروني مستخدمًا بالفعل
-        var account1 = _context.Acounts.FirstOrDefault(a => a.UserName == model.UserName || a.Email == model.Email);
+        var account1 = _context.Acounts.FirstOrDefault(a => a.UsersName == model.UserName || a.Email == model.Email);
         if (account1 != null)
         {
             ModelState.AddModelError("", "The username or email is already in use.");
@@ -202,8 +226,8 @@ public AccountController(SystemSchoolDbContext context)
         // إنشاء حساب جديد
         var account = new Acount
         {
-            UserName = model.UserName,
-            Password = hashedPassword, // تخزين القيمة المشفرة
+            UsersName = model.UserName,
+            Passwords = hashedPassword, // تخزين القيمة المشفرة
             Email = model.Email,
             Role = model.Role,
             ResetToken = " ",
@@ -217,7 +241,7 @@ public AccountController(SystemSchoolDbContext context)
         // إنشاء مطالبات الهوية (Claims)
         var claims = new List<Claim>
         {
-            new Claim(ClaimTypes.Name, account.UserName),
+            new Claim(ClaimTypes.Name, account.UsersName),
             new Claim(ClaimTypes.Email, account.Email),
             new Claim(ClaimTypes.Role, account.Role) // إضافة الدور إلى الهوية
         };
@@ -231,8 +255,9 @@ public AccountController(SystemSchoolDbContext context)
             new ClaimsPrincipal(claimsIdentity));
 
         // تخزين بيانات المستخدم في الجلسة (اختياري)
-        HttpContext.Session.SetString("UserName", account.UserName);
+        HttpContext.Session.SetString("UserName", account.UsersName);
         HttpContext.Session.SetString("Role", account.Role);
+        HttpContext.Session.SetString("Email", account.Email);
 
         // إعادة توجيه المستخدم إلى الصفحة الرئيسية بعد تسجيل الدخول
         return RedirectToAction("Index", "Home");
@@ -357,7 +382,7 @@ public AccountController(SystemSchoolDbContext context)
             return View(model);
         }
 
-        account.Password = HashPassword(model.NewPassword);
+        account.Passwords = HashPassword(model.NewPassword);
     
         // مسح الرموز القديمة بعد تحديث كلمة المرور
         

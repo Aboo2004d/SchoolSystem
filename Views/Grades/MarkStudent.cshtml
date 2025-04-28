@@ -1,0 +1,157 @@
+@model IEnumerable<SchoolSystem.Data.Grade>
+
+@{
+    ViewData["Title"] = "Index";
+}
+<br>
+<br>
+<br>
+<h1>Grades</h1>
+@foreach (var item in Model) {
+    <a class="btn btn-dark" asp-action="Index" asp-controller="Student" asp-route-StudentId="@item.IdStudent">back last</a>
+    break;
+}
+
+<hr>
+<table class="table">
+    <thead >
+        <tr>
+            <th>
+                Lect
+            </th>
+            <th>
+                 M1
+            </th>
+            <th>
+                Mid
+            </th>
+            <th>
+                M2
+            </th>
+            <th>
+                Act
+            </th>
+            <th>
+                Fin
+            </th>
+            <th>
+                Tot
+            </th>
+        </tr>
+    </thead>
+    <tbody>
+@foreach (var item in Model) {
+        <tr >
+            <td>
+                @Html.DisplayFor(modelItem => item.IdLectuerNavigation.Name) 
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.FirstMonth)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Mid)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.SecondMonth)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Activity)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Final)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Total)/100
+            </td>
+        </tr>
+}
+    </tbody>
+</table>
+
+
+@section Scripts {
+    <script>
+        $(function() {
+            // تفعيل DataTable
+            new DataTable('.table');
+        });
+    </script>
+    <script>
+        $(function () {
+            var teacherId = '@Model.FirstOrDefault()?.IdTeacher';
+
+            // عند فتح القائمة (Bootstrap Dropdown)
+            $('#dropdownNewMark').on('click', function () {
+                // تحميل المواد عند أول مرة فقط (يمكنك تحسينه لاحقاً للتحميل مرة واحدة فقط)
+                $.getJSON('/Grades/GetSubjectsForTeacher', { teacherId: teacherId }, function (data) {
+                    var subjectDropdown = $('#subjectDropdown');
+                    subjectDropdown.empty().append('<option value="">Choose</option>');
+
+                    $.each(data, function (i, subject) {
+                        subjectDropdown.append($('<option>').val(subject.id).text(subject.name));
+                    });
+                });
+            });
+
+            // عند اختيار مادة
+            $('#subjectDropdown').change(function () {
+                var subjectId = $(this).val();
+                if (!subjectId) return;
+
+                $.getJSON('/Grades/GetGradesForSubject', { teacherId: teacherId, subjectId: subjectId }, function (data) {
+                    var gradeDropdown = $('#gradeDropdown');
+                    gradeDropdown.empty().append('<option value="">Choose</option>');
+
+                    $.each(data, function (i, grade) {
+                        gradeDropdown.append($('<option>').val(grade.id).text(grade.name));
+                    });
+
+                    $('#gradeContainer').show();
+                });
+            });
+
+            // عند اختيار الصف
+            $('#gradeDropdown').change(function () {
+                var gradeId = $(this).val();
+                var subjectId = $('#subjectDropdown').val();
+
+                if (gradeId && subjectId) {
+                    // الانتقال إلى صفحة الإنشاء مع القيم
+                    window.location.href = `/Grades/Create?teacherId=${teacherId}&subjectId=${subjectId}&gradeId=${gradeId}`;
+                }
+            });
+        });
+    </script>
+    <style>
+        .dropdown-menu select {
+            width: 100%;
+        }
+        /* العرض المضغوط: افتراضي لجميع الأجهزة */
+        body {
+            font-size: 10px;
+        }
+
+        /* إذا كان العرض أكبر من 768px (كمبيوتر أو لابتوب) */
+        @@media (min-width: 768px) {
+            body {
+                font-size: 16px; /* حجم الخط الطبيعي */
+            }
+
+            table thead, table tbody {
+                font-size: 14px;
+            }
+
+            .btn {
+                font-size: 14px !important;
+                padding: 6px 12px !important;
+                height: auto !important;
+                min-width: auto !important;
+            }
+
+            /* أي عناصر أخرى تم تصغيرها يمكن تعديلها هنا */
+        }
+
+    </style>
+
+
+}

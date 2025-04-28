@@ -1,0 +1,124 @@
+@model SchoolSystem.Data.Grade
+@using SchoolSystem.Data;
+@{
+    ViewData["Title"] = "Create";
+}
+<br>
+<br>
+<br>
+<h1>Add Mark To Students In Class: @ViewBag.GradeName In Lectuer: @ViewBag.SubjectName</h1>
+<hr />
+<table class="table">
+    <thead>
+        <tr style="font-size: smaller;">
+            <th >Std</th>
+            <th>M1</th>
+            <th>Mid</th>
+            <th>M2</th>
+            <th>Act</th>
+            <th>Fin</th>
+        </tr>
+    </thead>
+    <tbody>
+    @for (int i = 0; i < ViewBag.StudentsWithGrades.Count; i++)
+    {
+        var item = ViewBag.StudentsWithGrades[i];
+        var student = item.Student;
+        var grade = item.Grade ?? new Grade();
+
+        <tr>
+            <td style="font-size: smaller;">
+                 @{
+                    var fullname = student.Name.Split(' ');
+                    int nameLength = fullname.Length;
+                    var firstName = fullname[0];
+                    var lastName = fullname[nameLength - 1];
+                    if(fullname.Length > 1){
+                        lastName = fullname[nameLength - 1];
+                        <p>@firstName - @lastName</p> 
+                    }else{
+                        @firstName
+                    }
+                } 
+                <input type="hidden" name="Grades[@i].StudentId" value="@student.Id" />
+            </td>
+            <td><input type="number" class="form-control small-input" name="Grades[@i].FirstMonth" value="@(grade.FirstMonth ?? 0)" /></td>
+            <td><input type="number" class="form-control small-input" name="Grades[@i].Mid" value="@(grade.Mid ?? 0)" /></td>
+            <td><input type="number" class="form-control small-input" name="Grades[@i].SecondMonth" value="@(grade.SecondMonth ?? 0)" /></td>
+            <td><input type="number" class="form-control small-input" name="Grades[@i].Activity" value="@(grade.Activity ?? 0)" /></td>
+            <td><input type="number" class="form-control small-input" name="Grades[@i].Final" value="@(grade.Final ?? 0)" /></td>
+        </tr>
+    }
+
+
+    </tbody>
+</table>
+
+
+<div>
+    <button type="button" class="btn btn-success" id="saveAllBtn">Save</button>
+    <a class="btn btn-dark" asp-action="Index" asp-route-teacherId="@ViewBag.IdTeac">Back to List</a>
+</div>
+
+@section Scripts {
+    <script>
+        $(function() {
+            // تفعيل DataTable
+            new DataTable('.table');
+        });
+    </script>
+    <script>
+        $(document).ready(function () {
+            $('#markType').change(function () {
+                var selected = $(this).val();
+                $('.mark-input').prop('disabled', true); // تعطيل الجميع
+
+                switch (selected) {
+                    case 'FirstMonth':
+                        $('input[name="FirstMonthMarks"]').prop('disabled', false);
+                        break;
+                    case 'Mid':
+                        $('input[name="MidMarks"]').prop('disabled', false);
+                        break;
+                    case 'SecondMonth':
+                        $('input[name="SecondMonthMarks"]').prop('disabled', false);
+                        break;
+                    case 'Activity':
+                        $('input[name="ActivityMarks"]').prop('disabled', false);
+                        break;
+                    case 'Final':
+                        $('input[name="FinalMarks"]').prop('disabled', false);
+                        break;
+                }
+            });
+        });
+    </script>
+    <script>
+        $('#saveAllBtn').click(function () {
+            var form = $('<form method="post" action="/Grades/SaveAll"></form>');
+
+            // إضافة TeacherId و SubjectId
+            form.append('<input type="hidden" name="teacherId" value="@ViewBag.TeacherId" />');
+            form.append('<input type="hidden" name="subjectId" value="@ViewBag.SubjectId" />');
+
+            // نسخ جميع الحقول من الجدول
+            $('table input').each(function () {
+                var input = $(this).clone();
+                form.append(input);
+            });
+
+            // إرسال النموذج
+            $('body').append(form);
+            form.submit();
+        });
+    </script>
+
+
+    <style>
+        .small-input {
+            max-width: 80px;
+            padding: 4px;
+        }
+    </style>
+
+}

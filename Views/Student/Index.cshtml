@@ -1,5 +1,5 @@
 @model IEnumerable<SchoolSystem.Data.Student>
-
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
 @{
     ViewData["Title"] = "Index";
 }
@@ -30,16 +30,17 @@
 <table class="table">
     <thead>
         <tr>
-            <th style="width: 20%;">
+            <th  >
                 Name
             </th>
-            <th>
+            <th class="d-none d-sm-table-cell"  style="width: 20%;">
                 Phone
             </th>
-            <th style="width: 30%;">
+            <th >
                 Email
             </th>
-            <th></th>
+            <th >Avg</th>
+            <th >Optioens</th>
         </tr>
     </thead>
     <tbody>
@@ -59,9 +60,10 @@
                     }
                 }
             </td>
-            <td>
+            <td class="d-none d-sm-table-cell">
                 @Html.DisplayFor(modelItem => item.Phone)
             </td>
+            
             <td >
                 @{
                     if(item.Email != null){
@@ -78,11 +80,22 @@
                         } 
                 }
             </td>
+            <td>@ViewBag.Avg%</td>
             <td>
                 @if(role == "admin"){
                     <a class="btn btn-warning" asp-action="Edit" asp-route-id="@item.Id">Edit</a> 
                     <a class="btn btn-info" asp-action="ManagerStudentLectuer" asp-route-idstudent="@item.Id">Manager Lectuer</a> 
                     <a class="btn btn-danger delete" data-id="@item.Id">Delete</a>
+                }else{
+                    <div class="dropdown">
+                        <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+                            Manager
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                            <li><a class="dropdown-item" asp-controller="Grades" asp-action="MarkStudent" asp-route-studentid="@item.Id">Marks</a></li>
+                            <li><a class="dropdown-item" asp-action="AttendancesStudent" asp-controller="Attendance" asp-route-studentid="@item.Id">Attendance</a></li>
+                        </ul>
+                    </div>
                 }
             </td>
         </tr>

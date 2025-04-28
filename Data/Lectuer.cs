@@ -8,12 +8,13 @@ public partial class Lectuer
 {
     public int Id { get; set; }
 
-    [NotMapped]
-    public int NumberOfTeacherInLectuer { get; set; }
+    public string Name { get; set; } = null!;
     [NotMapped]
     public int NumberOfStudentsInLectuer { get; set; }
-
-    public string Name { get; set; } = null!;
+    
+    [NotMapped]
+    public int NumberOfTeacherInLectuer { get; set; }
+    public virtual ICollection<Attendance> Attendances { get; set; } = new List<Attendance>();
 
     public virtual ICollection<ClassLectuer> ClassLectuers { get; set; } = new List<ClassLectuer>();
 

@@ -13,6 +13,8 @@ public partial class Student
 
     public string? Email { get; set; }
 
+    public virtual ICollection<Attendance> Attendances { get; set; } = new List<Attendance>();
+
     public virtual ICollection<Grade> Grades { get; set; } = new List<Grade>();
 
     public virtual ICollection<StudentAverage> StudentAverages { get; set; } = new List<StudentAverage>();

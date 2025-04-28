@@ -166,7 +166,9 @@ namespace SchoolSystem.Controllers
                     LectureName = ts.IdStudentNavigation.StudentLectuers.Select(sl => sl.IdLectuerNavigation.Name)
                     .FirstOrDefault()
                     })
-                    .ToListAsync(); 
+                    .ToListAsync();
+                
+                
                 return View(students);
                     
             }catch(Exception e){
@@ -175,6 +177,8 @@ namespace SchoolSystem.Controllers
             }
         }
         
+        
+
         private bool TeacherExists(int id)
         {
             return _context.Teachers.Any(e => e.Id == id);

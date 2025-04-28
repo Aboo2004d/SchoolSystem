@@ -20,26 +20,24 @@
 }
 <table class="table">
     <thead>
-        <tr>
-            <th class="w-75 w-sm-20">
+        <tr style="font-size: smaller;">
+            <th class="w-75 w-sm-40">
                 Name
             </th>
             <th class="d-none d-sm-table-cell">
                 Phone
             </th>
-            <th >
+            <th class="w-sm-40">
                 Email
             </th>
-            <th class="w-25 w-sm-40">@if(role == "admin"){
-                <span>Optiones</span>
-                }</th>
+            <th class="w-25 w-sm-20">Optiones</th>
         </tr>
     </thead>
     <tbody>
         @if(role == "admin"){
            @foreach (var item in Model) {
                 <tr>
-                    <td class="w-75 w-sm-20">
+                    <td class="w-75 w-sm-40">
                         @{
                             var fullname = item.Name.Split(' ');
                             var firstName = fullname.FirstOrDefault();
@@ -50,12 +48,12 @@
                             }else{
                                 @firstName
                             }
-                        }
+                        } 
                     </td>
                     <td class="d-none d-sm-table-cell">
                         @Html.DisplayFor(modelItem => item.Phone)
                     </td>
-                    <td >
+                    <td class="w-sm-40">
                         @{
                             if(item.Email != null){
                                 var emailParts = item.Email.Split('@');
@@ -93,13 +91,36 @@
                 @if(email == item.Email){
                     <tr>
                         <td class="w-75 w-sm-20">
-                            @Html.DisplayFor(modelItem => item.Name)
+                            @{
+                                var fullname = item.Name.Split(' ');
+                                var firstName = fullname.FirstOrDefault();
+                                var lastName = fullname.LastOrDefault();
+                                if(fullname.Length > 1){
+                                    lastName = fullname.LastOrDefault();
+                                    <p>@firstName - @lastName</p> 
+                                }else{
+                                    @firstName
+                                }
+                            }
                         </td>
                         <td class="d-none d-sm-table-cell">
                             @Html.DisplayFor(modelItem => item.Phone)
                         </td>
-                        <td class="d-none d-sm-table-cell">
-                            @Html.DisplayFor(modelItem => item.Email)
+                        <td class="w-sm-40">
+                            @{
+                                if(item.Email != null){
+                                    var emailParts = item.Email.Split('@');
+                                    var emailName = emailParts[0];
+                                    var emailDomain = emailParts[1];
+                                    string visibleName = new string(emailName.Take(3).ToArray());
+
+                                    // الجزء الأخير من النطاق
+                                    var lastDomainPart = emailDomain.Split('.').Last();
+
+                                    // الطباعة في سطر واحد:
+                                    <text>@visibleName***@@***.@lastDomainPart</text>
+                                }
+                            }
                         </td>
                         <td class="w-25 w-sm-40">
                             <div class="dropdown">
@@ -107,11 +128,18 @@
                                     Manager
                                 </button>
                                 <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                                    @if(role == "admin"){
-                                        <a class="btn btn-warning" style="width: 30%;" asp-action="Edit" asp-route-id="@item.Id">Edit</a>
-                                        <a class="btn btn-info" style="width: 30%; asp-action="ManagerTeacher" asp-route-teacherId="@item.Id">Manager</a>
-                                        <a class="btn btn-danger delete" style="width: 30%;" data-id="@item.Id">Delete</a>
-                                    }
+                                    <li><a class="dropdown-item" asp-action="Edit" asp-route-id="@item.Id">Edit</a></li>
+
+                                    <!-- قائمة فرعية داخل القائمة الرئيسية -->
+                                    <li class="dropdown-submenu">
+                                        <a class="dropdown-item toggle-submenu" href="#">Manager</a>
+                                        <ul class="dropdown-menu submenu">
+                                            <li><a class="dropdown-item back-btn" href="#">← Back</a></li>
+                                            <li><a class="dropdown-item" asp-action="ManagerTeacher" asp-route-teacherId="@item.Id">Manager Students</a></li>
+                                            <li><a class="dropdown-item" asp-controller="Grades" asp-action="Index" asp-route-teacherId="@item.Id">Marks</a></li>
+                                            <li><a class="dropdown-item" asp-controller="Attendance" asp-action="Index" asp-route-idTeacher="@item.Id">Attendance</a></li>
+                                        </ul>
+                                    </li>
                                 </ul>
                             </div>
                         </td>
@@ -168,4 +196,59 @@
             });
         });
     </script>
+    <script>
+        document.querySelectorAll('.dropdown-submenu').forEach(item => {
+        const toggleBtn = item.querySelector('.toggle-submenu');
+        const backBtn = item.querySelector('.back-btn');
+        const submenu = item.querySelector('.submenu');
+
+        toggleBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            item.classList.add('show-submenu');
+        });
+
+        backBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            item.classList.remove('show-submenu');
+        });
+
+        // إغلاق عند النقر خارج القائمة
+        document.addEventListener('click', (e) => {
+            if (!item.contains(e.target)) {
+                item.classList.remove('show-submenu');
+            }
+        });
+    });
+    </script>
+
+    <style>
+        .dropdown-menu {
+            transition: transform 0.3s ease;
+        }
+
+        .submenu {
+            display: none;
+            position: absolute;
+            left: 0;
+            top: 0;
+            min-width: 100%;
+            box-shadow: none;
+            border: none;
+        }
+
+        .dropdown-submenu.show-submenu .submenu {
+            display: block;
+        }
+
+        .dropdown-submenu.show-submenu .toggle-submenu {
+            display: none;
+        }
+
+        .back-btn {
+            font-weight: bold;
+            color: #007bff;
+        }
+    </style>
 }

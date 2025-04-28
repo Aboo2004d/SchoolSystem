@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SchoolSystem.Data;
 
@@ -11,9 +12,11 @@ using SchoolSystem.Data;
 namespace SchoolSystem.Migrations
 {
     [DbContext(typeof(SystemSchoolDbContext))]
-    partial class SystemSchoolDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250420074717_FixGradeNavigation")]
+    partial class FixGradeNavigation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -26,18 +29,20 @@ namespace SchoolSystem.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("id");
+                        .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Email")
+                        .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
-                    b.Property<string>("Passwords")
+                    b.Property<string>("Password")
+                        .IsRequired()
                         .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("Passwords");
 
                     b.Property<string>("ResetToken")
                         .IsRequired()
@@ -45,30 +50,29 @@ namespace SchoolSystem.Migrations
                         .HasColumnType("nvarchar(200)");
 
                     b.Property<DateTime>("ResetTokenExpiry")
-                        .HasColumnType("datetime");
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("Role")
+                        .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
-                    b.Property<string>("UsersName")
+                    b.Property<string>("UserName")
                         .IsRequired()
                         .HasMaxLength(50)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(50)");
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("UsersName");
 
-                    b.HasKey("Id")
-                        .HasName("PK__Acounts__3213E83F1B5AE3B5");
+                    b.HasKey("Id");
 
-                    b.ToTable("Acounts");
+                    b.ToTable("Acounts", (string)null);
                 });
 
             modelBuilder.Entity("SchoolSystem.Data.Attendance", b =>
                 {
                     b.Property<int>("AttendanceId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("AttendanceID");
+                        .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("AttendanceId"));
 
@@ -84,14 +88,13 @@ namespace SchoolSystem.Migrations
                     b.Property<int?>("TotalDays")
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("int")
-                        .HasComputedColumnSql("([PresentDays]+[AbsentDays])", true);
+                        .HasComputedColumnSql("[PresentDays] + [AbsentDays]", true);
 
-                    b.HasKey("AttendanceId")
-                        .HasName("PK__Attendan__8B69263C0DDD08A8");
+                    b.HasKey("AttendanceId");
 
                     b.HasIndex("IdStudent");
 
-                    b.ToTable("Attendance", (string)null);
+                    b.ToTable("Attendance");
                 });
 
             modelBuilder.Entity("SchoolSystem.Data.ClassLectuer", b =>
@@ -123,55 +126,76 @@ namespace SchoolSystem.Migrations
                 {
                     b.Property<int>("GradesId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("GradesID");
+                        .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("GradesId"));
 
-                    b.Property<int?>("Activity")
+                    b.Property<int>("Activity")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<int>("Final")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<int>("FirstMonth")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<int?>("LectuerId")
+                        .HasColumnType("int")
+                        .HasColumnName("IdLectuer");
+
+                    b.Property<int?>("LectuerId1")
                         .HasColumnType("int");
 
-                    b.Property<int?>("Final")
+                    b.Property<int>("Mid")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<int>("SecondMonth")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<int?>("StudentId")
+                        .HasColumnType("int")
+                        .HasColumnName("IdStudent");
+
+                    b.Property<int?>("StudentId1")
                         .HasColumnType("int");
 
-                    b.Property<int?>("FirstMonth")
-                        .HasColumnType("int");
+                    b.Property<int?>("TeacherId")
+                        .HasColumnType("int")
+                        .HasColumnName("IdTeacher");
 
-                    b.Property<int?>("IdLectuer")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("IdStudent")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("IdTeacher")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("Mid")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("SecondMonth")
+                    b.Property<int?>("TeacherId1")
                         .HasColumnType("int");
 
                     b.Property<int?>("Total")
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("int")
-                        .HasComputedColumnSql("(((([FirstMonth]+[Mid])+[SecondMonth])+[Activity])+[Final])", true);
+                        .HasComputedColumnSql("[FirstMonth] + [Mid] + [SecondMonth] + [Activity] + [Final]", true);
 
-                    b.HasKey("GradesId")
-                        .HasName("PK__Grades__931A40BF88D8CDCA");
+                    b.HasKey("GradesId");
 
-                    b.HasIndex("IdLectuer");
+                    b.HasIndex("LectuerId");
 
-                    b.HasIndex("IdStudent");
+                    b.HasIndex("LectuerId1");
 
-                    b.HasIndex("IdTeacher");
+                    b.HasIndex("StudentId");
 
-                    b.ToTable("Grades", t =>
-                        {
-                            t.HasTrigger("trg_UpdateStudentAverage");
-                        });
+                    b.HasIndex("StudentId1");
 
-                    b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
+                    b.HasIndex("TeacherId");
+
+                    b.HasIndex("TeacherId1");
+
+                    b.ToTable("Grades");
                 });
 
             modelBuilder.Entity("SchoolSystem.Data.Lectuer", b =>
@@ -262,7 +286,9 @@ namespace SchoolSystem.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("IdStudentAvg"));
 
                     b.Property<double>("AverageGrade")
-                        .HasColumnType("float");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("float")
+                        .HasDefaultValue(0.0);
 
                     b.Property<int?>("IdClass")
                         .HasColumnType("int");
@@ -270,14 +296,23 @@ namespace SchoolSystem.Migrations
                     b.Property<int?>("IdStudent")
                         .HasColumnType("int");
 
-                    b.HasKey("IdStudentAvg")
-                        .HasName("PK__StudentA__9A002AFC4CA4B91A");
+                    b.Property<int?>("StudentId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("TheClassId")
+                        .HasColumnType("int");
+
+                    b.HasKey("IdStudentAvg");
 
                     b.HasIndex("IdClass");
 
                     b.HasIndex("IdStudent");
 
-                    b.ToTable("StudentAverage", (string)null);
+                    b.HasIndex("StudentId");
+
+                    b.HasIndex("TheClassId");
+
+                    b.ToTable("StudentAverages");
                 });
 
             modelBuilder.Entity("SchoolSystem.Data.StudentClass", b =>
@@ -458,10 +493,10 @@ namespace SchoolSystem.Migrations
             modelBuilder.Entity("SchoolSystem.Data.Attendance", b =>
                 {
                     b.HasOne("SchoolSystem.Data.Student", "IdStudentNavigation")
-                        .WithMany("Attendances")
+                        .WithMany()
                         .HasForeignKey("IdStudent")
-                        .IsRequired()
-                        .HasConstraintName("FK__Attendanc__IdStu__09746778");
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("IdStudentNavigation");
                 });
@@ -471,12 +506,14 @@ namespace SchoolSystem.Migrations
                     b.HasOne("SchoolSystem.Data.TheClass", "IdClassNavigation")
                         .WithMany("ClassLectuers")
                         .HasForeignKey("IdClass")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("FK__ClassLect__IdCla__66603565");
 
                     b.HasOne("SchoolSystem.Data.Lectuer", "IdLectuerNavigation")
                         .WithMany("ClassLectuers")
                         .HasForeignKey("IdLectuer")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("FK__ClassLect__IdLec__6754599E");
 
@@ -488,19 +525,29 @@ namespace SchoolSystem.Migrations
             modelBuilder.Entity("SchoolSystem.Data.Grade", b =>
                 {
                     b.HasOne("SchoolSystem.Data.Lectuer", "IdLectuerNavigation")
+                        .WithMany()
+                        .HasForeignKey("LectuerId");
+
+                    b.HasOne("SchoolSystem.Data.Lectuer", null)
                         .WithMany("Grades")
-                        .HasForeignKey("IdLectuer")
-                        .HasConstraintName("FK__Grades__IdLectue__7EF6D905");
+                        .HasForeignKey("LectuerId1");
 
                     b.HasOne("SchoolSystem.Data.Student", "IdStudentNavigation")
+                        .WithMany()
+                        .HasForeignKey("StudentId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("SchoolSystem.Data.Student", null)
                         .WithMany("Grades")
-                        .HasForeignKey("IdStudent")
-                        .HasConstraintName("FK__Grades__IdStuden__7D0E9093");
+                        .HasForeignKey("StudentId1");
 
                     b.HasOne("SchoolSystem.Data.Teacher", "IdTeacherNavigation")
+                        .WithMany()
+                        .HasForeignKey("TeacherId");
+
+                    b.HasOne("SchoolSystem.Data.Teacher", null)
                         .WithMany("Grades")
-                        .HasForeignKey("IdTeacher")
-                        .HasConstraintName("FK__Grades__IdTeache__7E02B4CC");
+                        .HasForeignKey("TeacherId1");
 
                     b.Navigation("IdLectuerNavigation");
 
@@ -512,14 +559,20 @@ namespace SchoolSystem.Migrations
             modelBuilder.Entity("SchoolSystem.Data.StudentAverage", b =>
                 {
                     b.HasOne("SchoolSystem.Data.TheClass", "IdClassNavigation")
-                        .WithMany("StudentAverages")
-                        .HasForeignKey("IdClass")
-                        .HasConstraintName("FK__StudentAv__IdCla__03BB8E22");
+                        .WithMany()
+                        .HasForeignKey("IdClass");
 
                     b.HasOne("SchoolSystem.Data.Student", "IdStudentNavigation")
+                        .WithMany()
+                        .HasForeignKey("IdStudent");
+
+                    b.HasOne("SchoolSystem.Data.Student", null)
                         .WithMany("StudentAverages")
-                        .HasForeignKey("IdStudent")
-                        .HasConstraintName("FK__StudentAv__IdStu__02C769E9");
+                        .HasForeignKey("StudentId");
+
+                    b.HasOne("SchoolSystem.Data.TheClass", null)
+                        .WithMany("StudentAverages")
+                        .HasForeignKey("TheClassId");
 
                     b.Navigation("IdClassNavigation");
 
@@ -531,12 +584,14 @@ namespace SchoolSystem.Migrations
                     b.HasOne("SchoolSystem.Data.TheClass", "IdClassNavigation")
                         .WithMany("StudentClasses")
                         .HasForeignKey("IdClass")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("FK__StudentCl__IdCla__5812160E");
 
                     b.HasOne("SchoolSystem.Data.Student", "IdStudentNavigation")
                         .WithMany("StudentClasses")
                         .HasForeignKey("IdStudent")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("FK__StudentCl__IdStu__571DF1D5");
 
@@ -550,12 +605,14 @@ namespace SchoolSystem.Migrations
                     b.HasOne("SchoolSystem.Data.Lectuer", "IdLectuerNavigation")
                         .WithMany("StudentLectuers")
                         .HasForeignKey("IdLectuer")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("FK__StudentLe__IdLec__5BE2A6F2");
 
                     b.HasOne("SchoolSystem.Data.Student", "IdStudentNavigation")
                         .WithMany("StudentLectuers")
                         .HasForeignKey("IdStudent")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("FK__StudentLe__IdStu__5AEE82B9");
 
@@ -569,12 +626,14 @@ namespace SchoolSystem.Migrations
                     b.HasOne("SchoolSystem.Data.Student", "IdStudentNavigation")
                         .WithMany("StudentTeachers")
                         .HasForeignKey("IdStudent")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("FK__StudentTe__IdStu__534D60F1");
 
                     b.HasOne("SchoolSystem.Data.Teacher", "IdTeacherNavigation")
                         .WithMany("StudentTeachers")
                         .HasForeignKey("IdTeacher")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("FK__StudentTe__IdTea__5441852A");
 
@@ -588,12 +647,14 @@ namespace SchoolSystem.Migrations
                     b.HasOne("SchoolSystem.Data.TheClass", "IdClassNavigation")
                         .WithMany("TeacherClasses")
                         .HasForeignKey("IdClass")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("FK__TeacherCl__IdCla__5FB337D6");
 
                     b.HasOne("SchoolSystem.Data.Teacher", "IdTeacherNavigation")
                         .WithMany("TeacherClasses")
                         .HasForeignKey("IdTeacher")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("FK__TeacherCl__IdTea__5EBF139D");
 
@@ -607,12 +668,14 @@ namespace SchoolSystem.Migrations
                     b.HasOne("SchoolSystem.Data.Lectuer", "IdLectuerNavigation")
                         .WithMany("TeacherLectuers")
                         .HasForeignKey("IdLectuer")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("FK__TeacherLe__IdLec__6383C8BA");
 
                     b.HasOne("SchoolSystem.Data.Teacher", "IdTeacherNavigation")
                         .WithMany("TeacherLectuers")
                         .HasForeignKey("IdTeacher")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("FK__TeacherLe__IdTea__628FA481");
 
@@ -634,8 +697,6 @@ namespace SchoolSystem.Migrations
 
             modelBuilder.Entity("SchoolSystem.Data.Student", b =>
                 {
-                    b.Navigation("Attendances");
-
                     b.Navigation("Grades");
 
                     b.Navigation("StudentAverages");

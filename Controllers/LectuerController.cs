@@ -30,6 +30,7 @@ namespace SchoolSystem.Controllers
                 .Select(ts => new Lectuer{
                     NumberOfStudentsInLectuer = ts.StudentLectuers.Select(sc => sc.IdStudent).Distinct().Count(),
                     NumberOfTeacherInLectuer= ts.TeacherLectuers.Select(sc => sc.IdTeacher).Distinct().Count(),
+                    
                     Name = ts.Name,
                     Id = ts.Id
                     })
@@ -94,7 +95,6 @@ namespace SchoolSystem.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> CreateStudentLectuer([Bind("IdStudent,IdLectuer")] LectuerStudentViewModel studentLectuer)
         {
-            Console.WriteLine($"Id");
 
             // التحقق من صحة البيانات
             if (!ModelState.IsValid)
@@ -111,43 +111,46 @@ namespace SchoolSystem.Controllers
 
             try
             {
-                //البحث عن الطالب اذا كان مسجل المادة قبل هيك
+                
                 var studentlectuer = _context.StudentLectuers
                 .FirstOrDefault(sl => sl.IdStudent == studentLectuer.IdStudent && sl.IdLectuer == studentLectuer.IdLectuer);
-                if(studentlectuer == null){//اذا فارغ يعني ما سجل المادة قبل هيك وبالتالي يسمح له بتسجيلها
+                
+                if(studentlectuer == null){
+                    
                     var student = new StudentLectuer{
                         IdLectuer = studentLectuer.IdLectuer,
                         IdStudent = studentLectuer.IdStudent
-                    };//اضافة البيانات الى اقاعدة البيانات 
+                    };
+                    
                     _context.StudentLectuers.Add(student);
-                    //العثور على الصف المسجل به الطالب
-                    var studentclass = _context.StudentClasses.Where(sc => sc.IdStudent == studentLectuer.IdStudent)
-                    .Select(sc => sc.IdClass).FirstOrDefault();
-                    if(studentclass != null){//اذا مش فارغ يعني الطالب موجود في صف
-                        var teacherlectuer = _context.TeacherLectuers.Where(tl => tl.IdLectuer == studentLectuer.IdLectuer)
-                        .Select(t => t.IdTeacher).FirstOrDefault();//الحصول على معلمين المادة
+                
+                    int? studentclass = _context.StudentClasses.Where(sc => sc.IdStudent == studentLectuer.IdStudent)
+                    .Select(sc => (int?)sc.IdClass).FirstOrDefault();
+                    if(studentclass != null){
+
+                        int? teacherlectuer = _context.TeacherLectuers.Where(tl => tl.IdLectuer == studentLectuer.IdLectuer)
+                        .Select(t => (int?)t.IdTeacher).FirstOrDefault();
+
                         if(teacherlectuer!=null){
-                            //الحصول على المعلم المسجل في صف الطالب 
-                            var teacherlectuerclass = _context.TeacherClasses.Where(tc => tc.IdClass == studentclass )
-                            .Select(t => t.IdTeacher).FirstOrDefault();
-                            Console.WriteLine($"Teacher: {teacherlectuerclass}");
-                            if(teacherlectuerclass != null){ //اذا مش فارغ يعني المعلم موجود في صف الطالب ويدرس نفس مادة الطالب
-                                //بالتالي الطالب موجود في صف وقد حصلنا على المعلم الذي يدرس المادة لنفس صف الطالب
+
+                            int? teacherlectuerclass = _context.TeacherClasses.Where(tc => tc.IdClass == studentclass )
+                            .Select(t => (int?)t.IdTeacher).FirstOrDefault();
+                            if(teacherlectuerclass != null){
+
                                 var teachstu = new StudentTeacher{
                                     IdStudent = studentLectuer.IdStudent,
-                                    IdTeacher = teacherlectuerclass
+                                    IdTeacher = teacherlectuerclass??0
                                 };
+
                                 _context.StudentTeachers.Add(teachstu);
                                 await _context.SaveChangesAsync();
                                 return RedirectToAction("ManagerLectuer", new { idLectuer = studentLectuer.IdLectuer });
 
-                            }else Console.WriteLine(4);
-                        }else Console.WriteLine(3);
-                    }else Console.WriteLine(2);
-                }else Console.WriteLine(1);
-                    
-                // الحصول على الرابط السابق من الهيدر
-                return RedirectToAction(nameof(CreateStudentLectuer), new { idLectuer = studentLectuer.IdLectuer });
+                            }else return RedirectToAction(nameof(CreateStudentLectuer), new { idLectuer = studentLectuer.IdLectuer });
+                        }else return RedirectToAction(nameof(CreateStudentLectuer), new { idLectuer = studentLectuer.IdLectuer });
+                    }else return RedirectToAction(nameof(CreateStudentLectuer), new { idLectuer = studentLectuer.IdLectuer });
+                }else return RedirectToAction(nameof(CreateStudentLectuer), new { idLectuer = studentLectuer.IdLectuer });
+                
             }
             catch (Exception ex)
             {
@@ -381,8 +384,8 @@ namespace SchoolSystem.Controllers
         public async Task<IActionResult> ManagerTeacherLectuer([FromQuery]int idLectuer)
         {
             try{
-                var teacher = _context.TeacherLectuers.Where(tl => tl.IdLectuer == idLectuer).ToList();
-                var teacherlectuer = _context.TeacherLectuers
+                var teacher =await _context.TeacherLectuers.Where(tl => tl.IdLectuer == idLectuer).ToListAsync();
+                var teacherlectuer =await _context.TeacherLectuers
                 .Where(tl => tl.IdLectuer == idLectuer)
                 .SelectMany(tl => _context.TeacherClasses
                 .Where(tc => tc.IdTeacher == tl.IdTeacher)
@@ -393,7 +396,7 @@ namespace SchoolSystem.Controllers
                     IdLectuer = tl.IdLectuerNavigation.Id,
                     LectureName = tl.IdLectuerNavigation.Name
                 })
-                ).ToList();
+                ).ToListAsync();
                     
                     foreach(var i in teacherlectuer){
                         Console.WriteLine($"Class Name: {i.ClassroomName}");

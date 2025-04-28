@@ -1,42 +1,62 @@
 @model SchoolSystem.Data.Attendance
 
 @{
-    ViewData["Title"] = "Details";
+    ViewData["Title"] = "Details Attendance";
 }
+<br>
+<br>
+<br>
+<h4>Details Attendance To: @Html.DisplayFor(model => model.IdStudentNavigation.Name)</h4>
 
-<h1>Details</h1>
-
+<hr />
 <div>
-    <h4>Attendance</h4>
-    <hr />
     <dl class="row">
         <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.PresentDays)
+            @Html.DisplayNameFor(model => model.AttendanceStatus)
         </dt>
         <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.PresentDays)
+            @Html.DisplayFor(model => model.AttendanceStatus)
         </dd>
         <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.AbsentDays)
+            @Html.DisplayNameFor(model => model.DateAndTime)
         </dt>
         <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.AbsentDays)
+            @Html.DisplayFor(model => model.DateAndTime)
         </dd>
         <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.TotalDays)
+            @Html.DisplayNameFor(model => model.Excuse)
         </dt>
         <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.TotalDays)
+            @if (string.IsNullOrEmpty(Model.Excuse))
+            {
+                <span>No excuse provided</span>
+            }
+            else
+            {
+                @Html.DisplayFor(model => model.Excuse)
+            }
+        </dd>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.IdLectuerNavigation)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.IdLectuerNavigation.Name)
         </dd>
         <dt class = "col-sm-2">
             @Html.DisplayNameFor(model => model.IdStudentNavigation)
         </dt>
         <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.IdStudentNavigation.Id)
+            @Html.DisplayFor(model => model.IdStudentNavigation.Name)
+        </dd>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.IdTeacherNavigation)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.IdTeacherNavigation.Name)
         </dd>
     </dl>
 </div>
 <div>
-    <a asp-action="Edit" asp-route-id="@Model?.AttendanceId">Edit</a> |
+    <a asp-action="Edit" asp-route-id="@Model?.Id">Edit</a> |
     <a asp-action="Index">Back to List</a>
 </div>

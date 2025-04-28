@@ -1,0 +1,203 @@
+@model IEnumerable<SchoolSystem.Data.Grade>
+
+@{
+    ViewData["Title"] = "Index";
+}
+<br>
+<br>
+<br>
+<h1>Grades</h1>
+@{
+    var role = Context.Session.GetString("Role");
+    if(role == "Teacher"){
+        <div class="dropdown">
+            <button class="btn btn-success dropdown-toggle" type="button" id="dropdownNewMark" data-bs-toggle="dropdown" aria-expanded="false">
+                Add Mark
+            </button>
+            <ul class="dropdown-menu p-3" aria-labelledby="dropdownNewMark" style="min-width: 250px;">
+                <li class="form-group mb-2">
+                    <label for="subjectDropdown">Choose Lectuer</label>
+                    <select id="subjectDropdown" class="form-control">
+                        <option value="">Choose</option>
+                        <!-- خيارات المواد هنا -->
+                    </select>
+                </li>
+                <li class="form-group">
+                    <label for="gradeDropdown">Choose Class</label>
+                    <select id="gradeDropdown" class="form-control">
+                        <option value="">Choose</option>
+                        <!-- خيارات الصفوف هنا -->
+                    </select>
+                </li>
+            </ul>
+        </div>
+        <a class="btn btn-dark" asp-controller="Teacher" asp-action="Index"> Back</a>
+    }else{
+        <a class="btn btn-dark" asp-controller="Menegar" asp-action="ManagerMenegarStudent"> Back</a>
+    }
+}
+<table class="table">
+    <thead>
+        <tr>
+            <th>
+                Std
+            </th>
+            <th>
+                Lect
+            </th>
+            <th>
+                 M1
+            </th>
+            <th>
+                Mid
+            </th>
+            <th>
+                M2
+            </th>
+            <th>
+                Act
+            </th>
+            <th>
+                Fin
+            </th>
+            <th>
+                Tot
+            </th>
+            <th>Opt</th>
+        </tr>
+    </thead>
+    <tbody>
+@foreach (var item in Model) {
+        <tr >
+            <td>
+                 @{
+                    var fullname = item.IdStudentNavigation.Name.Split(' ');
+                    var firstName = fullname.FirstOrDefault();
+                    var lastName = fullname.LastOrDefault();
+                    if(fullname.Length > 1){
+                        lastName = fullname.LastOrDefault();
+                        <p>@firstName - @lastName</p> 
+                    }else{
+                        @firstName
+                    }
+                }
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.IdLectuerNavigation.Name)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.FirstMonth)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Mid)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.SecondMonth)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Activity)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Final)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Total)
+            </td>
+            <td >
+                <a class="btn btn-warning"
+                style="font-size: 9px; padding: 0px 2px; line-height: 1; height: 20px; min-width: 30px; display: flex; align-items: center; justify-content: center;">
+                Edit</a>
+
+            </td>
+        </tr>
+}
+    </tbody>
+</table>
+
+
+@section Scripts {
+    <script>
+        $(function() {
+            // تفعيل DataTable
+            new DataTable('.table');
+        });
+    </script>
+    <script>
+        $(function () {
+            var teacherId = '@Model.FirstOrDefault()?.IdTeacher';
+
+            // عند فتح القائمة (Bootstrap Dropdown)
+            $('#dropdownNewMark').on('click', function () {
+                // تحميل المواد عند أول مرة فقط (يمكنك تحسينه لاحقاً للتحميل مرة واحدة فقط)
+                $.getJSON('/Grades/GetSubjectsForTeacher', { teacherId: teacherId }, function (data) {
+                    var subjectDropdown = $('#subjectDropdown');
+                    subjectDropdown.empty().append('<option value="">Choose</option>');
+
+                    $.each(data, function (i, subject) {
+                        subjectDropdown.append($('<option>').val(subject.id).text(subject.name));
+                    });
+                });
+            });
+
+            // عند اختيار مادة
+            $('#subjectDropdown').change(function () {
+                var subjectId = $(this).val();
+                if (!subjectId) return;
+
+                $.getJSON('/Grades/GetGradesForSubject', { teacherId: teacherId, subjectId: subjectId }, function (data) {
+                    var gradeDropdown = $('#gradeDropdown');
+                    gradeDropdown.empty().append('<option value="">Choose</option>');
+
+                    $.each(data, function (i, grade) {
+                        gradeDropdown.append($('<option>').val(grade.id).text(grade.name));
+                    });
+
+                    $('#gradeContainer').show();
+                });
+            });
+
+            // عند اختيار الصف
+            $('#gradeDropdown').change(function () {
+                var gradeId = $(this).val();
+                var subjectId = $('#subjectDropdown').val();
+
+                if (gradeId && subjectId) {
+                    // الانتقال إلى صفحة الإنشاء مع القيم
+                    window.location.href = `/Grades/Create?teacherId=${teacherId}&subjectId=${subjectId}&gradeId=${gradeId}`;
+                }
+            });
+        });
+    </script>
+    <style>
+        .dropdown-menu select {
+            width: 100%;
+        }
+        /* العرض المضغوط: افتراضي لجميع الأجهزة */
+        body {
+            font-size: 10px;
+        }
+
+        /* إذا كان العرض أكبر من 768px (كمبيوتر أو لابتوب) */
+        @@media (min-width: 768px) {
+            body {
+                font-size: 16px; /* حجم الخط الطبيعي */
+            }
+
+            table thead, table tbody {
+                font-size: 14px;
+            }
+
+            .btn {
+                font-size: 14px !important;
+                padding: 6px 12px !important;
+                height: auto !important;
+                min-width: auto !important;
+            }
+
+            /* أي عناصر أخرى تم تصغيرها يمكن تعديلها هنا */
+        }
+
+    </style>
+
+
+}
