@@ -1,139 +1,115 @@
-@model IEnumerable<SchoolSystem.Data.Attendance>
-
 @{
-    ViewData["Title"] = "Index";
-}
-<br>
-<br>
-<br>
-@foreach (var item in Model) {
-    <h4>Attendance to: @item.IdStudentNavigation.Name in class: @item.IdClassNavigation.Name</h4>
-    <a class="btn btn-dark" asp-action="Index" asp-controller="Student" asp-route-StudentId="@item.IdStudent">back last</a>
-    break;
+    ViewData["Title"] = "الحضور و الغياب";
 }
 
-<hr>
-<table class="table">
-    <thead >
-        <tr>
-            <th>
-                Lectuer
-            </th>
-            <th>
-                Status
-            </th>
-            <th>
-                Date
-            </th>
-            <th>
-                Excuse
-            </th>
-        </tr>
-    </thead>
-    <tbody>
-@foreach (var item in Model) {
-        <tr>
-            <td>
-                @Html.DisplayFor(modelItem => item.IdLectuerNavigation.Name)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.AttendanceStatus)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.DateAndTime)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.Excuse)
-            </td>
-        </tr>
-}
-    </tbody>
-</table>
+<div class="container mt-3">
+    <div class="row mb-3">
+        <div class="col-12 text-center">
+            <h4>الحضور والغياب في الصف: @ViewBag.StdClass</h4>
+            <a class="btn btn-outline-dark mt-2" asp-action="Index" asp-controller="Student">عودة</a>
+        </div>
+    </div>
+
+    <hr>
+
+    <div class="table-responsive">
+        <table class="table table-bordered table-striped text-center align-middle" id="attendancesTable">
+            <thead class="table-dark">
+                <tr>
+                    <th>المادة</th>
+                    <th>الحالة</th>
+                    <th>التاريخ</th>
+                    <th>العذر</th>
+                </tr>
+            </thead>
+        </table>
+    </div>
+</div>
+
 
 
 @section Scripts {
     <script>
-        $(function() {
-            // تفعيل DataTable
-            new DataTable('.table');
-        });
-    </script>
-    <script>
-        $(function () {
-            var teacherId = '@Model.FirstOrDefault()?.IdTeacher';
-
-            // عند فتح القائمة (Bootstrap Dropdown)
-            $('#dropdownNewMark').on('click', function () {
-                // تحميل المواد عند أول مرة فقط (يمكنك تحسينه لاحقاً للتحميل مرة واحدة فقط)
-                $.getJSON('/Grades/GetSubjectsForTeacher', { teacherId: teacherId }, function (data) {
-                    var subjectDropdown = $('#subjectDropdown');
-                    subjectDropdown.empty().append('<option value="">Choose</option>');
-
-                    $.each(data, function (i, subject) {
-                        subjectDropdown.append($('<option>').val(subject.id).text(subject.name));
-                    });
-                });
-            });
-
-            // عند اختيار مادة
-            $('#subjectDropdown').change(function () {
-                var subjectId = $(this).val();
-                if (!subjectId) return;
-
-                $.getJSON('/Grades/GetGradesForSubject', { teacherId: teacherId, subjectId: subjectId }, function (data) {
-                    var gradeDropdown = $('#gradeDropdown');
-                    gradeDropdown.empty().append('<option value="">Choose</option>');
-
-                    $.each(data, function (i, grade) {
-                        gradeDropdown.append($('<option>').val(grade.id).text(grade.name));
-                    });
-
-                    $('#gradeContainer').show();
-                });
-            });
-
-            // عند اختيار الصف
-            $('#gradeDropdown').change(function () {
-                var gradeId = $(this).val();
-                var subjectId = $('#subjectDropdown').val();
-
-                if (gradeId && subjectId) {
-                    // الانتقال إلى صفحة الإنشاء مع القيم
-                    window.location.href = `/Grades/Create?teacherId=${teacherId}&subjectId=${subjectId}&gradeId=${gradeId}`;
+        $(document).ready(function () {
+            var idStudent = @Html.Raw(ViewBag.StdId);
+            $('#attendancesTable').DataTable({
+                "deferRender": true,
+                "processing": true,
+                "serverSide": true,
+                "ajax": {
+                    "url": "/Attendance/AttendancesStudentData?studentid="+idStudent,
+                    "type": "GET",
+                    "dataSrc": function (json) {
+                        if (json.error) {
+                            alert(json.error);
+                            window.location.href = "/Account/Login";
+                            return [];
+                        }
+                        return json.data;
+                    }
+                },
+                "columns": [
+                    { "data": "lectuerName"},
+                    { 
+                        "data": "attendanceStatus",
+                            "render": function (data, type, row) {
+                                if(data == '1')
+                                {
+                                    return "حضور";
+                                }else if (data == '0')
+                                {
+                                    return "غياب";
+                                }else if(data == 'm')
+                                {
+                                    return "غياب بعذر";
+                                }
+                                else
+                                {
+                                    return "قيمة غير صالحة";
+                                }
+                            }
+                    },
+                    { "data": "dateAndTime"},
+                    { "data": "excuse"}
+                ],
+                "language": {
+                    "search": "🔍بحث: ",
+                    "lengthMenu": "عرض _MENU_ سجل",
+                    "info": "عرض من  _START_ الى _END_ من اصل _TOTAL_ سجل",
+                    "paginate": {
+                        "next": "الصفحة التالية",
+                        "previous": "الصفحة السابقة"
+                    },
+                    "zeroRecords": "لم يتم العثور على سجلات"
                 }
             });
         });
     </script>
     <style>
-        .dropdown-menu select {
-            width: 100%;
-        }
-        /* العرض المضغوط: افتراضي لجميع الأجهزة */
         body {
-            font-size: 10px;
+            font-size: 14px;
         }
 
-        /* إذا كان العرض أكبر من 768px (كمبيوتر أو لابتوب) */
-        @@media (min-width: 768px) {
-            body {
-                font-size: 16px; /* حجم الخط الطبيعي */
+        @@media (max-width: 768px) {
+            h4 {
+                font-size: 16px;
             }
 
-            table thead, table tbody {
-                font-size: 14px;
+            table {
+                font-size: 12px;
             }
 
             .btn {
-                font-size: 14px !important;
-                padding: 6px 12px !important;
-                height: auto !important;
-                min-width: auto !important;
+                font-size: 12px !important;
+                padding: 6px 10px !important;
             }
 
-            /* أي عناصر أخرى تم تصغيرها يمكن تعديلها هنا */
+            th, td {
+                white-space: nowrap;
+            }
         }
-
     </style>
+
 
 
 }

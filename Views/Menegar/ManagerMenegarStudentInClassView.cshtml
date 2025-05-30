@@ -1,0 +1,101 @@
+@{
+    ViewData["Title"] = "إدارة الطلاب في الصف";
+}
+
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" />
+<link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css" />
+
+<h2 class="mt-4 mb-3">👨‍🎓 إدارة الطلاب في الصف: @ViewBag.name</h2>
+
+<div class="d-flex flex-wrap gap-2 mb-3">
+    <a class="btn btn-outline-secondary" asp-controller="Menegar" asp-action="ManagerMenegarClassView">
+        <i class="bi bi-arrow-left-circle"></i> عودة
+    </a>
+</div>
+
+<hr />
+
+<div class="table-responsive">
+    <table id="studentsTable" class="table table-bordered table-hover display nowrap" style="width:100%">
+        <thead class="table-light">
+            <tr>
+                <th>اسم الطالب</th>
+                <th>الصف</th>
+            </tr>
+        </thead>
+    </table>
+</div>
+
+
+@section Scripts {
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
+
+    <script>
+        var idClass = @Html.Raw(ViewBag.IdClass);
+        $(document).ready(function () {
+            $('#studentsTable').DataTable({
+                responsive: true,
+                processing: true,
+                serverSide: true,
+                deferRender: true,
+                ajax: {
+                    url: "/Menegar/ManagerMenegarStudentInClass?idClass=" + idClass,
+                    type: "GET",
+                    dataSrc: function (json) {
+                        if (json.error) {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'خطأ',
+                                text: json.error
+                            }).then(() => {
+                                window.location.href = "/Account/Login";
+                            });
+                            return [];
+                        }
+                        return json.data;
+                    }
+                },
+                columns: [
+                    { data: "studentName" },
+                    { data: "classroomName",
+                        render: function (data, type, row) {
+                            return `<a class="btn btn-outline-secondary btn-sm" href="/StudentClass/Edit?id=${row.id}">${data}</a>`;
+                        } }
+                    
+                ],
+                language: {
+                    search: "بحث: 🔍",
+                    lengthMenu: "عرض _MENU_ سجل",
+                    info: "عرض من _START_ إلى _END_ من أصل _TOTAL_ سجل",
+                    paginate: {
+                        next: "التالي",
+                        previous: "السابق"
+                    },
+                    zeroRecords: "لا توجد بيانات لعرضها"
+                },
+                dom:
+                    "<'row'<'col-sm-12 col-md-6'l><'col-sm-12 col-md-6'f>>" +
+                    "<'row'<'col-sm-12'tr>>" +
+                    "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>"
+            });
+        });
+    </script>
+
+    <style>
+        body {
+            direction: rtl;
+            text-align: right;
+        }
+
+        #studentsTable thead th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+            text-align: right;
+            padding: 12px 15px;
+        }
+    </style>
+}

@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace SchoolSystem.Data;
 
-public partial class SystemSchoolDbContext : DbContext
+public partial class SystemSchoolDbContext : DbContext 
 {
     public SystemSchoolDbContext(DbContextOptions<SystemSchoolDbContext> options)
         : base(options)
@@ -15,7 +15,10 @@ public partial class SystemSchoolDbContext : DbContext
 
     public virtual DbSet<Attendance> Attendances { get; set; }
 
-    public virtual DbSet<ClassLectuer> ClassLectuers { get; set; }
+
+    public virtual DbSet<ErrorLog> ErrorLogs { get; set; }
+
+    public virtual DbSet<Gender> Genders { get; set; }
 
     public virtual DbSet<Grade> Grades { get; set; }
 
@@ -23,21 +26,20 @@ public partial class SystemSchoolDbContext : DbContext
 
     public virtual DbSet<Menegar> Menegars { get; set; }
 
+    public virtual DbSet<ProfileImage> ProfileImages { get; set; }
+
+    public virtual DbSet<School> Schools { get; set; }
+
+    public virtual DbSet<StatusSchool> StatusSchools { get; set; }
+
     public virtual DbSet<Student> Students { get; set; }
 
-    public virtual DbSet<StudentAverage> StudentAverages { get; set; }
 
-    public virtual DbSet<StudentClass> StudentClasses { get; set; }
-
-    public virtual DbSet<StudentLectuer> StudentLectuers { get; set; }
-
-    public virtual DbSet<StudentTeacher> StudentTeachers { get; set; }
+    public virtual DbSet<StudentLectuerTeacher> StudentLectuerTeachers { get; set; }
 
     public virtual DbSet<Teacher> Teachers { get; set; }
 
-    public virtual DbSet<TeacherClass> TeacherClasses { get; set; }
-
-    public virtual DbSet<TeacherLectuer> TeacherLectuers { get; set; }
+    public virtual DbSet<TeacherLectuerClass> TeacherLectuerClasses { get; set; }
 
     public virtual DbSet<TheClass> TheClasses { get; set; }
 
@@ -64,6 +66,8 @@ public partial class SystemSchoolDbContext : DbContext
 
             entity.ToTable("Attendance");
 
+            entity.HasIndex(e => e.IdSchool, "IX_Attendance_IdSchool");
+
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.AttendanceStatus)
                 .HasMaxLength(1)
@@ -74,60 +78,79 @@ public partial class SystemSchoolDbContext : DbContext
 
             entity.HasOne(d => d.IdClassNavigation).WithMany(p => p.Attendances)
                 .HasForeignKey(d => d.IdClass)
-                .HasConstraintName("FK__Attendanc__IdCla__65F62111");
+                .HasConstraintName("FK_Attendance_TheClass");
 
             entity.HasOne(d => d.IdLectuerNavigation).WithMany(p => p.Attendances)
                 .HasForeignKey(d => d.IdLectuer)
-                .HasConstraintName("FK__Attendanc__IdLec__5D60DB10");
+                .HasConstraintName("FK_Attendance_Lectuer");
+
+            entity.HasOne(d => d.IdSchoolNavigation).WithMany(p => p.Attendances)
+                .HasForeignKey(d => d.IdSchool)
+                .HasConstraintName("FK_Attendance_School");
 
             entity.HasOne(d => d.IdStudentNavigation).WithMany(p => p.Attendances)
                 .HasForeignKey(d => d.IdStudent)
-                .HasConstraintName("FK__Attendanc__IdStu__5E54FF49");
+                .HasConstraintName("FK_Attendance_Student");
 
             entity.HasOne(d => d.IdTeacherNavigation).WithMany(p => p.Attendances)
                 .HasForeignKey(d => d.IdTeacher)
-                .HasConstraintName("FK__Attendanc__IdTea__5C6CB6D7");
+                .HasConstraintName("FK_Attendance_Teacher");
         });
 
-        modelBuilder.Entity<ClassLectuer>(entity =>
+        modelBuilder.Entity<ErrorLog>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__ClassLec__3213E83F8327C66B");
+            entity.HasKey(e => e.Id).HasName("PK__ErrorLog__3214EC07A2529995");
 
-            entity.ToTable("ClassLectuer");
+            entity.Property(e => e.LoggedAt)
+                .HasDefaultValueSql("(getutcdate())")
+                .HasColumnType("datetime");
+            entity.Property(e => e.Source).HasMaxLength(255);
+        });
 
-            entity.Property(e => e.Id).HasColumnName("id");
+        modelBuilder.Entity<Gender>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__Gender__3214EC070A22819D");
 
-            entity.HasOne(d => d.IdClassNavigation).WithMany(p => p.ClassLectuers)
-                .HasForeignKey(d => d.IdClass)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__ClassLect__IdCla__66603565");
+            entity.ToTable("Gender");
 
-            entity.HasOne(d => d.IdLectuerNavigation).WithMany(p => p.ClassLectuers)
-                .HasForeignKey(d => d.IdLectuer)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__ClassLect__IdLec__6754599E");
+            entity.Property(e => e.TheType).HasMaxLength(7);
         });
 
         modelBuilder.Entity<Grade>(entity =>
         {
             entity.HasKey(e => e.GradesId).HasName("PK__Grades__931A40BF88D8CDCA");
 
-            entity.ToTable(tb => tb.HasTrigger("trg_UpdateStudentAverage"));
+            entity.HasIndex(e => e.GradesId, "IX_Grades_Id");
+
+            entity.HasIndex(e => e.IdSchool, "IX_Grades_IdSchool");
 
             entity.Property(e => e.GradesId).HasColumnName("GradesID");
-            entity.Property(e => e.Total).HasComputedColumnSql("(((([FirstMonth]+[Mid])+[SecondMonth])+[Activity])+[Final])", true);
+            entity.Property(e => e.Activity).HasDefaultValue(0);
+            entity.Property(e => e.Final).HasDefaultValue(0);
+            entity.Property(e => e.FirstMonth).HasDefaultValue(0);
+            entity.Property(e => e.Mid).HasDefaultValue(0);
+            entity.Property(e => e.SecondMonth).HasDefaultValue(0);
+            entity.Property(e => e.Total).HasComputedColumnSql("(((([FirstMonth]+[Mid])+[SecondMonth])+[Activity])+[Final])", false);
+
+            entity.HasOne(d => d.IdClassNavigation).WithMany(p => p.Grades)
+                .HasForeignKey(d => d.IdClass)
+                .HasConstraintName("FK__Grades__IdClass__0D0FEE32");
 
             entity.HasOne(d => d.IdLectuerNavigation).WithMany(p => p.Grades)
                 .HasForeignKey(d => d.IdLectuer)
-                .HasConstraintName("FK__Grades__IdLectue__7EF6D905");
+                .HasConstraintName("FK_Grades_Lectuer");
+
+            entity.HasOne(d => d.IdSchoolNavigation).WithMany(p => p.Grades)
+                .HasForeignKey(d => d.IdSchool)
+                .HasConstraintName("FK__Grades__IdSchool__6D6238AF");
 
             entity.HasOne(d => d.IdStudentNavigation).WithMany(p => p.Grades)
                 .HasForeignKey(d => d.IdStudent)
-                .HasConstraintName("FK__Grades__IdStuden__7D0E9093");
+                .HasConstraintName("FK_Grades_Student");
 
             entity.HasOne(d => d.IdTeacherNavigation).WithMany(p => p.Grades)
                 .HasForeignKey(d => d.IdTeacher)
-                .HasConstraintName("FK__Grades__IdTeache__7E02B4CC");
+                .HasConstraintName("FK_Grades_Teacher");
         });
 
         modelBuilder.Entity<Lectuer>(entity =>
@@ -136,10 +159,18 @@ public partial class SystemSchoolDbContext : DbContext
 
             entity.ToTable("Lectuer");
 
+            entity.HasIndex(e => e.IdSchool, "IX_Lectuer_IdSchool");
+
+            entity.HasIndex(e => e.Name, "IX_Lectuer_Name");
+
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.Name)
                 .HasMaxLength(50)
                 .IsUnicode(false);
+
+            entity.HasOne(d => d.IdSchoolNavigation).WithMany(p => p.Lectuers)
+                .HasForeignKey(d => d.IdSchool)
+                .HasConstraintName("FK__Lectuer__IdSchoo__6C6E1476");
         });
 
         modelBuilder.Entity<Menegar>(entity =>
@@ -148,13 +179,64 @@ public partial class SystemSchoolDbContext : DbContext
 
             entity.ToTable("Menegar");
 
+            entity.HasIndex(e => e.IdSchool, "IX_Menegar_IdSchool");
+
+            entity.HasIndex(e => e.Name, "IX_Menegar_Name");
+
+            entity.HasIndex(e => e.IdNumber, "UQ_Menegar_IdNumber").IsUnique();
+
             entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Area).HasMaxLength(50);
+            entity.Property(e => e.City).HasMaxLength(50);
             entity.Property(e => e.Email)
                 .HasMaxLength(50)
                 .IsUnicode(false);
-            entity.Property(e => e.Name)
+            entity.Property(e => e.Name).HasMaxLength(100);
+            entity.Property(e => e.Phone)
                 .HasMaxLength(50)
                 .IsUnicode(false);
+
+            entity.HasOne(d => d.IdSchoolNavigation).WithMany(p => p.Menegars)
+                .HasForeignKey(d => d.IdSchool)
+                .HasConstraintName("FK__Menegar__IdSchoo__23F3538A");
+        });
+
+        modelBuilder.Entity<ProfileImage>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__ProfileI__3214EC07AD185F4E");
+
+            entity.ToTable("ProfileImage");
+
+            entity.Property(e => e.Email).HasMaxLength(100);
+            entity.Property(e => e.ProfileImagePath).HasMaxLength(200);
+            entity.Property(e => e.UserName).HasMaxLength(100);
+        });
+
+        modelBuilder.Entity<School>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__School__3214EC07F11AFDBA");
+
+            entity.ToTable("School");
+
+            entity.Property(e => e.Name).HasMaxLength(200);
+
+            entity.HasOne(d => d.IdGenderNavigation).WithMany(p => p.Schools)
+                .HasForeignKey(d => d.IdGender)
+                .HasConstraintName("FK__School__IdGender__28B808A7");
+
+            entity.HasOne(d => d.IdStatusSchoolNavigation).WithMany(p => p.Schools)
+                .HasForeignKey(d => d.IdStatusSchool)
+                .HasConstraintName("FK__School__IdStatus__22FF2F51");
+        });
+
+        modelBuilder.Entity<StatusSchool>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__StatusSc__3214EC073DB2CBA3");
+
+            entity.ToTable("StatusSchool");
+
+            entity.Property(e => e.Condition).HasColumnName("condition");
+            entity.Property(e => e.TheType).HasMaxLength(20);
         });
 
         modelBuilder.Entity<Student>(entity =>
@@ -163,85 +245,61 @@ public partial class SystemSchoolDbContext : DbContext
 
             entity.ToTable("Student");
 
+            entity.HasIndex(e => e.IdSchool, "IX_Student_IdSchool");
+
+            entity.HasIndex(e => e.Name, "IX_Student_Name");
+
             entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Area).HasMaxLength(50);
+            entity.Property(e => e.City).HasMaxLength(50);
             entity.Property(e => e.Email)
                 .HasMaxLength(50)
                 .IsUnicode(false);
-            entity.Property(e => e.Name)
+            entity.Property(e => e.Name).HasMaxLength(100);
+            entity.Property(e => e.Phone)
                 .HasMaxLength(50)
                 .IsUnicode(false);
-        });
 
-        modelBuilder.Entity<StudentAverage>(entity =>
-        {
-            entity.HasKey(e => e.IdStudentAvg).HasName("PK__StudentA__9A002AFC4CA4B91A");
-
-            entity.ToTable("StudentAverage");
-
-            entity.HasOne(d => d.IdClassNavigation).WithMany(p => p.StudentAverages)
+            entity.HasOne(d => d.IdClassNavigation).WithMany(p => p.Students)
                 .HasForeignKey(d => d.IdClass)
-                .HasConstraintName("FK__StudentAv__IdCla__03BB8E22");
+                .HasConstraintName("FK__Student__IdClass__1A1FD08D");
 
-            entity.HasOne(d => d.IdStudentNavigation).WithMany(p => p.StudentAverages)
-                .HasForeignKey(d => d.IdStudent)
-                .HasConstraintName("FK__StudentAv__IdStu__02C769E9");
+            entity.HasOne(d => d.IdSchoolNavigation).WithMany(p => p.Students)
+                .HasForeignKey(d => d.IdSchool)
+                .HasConstraintName("FK__Student__IdSchoo__24E777C3");
         });
 
-        modelBuilder.Entity<StudentClass>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("PK__StudentC__3213E83F95F82A92");
+        
 
-            entity.ToTable("StudentClass");
-
-            entity.Property(e => e.Id).HasColumnName("id");
-
-            entity.HasOne(d => d.IdClassNavigation).WithMany(p => p.StudentClasses)
-                .HasForeignKey(d => d.IdClass)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__StudentCl__IdCla__5812160E");
-
-            entity.HasOne(d => d.IdStudentNavigation).WithMany(p => p.StudentClasses)
-                .HasForeignKey(d => d.IdStudent)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__StudentCl__IdStu__571DF1D5");
-        });
-
-        modelBuilder.Entity<StudentLectuer>(entity =>
+        modelBuilder.Entity<StudentLectuerTeacher>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__StudentL__3213E83F373E3AFF");
 
-            entity.ToTable("StudentLectuer");
+            entity.ToTable("StudentLectuerTeacher");
+
+            entity.HasIndex(e => e.IdSchool, "IX_StudentLectuer_IdSchool");
 
             entity.Property(e => e.Id).HasColumnName("id");
 
-            entity.HasOne(d => d.IdLectuerNavigation).WithMany(p => p.StudentLectuers)
+            entity.HasOne(d => d.IdClassNavigation).WithMany(p => p.StudentLectuerTeachers)
+                .HasForeignKey(d => d.IdClass)
+                .HasConstraintName("FK__StudentLe__IdCla__08F5448B");
+
+            entity.HasOne(d => d.IdLectuerNavigation).WithMany(p => p.StudentLectuerTeachers)
                 .HasForeignKey(d => d.IdLectuer)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__StudentLe__IdLec__5BE2A6F2");
+                .HasConstraintName("FK_StudentLectuer_Lectuer");
 
-            entity.HasOne(d => d.IdStudentNavigation).WithMany(p => p.StudentLectuers)
+            entity.HasOne(d => d.IdSchoolNavigation).WithMany(p => p.StudentLectuerTeachers)
+                .HasForeignKey(d => d.IdSchool)
+                .HasConstraintName("FK_StudentLectuer_School");
+
+            entity.HasOne(d => d.IdStudentNavigation).WithMany(p => p.StudentLectuerTeachers)
                 .HasForeignKey(d => d.IdStudent)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__StudentLe__IdStu__5AEE82B9");
-        });
+                .HasConstraintName("FK_StudentLectuer_Student");
 
-        modelBuilder.Entity<StudentTeacher>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("PK__StudentT__3213E83F7AD0C21E");
-
-            entity.ToTable("StudentTeacher");
-
-            entity.Property(e => e.Id).HasColumnName("id");
-
-            entity.HasOne(d => d.IdStudentNavigation).WithMany(p => p.StudentTeachers)
-                .HasForeignKey(d => d.IdStudent)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__StudentTe__IdStu__534D60F1");
-
-            entity.HasOne(d => d.IdTeacherNavigation).WithMany(p => p.StudentTeachers)
+            entity.HasOne(d => d.IdTeacherNavigation).WithMany(p => p.StudentLectuerTeachers)
                 .HasForeignKey(d => d.IdTeacher)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__StudentTe__IdTea__5441852A");
+                .HasConstraintName("FK__StudentLe__IdTea__09E968C4");
         });
 
         modelBuilder.Entity<Teacher>(entity =>
@@ -250,51 +308,53 @@ public partial class SystemSchoolDbContext : DbContext
 
             entity.ToTable("Teacher");
 
+            entity.HasIndex(e => e.IdSchool, "IX_Teacher_IdSchool");
+
+            entity.HasIndex(e => e.Name, "IX_Teacher_Name");
+
+            entity.HasIndex(e => e.IdNumber, "UQ_Teacher_IdNumber").IsUnique();
+
             entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Area).HasMaxLength(50);
+            entity.Property(e => e.City).HasMaxLength(50);
             entity.Property(e => e.Email)
                 .HasMaxLength(50)
                 .IsUnicode(false);
-            entity.Property(e => e.Name)
+            entity.Property(e => e.Name).HasMaxLength(100);
+            entity.Property(e => e.Phone)
                 .HasMaxLength(50)
                 .IsUnicode(false);
+
+            entity.HasOne(d => d.IdSchoolNavigation).WithMany(p => p.Teachers)
+                .HasForeignKey(d => d.IdSchool)
+                .HasConstraintName("FK__Teacher__IdSchoo__25DB9BFC");
         });
 
-        modelBuilder.Entity<TeacherClass>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("PK__TeacherC__3213E83FDA6F83CA");
-
-            entity.ToTable("TeacherClass");
-
-            entity.Property(e => e.Id).HasColumnName("id");
-
-            entity.HasOne(d => d.IdClassNavigation).WithMany(p => p.TeacherClasses)
-                .HasForeignKey(d => d.IdClass)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__TeacherCl__IdCla__5FB337D6");
-
-            entity.HasOne(d => d.IdTeacherNavigation).WithMany(p => p.TeacherClasses)
-                .HasForeignKey(d => d.IdTeacher)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__TeacherCl__IdTea__5EBF139D");
-        });
-
-        modelBuilder.Entity<TeacherLectuer>(entity =>
+        modelBuilder.Entity<TeacherLectuerClass>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__TeacherL__3213E83F5B2FD59A");
 
-            entity.ToTable("TeacherLectuer");
+            entity.ToTable("TeacherLectuerClass");
+
+            entity.HasIndex(e => e.IdSchool, "IX_TeacherLectuer_IdSchool");
 
             entity.Property(e => e.Id).HasColumnName("id");
 
-            entity.HasOne(d => d.IdLectuerNavigation).WithMany(p => p.TeacherLectuers)
-                .HasForeignKey(d => d.IdLectuer)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__TeacherLe__IdLec__6383C8BA");
+            entity.HasOne(d => d.IdClassNavigation).WithMany(p => p.TeacherLectuerClasses)
+                .HasForeignKey(d => d.IdClass)
+                .HasConstraintName("FK__TeacherLe__IdCla__74EE4BDE");
 
-            entity.HasOne(d => d.IdTeacherNavigation).WithMany(p => p.TeacherLectuers)
+            entity.HasOne(d => d.IdLectuerNavigation).WithMany(p => p.TeacherLectuerClasses)
+                .HasForeignKey(d => d.IdLectuer)
+                .HasConstraintName("FK_TeacherLectuer_Lectuer");
+
+            entity.HasOne(d => d.IdSchoolNavigation).WithMany(p => p.TeacherLectuerClasses)
+                .HasForeignKey(d => d.IdSchool)
+                .HasConstraintName("FK__TeacherLe__IdSch__7D2E8C24");
+
+            entity.HasOne(d => d.IdTeacherNavigation).WithMany(p => p.TeacherLectuerClasses)
                 .HasForeignKey(d => d.IdTeacher)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__TeacherLe__IdTea__628FA481");
+                .HasConstraintName("FK_TeacherLectuer_Teacher");
         });
 
         modelBuilder.Entity<TheClass>(entity =>
@@ -303,10 +363,14 @@ public partial class SystemSchoolDbContext : DbContext
 
             entity.ToTable("TheClass");
 
+            entity.HasIndex(e => e.IdSchool, "IX_TheClass_IdSchool");
+
             entity.Property(e => e.Id).HasColumnName("id");
-            entity.Property(e => e.Name)
-                .HasMaxLength(50)
-                .IsUnicode(false);
+            entity.Property(e => e.Name).HasMaxLength(20);
+
+            entity.HasOne(d => d.IdSchoolNavigation).WithMany(p => p.TheClasses)
+                .HasForeignKey(d => d.IdSchool)
+                .HasConstraintName("FK_TheClass_School");
         });
 
         OnModelCreatingPartial(modelBuilder);

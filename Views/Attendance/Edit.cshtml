@@ -1,45 +1,42 @@
 @model SchoolSystem.Data.Attendance
 
 @{
-    ViewData["Title"] = "Edit Attendance";
+    ViewData["Title"] = "تعديل معلومات الحضور";
 }
-<br>
-<br>
-<br>
-<h4>Edit Attendance To: @ViewBag.NameStudent </h4>
+
+<h4>تعديل بيانات الحضور للطالب: @ViewBag.NameStudent </h4>
 <hr />
 <div class="row">
     <div class="col-md-4">
         <form asp-action="Edit">
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-
+            @{
+                int IdStudent = ViewBag.IdStudent;
+                int IdTeacher = ViewBag.IdTeacher;
+                int IdLectuer = ViewBag.IdLectuer;
+                int IdClass = ViewBag.IdClass;
+                DateOnly DateAndTime = ViewBag.DateAndTime;
+            }
+            <input type="hidden" asp-for="Id" />
+            <input type="hidden" asp-for="IdStudent" value="@IdStudent" class="form-control" />
+            <input type="hidden" asp-for="IdTeacher" value="@IdTeacher" class="form-control" />
+            <input type="hidden" asp-for="IdLectuer" value="@IdLectuer" class="form-control" />
+            <input type="hidden" asp-for="IdClass" value="@IdClass" class="form-control" />
+            <input type="hidden" asp-for="DateAndTime" value="@DateAndTime" class="form-control" />
             <div class="form-group">
-                @{
-                    int IdStudent = ViewBag.IdStudent;
-                    int IdTeacher = ViewBag.IdTeacher;
-                    int IdLectuer = ViewBag.IdLectuer;
-                    int IdClass = ViewBag.IdClass;
-                    DateOnly DateAndTime = ViewBag.DateAndTime;
-                }
-                <input type="hidden" asp-for="Id" />
-                <input type="hidden" asp-for="IdStudent" value="@IdStudent" class="form-control" />
-                <input type="hidden" asp-for="IdTeacher" value="@IdTeacher" class="form-control" />
-                <input type="hidden" asp-for="IdLectuer" value="@IdLectuer" class="form-control" />
-                <input type="hidden" asp-for="IdClass" value="@IdClass" class="form-control" />
-                <input type="hidden" asp-for="DateAndTime" value="@DateAndTime" class="form-control" />
-                <label asp-for="AttendanceStatus" class="control-label"></label>
-                <span asp-validation-for="AttendanceStatus" class="text-danger"></span>
+                <label asp-for="AttendanceStatus" class="control-label">حالة الحضور</label>
                 <select asp-for="AttendanceStatus" asp-items="ViewBag.Status" class="form-control attendance-status"></select>
+                
             </div>
             <div class="form-group">
-                <label asp-for="Excuse" class="control-label"></label>
+                <label asp-for="Excuse" class="control-label">العذر</label>
                 <input asp-for="Excuse" value="@ViewBag.Excuse" class="form-control excuse-input" disabled />
                 <span asp-validation-for="Excuse" class="text-danger"></span>
             </div>
             <br>
             <div class="form-group">
-                <input type="submit" value="Save" class="btn btn-primary" />
-                <a asp-action="Index" class="btn btn-dark">Back to List</a>
+                <input type="submit" value="حفظ" class="btn btn-primary" />
+                <a asp-action="Index" class="btn btn-dark">عودة</a>
             </div>
         </form>
     </div>

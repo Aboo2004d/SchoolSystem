@@ -10,388 +10,544 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
-
-public class AccountController : Controller
+using AspNetCoreHero.ToastNotification.Notyf;
+using AspNetCoreHero.ToastNotification.Abstractions;
+using System.Threading.Tasks;
+using SchoolSystem.Filters;
+namespace SchoolSystem.Controllers
 {
-private readonly SystemSchoolDbContext _context;
-
-public AccountController(SystemSchoolDbContext context)
-{
-    _context = context;
-}
-
-
-    private bool chick_user()
+    public class AccountController : Controller
     {
-        Console.WriteLine($"IsAuthenticated: {User.Identity?.IsAuthenticated}");
-        return User.Identity?.IsAuthenticated == true;
-    }
+        private readonly SystemSchoolDbContext _context;
+        private readonly INotyfService _notyf;
+        private readonly IErrorLoggerService _logger;
+        private readonly IAccountService _accountService;
 
-    private string HashPassword(string password)
-    {
-        using (var sha512 = SHA512.Create())
+
+        public AccountController(SystemSchoolDbContext context, INotyfService notyf, IErrorLoggerService logger, IAccountService accountService)
         {
-            byte[] bytes = Encoding.UTF8.GetBytes(password); // تحويل النص إلى بايتات
-            byte[] hash = sha512.ComputeHash(bytes);         // تشفير البايتات باستخدام SHA512
-            return Convert.ToBase64String(hash);             // تحويل النتيجة إلى Base64
+            _logger = logger;
+            _context = context;
+            _notyf = notyf;
+            _accountService = accountService;
         }
-    }
 
-    // GET: /Account/Login
-    public IActionResult Login()
-    {
-        Console.WriteLine(chick_user());
-        if (chick_user())
+        public bool CheckUser()
         {
-            // إذا كان المستخدم مصادقًا عليه، قم بإعادة توجيهه إلى الصفحة الرئيسية
-            return RedirectToAction("Index", "Home");
+            return User.Identity.IsAuthenticated &&
+                HttpContext.Session.GetInt32("Id") != null &&
+                HttpContext.Session.GetString("UserName") != null &&
+                HttpContext.Session.GetString("Role") != null;
         }
-        return View();
-    }
 
-    // POST: /Account/Login
-    [HttpPost]
-    public async Task<IActionResult> Login(LoginViewModel model)
-    {
-        
-        Console.WriteLine($"username: {model.UserNameOrEmail}");
-        Console.WriteLine($"password: {model.Password}");
-        if (ModelState.IsValid)
+        private readonly int SaltSize = 16; // حجم الملح بالبايت (128 بت)
+        private readonly int KeySize = 32;  // حجم المفتاح الناتج (256 بت)
+        private readonly int Iterations = 10000; // عدد التكرارات
+
+        public string HashPassword(string password)
         {
-            Console.WriteLine($"username1: {model.UserNameOrEmail}");
-            var account = _context.Acounts
-                .FirstOrDefault(a => a.UsersName == model.UserNameOrEmail || a.Email == model.UserNameOrEmail);
-            Console.WriteLine($"Account: {account != null}");
-            Console.WriteLine(account);
-            if (account != null)
+            // إنشاء ملح عشوائي
+            using (var rng = RandomNumberGenerator.Create())
             {
-                Console.WriteLine($"username2: {model.UserNameOrEmail}");
-                // تشفير كلمة المرور المدخلة باستخدام SHA512
-                string hashedInputPassword = HashPassword(model.Password);
-                Console.WriteLine($"hashedInputPassword: {HashPassword(model.Password)}");
+                byte[] salt = new byte[SaltSize];
+                rng.GetBytes(salt);
 
-                // التحقق من أن القيمة المشفرة تطابق القيمة المخزنة
-                    
-                if (hashedInputPassword == account.Passwords)
+                // توليد الهاش باستخدام PBKDF2
+                using (var pbkdf2 = new Rfc2898DeriveBytes(password, salt, Iterations, HashAlgorithmName.SHA256))
                 {
-                    var role = _context.Acounts.FirstOrDefault(s => s.Email == account.Email);
+                    byte[] key = pbkdf2.GetBytes(KeySize);
 
-                    if (role.Role == "admin")
-                    {
-                        var manager = _context.Menegars.FirstOrDefault(s => s.Email == account.Email);
-                        HttpContext.Session.SetString("UserName", account.UsersName);
-                        HttpContext.Session.SetString("Role", account.Role);
-                        HttpContext.Session.SetString("Email", account.Email);
-                        HttpContext.Session.SetString("Id", manager.Id.ToString());
-                    }
-                    else if (role.Role == "Teacher")
-                    {
-                        var teacher = _context.Teachers.FirstOrDefault(s => s.Email == account.Email);
-                        HttpContext.Session.SetString("UserName", account.UsersName);
-                        HttpContext.Session.SetString("Role", account.Role);
-                        HttpContext.Session.SetString("Email", account.Email);
-                        HttpContext.Session.SetString("Id", teacher.Id.ToString());
-                    }
-                    else if (role.Role == "Student")
-                    {
-                        var Student = _context.Students.FirstOrDefault(s => s.Email == account.Email);
-                        HttpContext.Session.SetString("UserName", account.UsersName);
-                        HttpContext.Session.SetString("Role", account.Role);
-                        HttpContext.Session.SetString("Email", account.Email);
-                        HttpContext.Session.SetString("Id", Student.Id.ToString());
-                    }
-                    
-                    var claims = new List<Claim>
-                    {
-                        new Claim(ClaimTypes.Name, account.UsersName),
-                        new Claim(ClaimTypes.Email, account.Email),
-                        new Claim(ClaimTypes.Role, account.Role)                    };
+                    // تخزين الملح والهاش معًا في صيغة Base64 مفصولة بفاصل (مثل $)
+                    return $"{Convert.ToBase64String(salt)}${Convert.ToBase64String(key)}";
+                }
+            }
+        }
 
-                    var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-                    var principal = new ClaimsPrincipal(identity);
+        public bool VerifyPassword(string password, string storedHash)
+        {
+            // فصل الملح والهاش المخزن
+            var parts = storedHash.Split('$');
+            if (parts.Length != 2)
+                return false;
 
-                    // تسجيل الدخول باستخدام ملفات تعريف الارتباط
-                    await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
-                    
-                    return RedirectToAction("Index", "Home");
+            byte[] salt = Convert.FromBase64String(parts[0]);
+            byte[] key = Convert.FromBase64String(parts[1]);
+
+            // توليد هاش جديد من كلمة المرور المدخلة والملح نفسه
+            using (var pbkdf2 = new Rfc2898DeriveBytes(password, salt, Iterations, HashAlgorithmName.SHA256))
+            {
+                byte[] keyToCheck = pbkdf2.GetBytes(KeySize);
+
+                // مقارنة بين الهاش المخزن والهاش الذي تم توليده
+                return CryptographicOperations.FixedTimeEquals(key, keyToCheck);
+            }
+        }
+        // GET: /Account/Login
+        [HttpGet]
+        public IActionResult Login()
+        {
+            if (CheckUser())
+            {
+                Console.WriteLine($"CheckUser: {CheckUser()}");
+                // إذا كان المستخدم مصادقًا عليه، قم بإعادة توجيهه إلى الصفحة الرئيسية
+                return RedirectToAction("Index", "Home");
+            }
+            return View();
+        }
+
+        // POST: /Account/Login
+        [HttpPost]
+        public async Task<IActionResult> Login(LoginViewModel model)
+        {
+            if (ModelState.IsValid)
+            {
+                Acount? account = await _context.Acounts
+                .FirstOrDefaultAsync(a => a.UsersName == model.UserName);
+
+                if (account != null)
+                {
+                    if (VerifyPassword(model.Password, account.Passwords))
+                    {
+                        if (account.IsActive == true)
+                        {
+                            switch (account.Role)
+                            {
+                                case "admin":
+                                    Menegar? menegar = await _context.Menegars.FirstOrDefaultAsync(s => s.Id == account.IdUser);
+                                    if (await Cookies(account.UsersName, account.Role, menegar?.Email, menegar?.Id, menegar?.IdSchool, menegar?.Name))
+                                    {
+                                        return RedirectToAction("Index", "Home");
+                                    }
+                                    break;
+                                case "Student":
+                                    Student? student = await _context.Students.FirstOrDefaultAsync(s => s.Id == account.IdUser);
+                                    if (await Cookies(account.UsersName, account.Role, student?.Email, student?.Id, student?.IdSchool, student?.Name))
+                                    {
+                                        return RedirectToAction("Index", "Home");
+                                    }
+                                    break;
+                                case "Teacher":
+                                    Teacher? teacher = await _context.Teachers.FirstOrDefaultAsync(s => s.Id == account.IdUser);
+                                    if (await Cookies(account.UsersName, account.Role, teacher?.Email, teacher?.Id, teacher?.IdSchool, teacher?.Name))
+                                    {
+                                        return RedirectToAction("Index", "Home");
+                                    }
+                                    break;
+                                default:
+                                    ShowErrornotification("فشل تسجيل الدخول");
+                                    break;
+                            }
+                        }
+                        else
+                        {
+                            ShowErrornotification("فشل تسجيل الدخول");
+                        }
+                    }
+                    else
+                    {
+                        ShowErrornotification("اسم المستخدم او كلمة المرور خاظئة");
+                    }
                 }
                 else
                 {
-                    ModelState.AddModelError("", "Username or password is invalid.");
+                    ShowErrornotification("اسم المستخدم او كلمة المرور خاظئة");
                 }
             }
             else
             {
-                ModelState.AddModelError("", "Username or password is invalid.");
+                ShowErrornotification("خطأ في البيانات المدخلة");
             }
-        }
-        return View(model);
-    }
-
-    // GET: /Account/Register
-    public IActionResult Register(string email, int phone, string fullname)
-    {
-        if (chick_user())
-        {
-            // إذا كان المستخدم مصادقًا عليه، قم بإعادة توجيهه إلى الصفحة الرئيسية
-            return RedirectToAction("Index", "Home");
-        }
-        var model = new RegisterViewModel
-        {
-            Email = email,
-            Phone = phone,
-            FullName = fullname
-        };
-        return View(model);
-    }
-
-    // POST: /Account/Register
-    [HttpPost]
-    public IActionResult Register(RegisterViewModel model)
-    {
-        if (ModelState.IsValid)
-        {
-            var student = _context.Students.FirstOrDefault(s => s.Email == model.Email && s.Phone == model.Phone && s.Name == model.FullName);
-            if (student != null)
-            {
-                return RedirectToAction("SetCredentials", new { email = model.Email, role = "Student" });
-            }
-
-            var teacher = _context.Teachers.FirstOrDefault(t => t.Email == model.Email && t.Phone == model.Phone && t.Name == model.FullName);
-            if (teacher != null)
-            {
-                return RedirectToAction("SetCredentials", new { email = model.Email, role = "Teacher" });
-            }
-
-            var manager = _context.Menegars.FirstOrDefault(m => m.Email == model.Email && m.Phone == model.Phone && m.Name == model.FullName);
-            if (manager != null)
-            {
-                return RedirectToAction("SetCredentials", new { email = model.Email, role = "admin" });
-            }
-
-            ModelState.AddModelError("", "The information you entered is incorrect.");
-        }
-        return View(model);
-    }
-    // GET: /Account/SetCredentials
-    [HttpGet]
-    public IActionResult SetCredentials(string email, string role)
-    {
-        if (chick_user())
-        {
-            // إذا كان المستخدم مصادقًا عليه بالفعل، قم بإعادة توجيهه إلى الصفحة الرئيسية
-            return RedirectToAction("Index", "Home");
-        }
-
-        // إنشاء نموذج لعرض الصفحة
-        var model = new SetCredentialsViewModel
-        {
-            Email = email,
-            Role = role
-        };
-
-        // عرض الصفحة مع النموذج
-        return View(model);
-    }
-
-    // POST: /Account/SetCredentials
-    [HttpPost]
-    public async Task<IActionResult> SetCredentials(SetCredentialsViewModel model)
-    {
-        // التحقق من صحة النموذج
-        if (!ModelState.IsValid)
-        {
             return View(model);
         }
 
-        // تشفير كلمة المرور باستخدام SHA512
-        string hashedPassword = HashPassword(model.Password);
-        string hashedConfirmPassword = HashPassword(model.ConfirmPassword);
-
-        // التحقق مما إذا كانت كلمة المرور وتأكيد كلمة المرور متطابقتين
-        if (hashedPassword != hashedConfirmPassword)
+        protected async Task<bool> Cookies(string? username, string? role, string? email, int? id, int? school, string? name)
         {
-            ModelState.AddModelError("", "The password and confirmation password do not match.");
-            return View(model);
-        }
+            // تحقق من القيم المدخلة
+            if (string.IsNullOrWhiteSpace(username) || 
+                string.IsNullOrWhiteSpace(role) || 
+                string.IsNullOrWhiteSpace(email) || 
+                id == null || 
+                school == null || 
+                string.IsNullOrWhiteSpace(name))
+            {
+                ShowErrornotification("فشل تسجيل الدخول. يرجى المحاولة مرة أخرى.");
+                return false;
+            }
 
-        // التحقق مما إذا كان اسم المستخدم أو البريد الإلكتروني مستخدمًا بالفعل
-        var account1 = _context.Acounts.FirstOrDefault(a => a.UsersName == model.UserName || a.Email == model.Email);
-        if (account1 != null)
-        {
-            ModelState.AddModelError("", "The username or email is already in use.");
-            return View(model);
-        }
-
-        // إنشاء حساب جديد
-        var account = new Acount
-        {
-            UsersName = model.UserName,
-            Passwords = hashedPassword, // تخزين القيمة المشفرة
-            Email = model.Email,
-            Role = model.Role,
-            ResetToken = " ",
-            ResetTokenExpiry = System.DateTime.Now
-        };
-
-        // إضافة الحساب إلى قاعدة البيانات
-        _context.Add(account);
-        _context.SaveChanges();
-
-        // إنشاء مطالبات الهوية (Claims)
-        var claims = new List<Claim>
-        {
-            new Claim(ClaimTypes.Name, account.UsersName),
-            new Claim(ClaimTypes.Email, account.Email),
-            new Claim(ClaimTypes.Role, account.Role) // إضافة الدور إلى الهوية
-        };
-
-        // إنشاء هوية المستخدم
-        var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-
-        // تسجيل الدخول باستخدام ملفات تعريف الارتباط
-        await HttpContext.SignInAsync(
-            CookieAuthenticationDefaults.AuthenticationScheme,
-            new ClaimsPrincipal(claimsIdentity));
-
-        // تخزين بيانات المستخدم في الجلسة (اختياري)
-        HttpContext.Session.SetString("UserName", account.UsersName);
-        HttpContext.Session.SetString("Role", account.Role);
-        HttpContext.Session.SetString("Email", account.Email);
-
-        // إعادة توجيه المستخدم إلى الصفحة الرئيسية بعد تسجيل الدخول
-        return RedirectToAction("Index", "Home");
-    }
-    public async Task<IActionResult> Logout()
-    {
-        HttpContext.Session.Clear(); // مسح الجلسة
-        // تسجيل الخروج باستخدام ملفات تعريف الارتباط
-        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-
-        // إعادة توجيه المستخدم إلى صفحة تسجيل الدخول
-        return RedirectToAction("Login");
-    }
-
-    public IActionResult ForgotPassword()
-    {
-        return View();
-    }
-
-    [HttpPost]
-    public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model)
-    {
-        Console.WriteLine($"Email: {model.Email}");
-        if (ModelState.IsValid)
-        {
+            // ✅ تخزين القيم الأساسية فقط في الجلسة
+            HttpContext.Session.SetInt32("Id", id??0);
+            HttpContext.Session.SetInt32("School", school??0);
+            HttpContext.Session.SetString("UserName", username);
+            HttpContext.Session.SetString("Role", role);
             
-            Console.WriteLine(ModelState.IsValid);
-            var account = _context.Acounts.FirstOrDefault(a => a.Email == model.Email);
-            if (account != null)
+            // ✅ إعداد قائمة Claims
+            var claims = new List<Claim>
             {
-                // إنشاء رمز تحقق عشوائي
-                var resetToken = Guid.NewGuid().ToString();
-                var tokenExpiry = DateTime.UtcNow.AddHours(1); // صلاحية الرمز لمدة ساعة
-                // التحقق من أن الأعمدة ليست NULL
-                if (account.ResetToken == null || account.ResetTokenExpiry == null)
-                {
-                    account.ResetToken = resetToken;
-                    account.ResetTokenExpiry = tokenExpiry;
-                }
-                else
-                {
-                    // إذا كان هناك رمز سابق، يمكن تحديثه
-                    account.ResetToken = resetToken;
-                    account.ResetTokenExpiry = tokenExpiry;
-                }
+                new Claim(ClaimTypes.Name, username),
+                new Claim(ClaimTypes.Role, role),
+                new Claim(ClaimTypes.Email, email)
+            };
 
-                _context.SaveChanges();
+            // ✅ إنشاء الهوية والمستخدم
+            var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            var principal = new ClaimsPrincipal(identity);
 
-                // إنشاء رابط إعادة تعيين كلمة المرور
-                var resetLink = Url.Action("ResetPassword", "Account", new { token = resetToken }, Request.Scheme);
+            // ✅ خيارات الكوكيز
+            var authProperties = new AuthenticationProperties
+            {
+                IsPersistent = false, // تبقى بعد إغلاق المتصفح
+                ExpiresUtc = DateTimeOffset.UtcNow.AddMinutes(30)
+            };
 
-                // إرسال البريد الإلكتروني
-                await SendResetEmailAsync(model.Email, resetLink);
+            // ✅ تسجيل الدخول
+            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal, authProperties);
+
+            // ✅ ترحيب بالاسم الأول
+            var firstName = name.Split(" ")[0];
+            ShowSuccessnotification($"مرحباً {firstName}");
+            return true;
+        }
+
+
+
+        // GET: /Account/Register
+        [HttpGet]
+        public IActionResult Register()
+        {
+            if (CheckUser())
+            {
+                // إذا كان المستخدم مصادقًا عليه، قم بإعادة توجيهه إلى الصفحة الرئيسية
+                return RedirectToAction("Index", "Home");
             }
-            Console.WriteLine($"Email: {model.Email}");
+            return View();
+        }
 
-            // لا نخبر المستخدم إذا كان البريد غير موجود لتجنب تسريب المعلومات
-            TempData["Message"] = "If the email exists, a reset link has been sent.";
+        // POST: /Account/Register
+        [HttpPost]
+        public async Task<IActionResult> Register(RegisterViewModel model)
+        {
+            if (ModelState.IsValid)
+            {
+                var result = await _accountService.RegisterUserAsync(model);
+                if (!result.IsSuccess)
+                {
+                    ShowErrornotification(result.Message);
+                    return View(model);
+                }
+                HttpContext.Session.SetString("email", model.Email);
+                HttpContext.Session.SetString("role", model.Role);
+                HttpContext.Session.SetInt32("idUser", model.IdUser);
+                HttpContext.Session.SetInt32("school", model.School ?? 0);
+                HttpContext.Session.SetString("name", model.FullName);
+
+                return RedirectToAction("SetCredentials");
+            }
+            
+            Console.WriteLine($"Name: {model.FullName}");
+            ShowErrornotification("بيانات التحقق غير صحيحة");
+            return View(model);
+
+        }
+        // GET: /Account/SetCredentials
+        [HttpGet]
+        public async Task<IActionResult> SetCredentials()
+        {
+            if (CheckUser())
+            {
+                return RedirectToAction("Index", "Home");
+            }
+            string? email = HttpContext.Session.GetString("email");
+            string? role = HttpContext.Session.GetString("role");
+            int? idUser = HttpContext.Session.GetInt32("idUser");
+            int? school = HttpContext.Session.GetInt32("school");
+            string? name = HttpContext.Session.GetString("name");
+
+            if (email == null || role == null || idUser == null || school == null)
+            {
+                ShowErrornotification("البيانات غير متوفرة أو انتهت الجلسة");
+                return RedirectToAction("Register");
+            }
+            Console.WriteLine($"Role: {role}");
+
+            var model = new SetCredentialsViewModel
+            {
+                Email = email,
+                Role = role,
+                IdUser = idUser ?? 0,
+                School = school ?? 0,
+                name = name ?? "Null"
+            };
+            HttpContext.Session.Clear();
+            return View(model);
+        }
+
+        // POST: /Account/SetCredentials
+        [HttpPost]
+        public async Task<IActionResult> SetCredentials(SetCredentialsViewModel model)
+        {
+
+            // التحقق من صحة النموذج
+            if (!ModelState.IsValid)
+            {
+                foreach (var state in ModelState)
+                {
+                    var key = state.Key;
+                    var errors = state.Value.Errors;
+                    
+                    foreach (var error in errors)
+                    {
+                        Console.WriteLine($"خطأ في الحقل: {key} - الرسالة: {error.ErrorMessage}");
+                    }
+                }
+                ShowErrornotification("خطأ بالبيانات المدخلة");
+                return View(model);
+            }
+
+            // التحقق مما إذا كانت كلمة المرور وتأكيد كلمة المرور متطابقتين
+            if (model.Password != model.ConfirmPassword)
+            {
+                ShowErrornotification("كلمة المرور غير متطابقة");
+                return View(model);
+            }
+
+            // التحقق مما إذا كان اسم المستخدم مستخدمًا بالفعل
+            bool account1 = _context.Acounts.Any(a => a.UsersName == model.UserName);
+            if (account1 == true)
+            {
+                ShowErrornotification("اسم المستخدم موجود مسبقا");
+                return View(model);
+            }
+
+            // إنشاء حساب جديد
+            Acount account = new Acount
+            {
+                UsersName = model.UserName,
+                Passwords = HashPassword(model.Password), // تخزين القيمة المشفرة
+                Email = model.Email,
+                IdUser = model.IdUser,
+                Role = model.Role,
+                ResetToken = " ",
+                IsActive = true,
+                ResetTokenExpiry = System.DateTime.Now
+            };
+
+            // إضافة الحساب إلى قاعدة البيانات
+            await _context.Acounts.AddAsync(account);
+            await _context.SaveChangesAsync();
+
+            if (await Cookies(account.UsersName, account.Role, account.Email, model.IdUser, model.School, model.name))
+                return RedirectToAction("Index", "Home");
+            return await Logout();
+        }
+
+        public async Task<IActionResult> Logout()
+        {
+            HttpContext.Session.Clear(); // مسح الجلسة
+            // تسجيل الخروج باستخدام ملفات تعريف الارتباط
+            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            ShowSuccessnotification("تم تسجيل الخروج");
+            // إعادة توجيه المستخدم إلى صفحة تسجيل الدخول
             return RedirectToAction("Login");
         }
-        return View(model);
-    }
 
-    private async Task SendResetEmailAsync(string email, string resetLink)
-    {
-        var subject = "Password Reset Request";
-        var body = $"Please click the following link to reset your password: {resetLink}";
-
-        // استخدام Mailtrap لإرسال البريد الإلكتروني
-        using (var smtpClient = new MailKit.Net.Smtp.SmtpClient())
+        [HttpGet]
+        public IActionResult ForgotPassword()
         {
-            await smtpClient.ConnectAsync(
-                Environment.GetEnvironmentVariable("MAILTRAP_HOST"),
-                int.Parse(Environment.GetEnvironmentVariable("MAILTRAP_PORT")),
-                false);
-
-            smtpClient.Authenticate(
-                Environment.GetEnvironmentVariable("MAILTRAP_USERNAME"),
-                Environment.GetEnvironmentVariable("MAILTRAP_PASSWORD"));
-
-            var mailMessage = new MimeKit.MimeMessage();
-            mailMessage.From.Add(new MimeKit.MailboxAddress("Your App", "no-reply@example.com"));
-            mailMessage.To.Add(new MimeKit.MailboxAddress("", email));
-            mailMessage.Subject = subject;
-            mailMessage.Body = new MimeKit.TextPart("plain") { Text = body };
-
-            await smtpClient.SendAsync(mailMessage);
-            await smtpClient.DisconnectAsync(true);
-        }
-    }
-
-    [HttpGet]
-    public IActionResult ResetPassword(string token)
-    {
-        if (string.IsNullOrEmpty(token))
-        {
-            return BadRequest("Invalid token.");
+            if (CheckUser())
+            {
+                _notyf.Warning("The user is authenticated!");
+                // إذا كان المستخدم مصادقًا عليه، قم بإعادة توجيهه إلى الصفحة الرئيسية
+                return RedirectToAction("Index", "Home");
+            }
+            return View();
         }
 
-        var model = new ResetPasswordViewModel { Token = token };
-        return View(model);
-    }
-    [HttpPost]
-    public IActionResult ResetPassword(ResetPasswordViewModel model)
-    {
-        if (!ModelState.IsValid)
+        [HttpPost]
+        public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model)
         {
+            Console.WriteLine($"Email: {model.Email}");
+            if (ModelState.IsValid)
+            {
+
+                Console.WriteLine(ModelState.IsValid);
+                Acount? account = _context.Acounts.FirstOrDefault(a => a.Email == model.Email);
+                if (account != null)
+                {
+                    // إنشاء رمز تحقق عشوائي
+                    var resetToken = Guid.NewGuid().ToString();
+                    var tokenExpiry = DateTime.UtcNow.AddHours(1); // صلاحية الرمز لمدة ساعة
+                    // التحقق من أن الأعمدة ليست NULL
+                    if (account.ResetToken == null || account.ResetTokenExpiry == null)
+                    {
+                        account.ResetToken = resetToken;
+                        account.ResetTokenExpiry = tokenExpiry;
+                    }
+                    else
+                    {
+                        // إذا كان هناك رمز سابق، يمكن تحديثه
+                        account.ResetToken = resetToken;
+                        account.ResetTokenExpiry = tokenExpiry;
+                    }
+
+                    _context.SaveChanges();
+
+                    // إنشاء رابط إعادة تعيين كلمة المرور
+                    var resetLink = Url.Action("ResetPassword", "Account", new { token = resetToken }, Request.Scheme);
+
+                    // إرسال البريد الإلكتروني
+                    await SendResetEmailAsync(model.Email, resetLink);
+                }
+                Console.WriteLine($"Email: {model.Email}");
+
+                ShowSuccessnotification($"An email to reset the password has been sent to the email {model.Email}.");
+                return RedirectToAction("Login");
+            }
+            ShowErrornotification("There is an error in the entered data.");
             return View(model);
         }
 
-        var account = _context.Acounts.FirstOrDefault(a => a.ResetToken == model.Token && a.ResetTokenExpiry > DateTime.UtcNow);
-        
-        if (account == null)
+        private async Task SendResetEmailAsync(string email, string resetLink)
         {
-            return BadRequest("Invalid or expired token.");
+            var subject = "Password Reset Request";
+            var body = $"Please click the following link to reset your password: {resetLink}";
+
+            // استخدام Mailtrap لإرسال البريد الإلكتروني
+            using (var smtpClient = new MailKit.Net.Smtp.SmtpClient())
+            {
+                await smtpClient.ConnectAsync(
+                    Environment.GetEnvironmentVariable("MAILTRAP_HOST"),
+                    int.Parse(Environment.GetEnvironmentVariable("MAILTRAP_PORT")),
+                    false);
+
+                smtpClient.Authenticate(
+                    Environment.GetEnvironmentVariable("MAILTRAP_USERNAME"),
+                    Environment.GetEnvironmentVariable("MAILTRAP_PASSWORD"));
+
+                var mailMessage = new MimeKit.MimeMessage();
+                mailMessage.From.Add(new MimeKit.MailboxAddress("Your App", "no-reply@example.com"));
+                mailMessage.To.Add(new MimeKit.MailboxAddress("", email));
+                mailMessage.Subject = subject;
+                mailMessage.Body = new MimeKit.TextPart("plain") { Text = body };
+
+                await smtpClient.SendAsync(mailMessage);
+                await smtpClient.DisconnectAsync(true);
+            }
         }
-        string hashedPassword = HashPassword(model.NewPassword);
-        string hashedConfirmPassword = HashPassword(model.ConfirmPassword);
-        if (hashedPassword != hashedConfirmPassword)
+
+        [HttpGet]
+        public IActionResult ResetPassword(string token)
         {
-            ModelState.AddModelError("", "The password and confirmation password do not match.");
+            if (CheckUser())
+            {
+                _notyf.Warning("The user is authenticated!");
+                return RedirectToAction("Index", "Home");
+            }
+            if (string.IsNullOrEmpty(token))
+            {
+                return BadRequest("Invalid token.");
+            }
+
+            var model = new ResetPasswordViewModel { Token = token };
             return View(model);
         }
+        [HttpPost]
+        public IActionResult ResetPassword(ResetPasswordViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return View(model);
+            }
 
-        account.Passwords = HashPassword(model.NewPassword);
-    
-        // مسح الرموز القديمة بعد تحديث كلمة المرور
-        
+            var account = _context.Acounts.FirstOrDefault(a => a.ResetToken == model.Token && a.ResetTokenExpiry > DateTime.UtcNow);
 
-        _context.SaveChanges();
+            if (account == null)
+            {
+                return BadRequest("Invalid or expired token.");
+            }
+            string hashedPassword = HashPassword(model.NewPassword);
+            string hashedConfirmPassword = HashPassword(model.ConfirmPassword);
 
-        TempData["Message"] = "Your password has been successfully reset.";
-        return RedirectToAction("Login");
+            if (model.NewPassword != model.ConfirmPassword)
+            {
+                ShowErrornotification("كلمة المرور المطابقة غير صحيحة");
+                return View(model);
+            }
+            if (account.Passwords == hashedPassword)
+            {
+                ShowErrornotification("لا يمكن ان تكون كلمة المرور الجديدة تشبه القديمة");
+                return View(model);
+            }
+
+            account.Passwords = HashPassword(model.NewPassword);
+
+            // مسح الرموز القديمة بعد تحديث كلمة المرور
+
+
+            _context.SaveChanges();
+
+            ShowSuccessnotification("تم تحديث كلمة المرور بنجاح");
+            return RedirectToAction("Login");
+        }
+
+
+
+        [HttpGet]
+        [AuthorizeRoles("admin", "Student", "Teacher")]
+        public IActionResult NewPassword()
+        {
+
+            return View();
+        }
+
+        [HttpPost]
+        [AuthorizeRoles("admin", "Student", "Teacher")]
+        public async Task<IActionResult> NewPassword(NewPasswordViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                ShowErrornotification("خطأ بالبيانات المدخلة");
+                return View(model);
+            }
+            string username = HttpContext.Session.GetString("UserName") ?? "null";
+            if (username == "null")
+            {
+                return await Logout();
+            }
+            Acount? account = await _context.Acounts.FirstOrDefaultAsync(acc => username == acc.UsersName);
+            if (account == null)
+            {
+               return await Logout();
+            }
+            string Hash = HashPassword(model.LastPassword);
+            if (Hash != account.Passwords)
+            {
+                ShowErrornotification("كلمة المرور القديمة خاطئة");
+                return View(model);
+            }
+            if (model.NewPassword != model.ConfirmPassword)
+            {
+                ShowErrornotification("كلمة المرور المدخلة للتأكيد خاطئة");
+                return View(model);
+            }
+            if (HashPassword(model.NewPassword) == Hash)
+            {
+                ShowErrornotification("لا يمكن ان تكون كلمة المرور القديمة تشبه الجديدة");
+                return View(model);
+            }
+            account.Passwords = HashPassword(model.NewPassword);
+            _context.SaveChanges();
+            ShowSuccessnotification("تم تحديث كلمة المرور");
+            return RedirectToAction("IndexProfile", "Profile");
+        }
+
+        [HttpGet]
+        public IActionResult AccessDenied()
+        {
+            _notyf.Warning("لا تملك الصلاحية للوصول إلى هذه الصفحة.");
+            return RedirectToAction("Index", "Home");
+        }
+
+        protected void ShowErrornotification(string message) => _notyf.Error(message);
+        protected void ShowSuccessnotification(string message) => _notyf.Success(message);
     }
-
-
 }

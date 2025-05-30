@@ -1,0 +1,25 @@
+@model List<SchoolSystem.Data.ErrorLog>
+@{
+    ViewData["Title"] = "الاخطاء الغير متوقعة";
+}
+
+<h2>سجل الاخطاء</h2>
+<table class="table">
+    <thead>
+        <tr>
+            <th>الخطأ</th>
+            <th>العنوان</th>
+            <th>تاريخ الخطأ</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var log in Model)
+        {
+            <tr>
+                <td>@log.Message</td>
+                <td>@log.Source</td>
+                <td>@log.LoggedAt</td>
+            </tr>
+        }
+    </tbody>
+</table>

@@ -21,9 +21,13 @@ public partial class Attendance
 
     public int? IdClass { get; set; }
 
+    public int? IdSchool { get; set; }
+
     public virtual TheClass? IdClassNavigation { get; set; }
 
     public virtual Lectuer? IdLectuerNavigation { get; set; }
+
+    public virtual School? IdSchoolNavigation { get; set; }
 
     public virtual Student? IdStudentNavigation { get; set; }
 

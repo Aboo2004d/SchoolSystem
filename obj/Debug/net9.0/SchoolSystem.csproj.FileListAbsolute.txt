@@ -262,7 +262,6 @@ E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\obj\Debug\net9.0\SchoolSystem.
 E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\obj\Debug\net9.0\scopedcss\Views\Shared\_Layout.cshtml.rz.scp.css
 E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\obj\Debug\net9.0\scopedcss\bundle\SchoolSystem.styles.css
 E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\obj\Debug\net9.0\scopedcss\projectbundle\SchoolSystem.bundle.scp.css
-E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\obj\Debug\net9.0\compressed\ncrfd20eem-vmbd8czzky.gz
 E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\obj\Debug\net9.0\compressed\o39d5szx4f-61n19gt1b8.gz
 E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\obj\Debug\net9.0\compressed\iav29dzo6r-xtxxf3hu2r.gz
 E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\obj\Debug\net9.0\compressed\n8s5n2t7yj-bqjiyaj88i.gz
@@ -324,8 +323,6 @@ E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\obj\Debug\net9.0\compressed\g6
 E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\obj\Debug\net9.0\compressed\omfngsdvc0-muycvpuwrr.gz
 E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\obj\Debug\net9.0\compressed\90drxz1aaf-87fc7y1x7t.gz
 E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\obj\Debug\net9.0\compressed\e5ivyfa1kv-mlv21k5csn.gz
-E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\obj\Debug\net9.0\compressed\jn0zio1k22-v5geashkdx.gz
-E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\obj\Debug\net9.0\compressed\lglt2r0e96-v5geashkdx.gz
 E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\obj\Debug\net9.0\staticwebassets.build.json
 E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\obj\Debug\net9.0\staticwebassets.development.json
 E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\obj\Debug\net9.0\staticwebassets.build.endpoints.json
@@ -341,3 +338,14 @@ E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\obj\Debug\net9.0\refint\School
 E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\obj\Debug\net9.0\SchoolSystem.pdb
 E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\obj\Debug\net9.0\SchoolSystem.genruntimeconfig.cache
 E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\obj\Debug\net9.0\ref\SchoolSystem.dll
+E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\bin\Debug\net9.0\AspNetCoreHero.ToastNotification.Views.dll
+E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\bin\Debug\net9.0\AspNetCoreHero.ToastNotification.dll
+E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\obj\Debug\net9.0\SchoolSystem.MvcApplicationPartsAssemblyInfo.cs
+E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\obj\Debug\net9.0\compressed\kitxt44sfd-db3tgp313k.gz
+E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\obj\Debug\net9.0\compressed\o0jjhyzspa-cm79lz9ti0.gz
+E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\obj\Debug\net9.0\compressed\wdcg9ucorr-w5t26togf2.gz
+E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\obj\Debug\net9.0\compressed\9op22eqad8-cl5rrypo7e.gz
+E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\bin\Debug\net9.0\SixLabors.ImageSharp.dll
+E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\obj\Debug\net9.0\compressed\jn0zio1k22-9yl178x7vh.gz
+E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\obj\Debug\net9.0\compressed\lglt2r0e96-9yl178x7vh.gz
+E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\obj\Debug\net9.0\compressed\ncrfd20eem-8hl8kw5j2q.gz

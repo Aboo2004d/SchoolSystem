@@ -9,13 +9,17 @@ public partial class TheClass
 
     public string Name { get; set; } = null!;
 
+    public int? IdSchool { get; set; }
+
     public virtual ICollection<Attendance> Attendances { get; set; } = new List<Attendance>();
 
-    public virtual ICollection<ClassLectuer> ClassLectuers { get; set; } = new List<ClassLectuer>();
+    public virtual ICollection<Grade> Grades { get; set; } = new List<Grade>();
 
-    public virtual ICollection<StudentAverage> StudentAverages { get; set; } = new List<StudentAverage>();
+    public virtual School? IdSchoolNavigation { get; set; }
 
-    public virtual ICollection<StudentClass> StudentClasses { get; set; } = new List<StudentClass>();
+    public virtual ICollection<StudentLectuerTeacher> StudentLectuerTeachers { get; set; } = new List<StudentLectuerTeacher>();
 
-    public virtual ICollection<TeacherClass> TeacherClasses { get; set; } = new List<TeacherClass>();
+    public virtual ICollection<Student> Students { get; set; } = new List<Student>();
+
+    public virtual ICollection<TeacherLectuerClass> TeacherLectuerClasses { get; set; } = new List<TeacherLectuerClass>();
 }

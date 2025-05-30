@@ -1,0 +1,207 @@
+@model SchoolSystem.Data.Attendance
+@{
+    ViewData["Title"] = "الحضور و الغياب";
+}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css" />
+
+<h1>متابعة الحضور والغياب للطلاب</h1>
+<div class="dropdown">
+    <button class="btn btn-success dropdown-toggle" type="button" id="dropdownNewMark" data-bs-toggle="dropdown" aria-expanded="false">
+        تسجيل الحضور و الغياب
+    </button>
+    <ul class="dropdown-menu p-3" aria-labelledby="dropdownNewMark" style="min-width: 250px;">
+        <li class="form-group mb-2">
+            <label for="subjectDropdown">اختر المادة</label>
+            <select id="subjectDropdown" class="form-control">
+                <option value="">يرجى الاختيار...</option>
+                <!-- خيارات المواد هنا -->
+            </select>
+        </li>
+        <li class="form-group">
+            <label for="gradeDropdown">اختر الصف</label>
+            <select id="gradeDropdown" class="form-control">
+                <option value="">يرجى الاختيار...</option>
+                <!-- خيارات الصفوف هنا -->
+            </select>
+        </li>
+    </ul>
+</div>
+<a class="btn btn-dark" asp-controller="Teacher" asp-action="Index"> عودة</a>
+
+<hr>
+<table id="studentsTable" class="display" style="width:100%">
+    <thead>
+        <tr>
+            <th>
+                الاسم الطالب
+            </th>
+            <th>
+                الصف
+            </th>
+            <th>
+                المادة
+            </th>
+            <th>
+                الحالة
+            </th>
+            <th>
+                التاريخ
+            </th>
+            <th>
+                العذر
+            </th>
+            <th>
+                الخيارات
+            </th>
+        </tr>
+    </thead>
+</table>
+
+@section Scripts {
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js" defer></script>
+    
+    <script>
+        $(document).ready(function () {
+            $('#studentsTable').DataTable({
+                "deferRender": true,
+                "processing": true,
+                "serverSide": true,
+                "ajax": {
+                    "url": "/Attendance/DataAttendance",
+                    "type": "GET",
+                    "dataSrc": function (json) {
+                        if (json.error) {
+                            alert(json.error);
+                            window.location.href = "/Account/Login";
+                            return [];
+                        }
+                        return json.data;
+                    }
+                },
+                "columns": [
+                    { "data": "studentName"},
+                    { "data": "classroomName"},
+                    { "data": "lectuerName"},
+                    { 
+                        "data": "attendanceStatus",
+                            "render": function (data, type, row) {
+                                if(data == '1')
+                                {
+                                    return "حضور";
+                                }else if (data == '0')
+                                {
+                                    return "غياب";
+                                }else if(data == 'm')
+                                {
+                                    return "غياب بعذر";
+                                }
+                                else
+                                {
+                                    return "قيمة غير صالحة";
+                                }
+                            }
+                    },
+                    { "data": "dateAndTime"},
+                    { "data": "excuse"},
+                   {
+                         "data": null,
+                        "render": function (data, type, row) {
+                                return`<a class="btn btn-warning" href="/Attendance/Edit/${row.id}">تعديل</a>`;
+                            
+                        }
+                    }
+                ],
+                "language": {
+                    "search": "🔍بحث: ",
+                    "lengthMenu": "عرض _MENU_ سجل",
+                    "info": "عرض من  _START_ الى _END_ من اصل _TOTAL_ سجل",
+                    "paginate": {
+                        "next": "الصفحة التالية",
+                        "previous": "الصفحة السابقة"
+                    },
+                    "zeroRecords": "لم يتم العثور على سجلات"
+                }
+            });
+        });
+    </script>
+    
+    <script>
+        $(function () {
+            var teacherId = @Html.Raw(ViewBag.IdTeacher); // هنا تغيرنا الاسم من 'TeacherId' إلى 'id'
+            var gradeId = null; // متغير لتخزين id الصف
+            var subjectId = null; // متغير لتخزين id المادة
+            // عند فتح القائمة (Bootstrap Dropdown)
+            $('#dropdownNewMark').on('click', function () {
+                // تحميل المواد عند أول مرة فقط (يمكنك تحسينه لاحقاً للتحميل مرة واحدة فقط)
+                $.getJSON('/Attendance/GetLectuerForTeacher', { teacherId: teacherId }, function (data) {
+                    var subjectDropdown = $('#subjectDropdown');
+                    subjectDropdown.empty().append('<option value="">يرجى الاختيار...</option>');
+
+                    $.each(data, function (i, subject) {
+                        subjectDropdown.append($('<option>').val(subject.id).text(subject.name));
+                    });
+                });
+            });
+
+            // عند اختيار مادة
+            $('#subjectDropdown').change(function () {
+                subjectId = $(this).val();
+                if (!subjectId) return;
+
+                $.getJSON('/Attendance/GetClassForSubject', { teacherId: teacherId, subjectId: subjectId }, function (data) {
+                    var gradeDropdown = $('#gradeDropdown');
+                    gradeDropdown.empty().append('<option value="">يرجى الاختيار...</option>');
+
+                    $.each(data, function (i, grade) {
+                        gradeDropdown.append($('<option>').val(grade.id).text(grade.name));
+                    });
+
+                    $('#gradeContainer').show();
+                });
+            });
+
+            // عند اختيار الصف
+            $('#gradeDropdown').change(function () {
+                gradeId = $(this).val();
+                subjectId = $('#subjectDropdown').val();
+
+                if (gradeId && subjectId) {
+                    // الانتقال إلى صفحة الإنشاء مع القيم
+                    window.location.href = `/Attendance/Create?idTeacher=${teacherId}&idLectuer=${subjectId}&idClass=${gradeId}`;
+                    @*@Console.WriteLine($"Redirecting to /Attendance/Create?idTeacher={teacherId}&idLectuer={subjectId}&idClass={gradeId}");*@
+                    console.log(`/Attendance/Create?idTeacher=${teacherId}&idLectuer=${subjectId}&idClass=${gradeId}`);
+                }
+            });
+        });
+    </script>
+    <style>
+        .dropdown-menu select {
+            width: 100%;
+        }
+        /* العرض المضغوط: افتراضي لجميع الأجهزة */
+        body {
+            font-size: 10px;
+        }
+
+        /* إذا كان العرض أكبر من 768px (كمبيوتر أو لابتوب) */
+        @@media (min-width: 768px) {
+            body {
+                font-size: 16px; /* حجم الخط الطبيعي */
+            }
+
+            table thead, table tbody {
+                font-size: 14px;
+            }
+
+            .btn {
+                font-size: 14px !important;
+                padding: 6px 12px !important;
+                height: auto !important;
+                min-width: auto !important;
+            }
+
+            /* أي عناصر أخرى تم تصغيرها يمكن تعديلها هنا */
+        }
+
+    </style>
+}

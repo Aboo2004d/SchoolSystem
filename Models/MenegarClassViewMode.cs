@@ -4,6 +4,8 @@ namespace SchoolSystem.Models{
         public int id { get; set; }
         public string ClassroomName { get; set; }
         public int NumberOfStudents { get; set; }
+        public int NumberOfTeacher { get; set; }
+        
     }
 
 }

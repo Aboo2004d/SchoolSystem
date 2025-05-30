@@ -3,23 +3,17 @@
 @{
     ViewData["Title"] = "Add Student To Class";
 }
-<br>
-<br>
-<br>
+
 <h1>Add Student To Class</h1>
 <hr />
 <div class="row">
     <div class="col-md-4">
         <form asp-action="CreateStudentForClass">
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-            <div class="form-group">
-                <label asp-for="IdClass" class="control-label">Class</label>
-                <select asp-for="IdClass" class="form-control" asp-items="ViewBag.Cls" disabled></select>
-                <input type="hidden" asp-for="IdClass" />
-            </div>
+            <input type="hidden" asp-for="IdClass" value="@ViewBag.IdClass"/>
             <div class="form-group">
                 <label asp-for="IdStudent" class="control-label">Student name</label>
-                <select asp-for="IdStudent" class ="form-control" asp-items="ViewBag.IdStudent"></select>
+                <select asp-for="IdStudent" class="form-control select2" asp-items="ViewBag.IdStudent"></select>
             </div>
             <div class="form-group">
                 <input type="submit" value="Create" class="btn btn-primary"  />
@@ -34,4 +28,12 @@
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        $(document).ready(function () {
+            $('.select2').select2({
+                placeholder: "Search for a student...",
+                allowClear: true
+            });
+        });
+    </script>
 }

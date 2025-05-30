@@ -2,39 +2,170 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using AspNetCoreHero.ToastNotification.Abstractions;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using SchoolSystem.Data;
+using SchoolSystem.Filters;
+using SchoolSystem.Model;
 
 namespace SchoolSystem.Controllers
 {
     public class AttendanceController : Controller
     {
         private readonly SystemSchoolDbContext _context;
+        private readonly INotyfService _notyf;
+        private readonly IErrorLoggerService _logger;
+        
 
-        public AttendanceController(SystemSchoolDbContext context)
+        public AttendanceController(SystemSchoolDbContext context, INotyfService notyf,IErrorLoggerService logger)
         {
+            _logger = logger;
             _context = context;
+            _notyf = notyf;
+        }
+        // GET: Attendance
+        
+        [HttpGet]
+        [AuthorizeRoles("Teacher")]
+        public async Task<IActionResult> DataAttendance(
+            int teacherId,
+            [FromQuery] int draw,
+            [FromQuery] int start,
+            [FromQuery] int length = 10,
+            [FromQuery(Name = "search[value]")] string searchValue = "")
+        {
+            try
+            {
+                
+                int? idTeacher = HttpContext.Session.GetInt32("Id")??0;
+                if (idTeacher == 0)
+                {
+                    return Json(new { success = false, error = "Unauthorized access. Session expired." });
+                }
+                var teacher = await _context.Teachers.FindAsync(idTeacher);
+                int? idSchool = teacher?.IdSchool;
+                if(idSchool == 0){
+                    return Json(new { success = false, error = "Unauthorized access. Session expired." });
+                }
+                if (length <= 0)
+                    length = 10;
+                var orderColumnIndex = Request.Query["order[0][column]"].ToString();
+                var orderDir = Request.Query["order[0][dir]"].ToString().ToLower();
+
+                // تعيين افتراضي في حالة القيم غير صالحة
+                if (string.IsNullOrEmpty(orderColumnIndex)) orderColumnIndex = "0";
+                if (string.IsNullOrEmpty(orderDir)) orderDir = "asc";
+
+                // إجمالي عدد السجلات بدون فلترة
+                var totalRecords = await _context.Attendances.Where(std => std.IdSchool == idSchool && std.IdTeacher == idTeacher)
+                .CountAsync();
+
+                // الاستعلام الأساسي مع تحسين الأداء
+                var query = _context.Attendances.Where(std => std.IdSchool == idSchool && std.IdTeacher == idTeacher)
+                    .AsNoTracking()
+                    .Select(s => new
+                    {
+                        id = s.Id,
+                        StudentName = s.IdStudentNavigation != null ? s.IdStudentNavigation.Name : "Unknown",
+                        ClassroomName = s.IdClassNavigation != null ? s.IdClassNavigation.Name : "Unknown",
+                        LectuerName = s.IdLectuerNavigation != null ? s.IdLectuerNavigation.Name : "Unknown",
+                        excuse = s.Excuse ?? "Null",
+                        Date = s.DateAndTime ?? new DateOnly(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day),
+                        Status = s.AttendanceStatus
+                        
+                        
+                    });
+
+                // البحث
+                if (!string.IsNullOrWhiteSpace(searchValue))
+                {
+                    query = query.Where(s =>
+                        s.StudentName.Contains(searchValue) ||
+                        s.LectuerName.Contains(searchValue) ||
+                        s.excuse.Contains(searchValue) ||
+                        s.Date.ToString().Contains(searchValue) ||
+                        s.ClassroomName.Contains(searchValue)
+                    );
+                }
+
+                var filteredCount = await query.CountAsync();
+
+                // الترتيب
+                query = (orderColumnIndex, orderDir) switch
+                {
+                    ("0", "asc") => query.OrderBy(s => s.StudentName),
+                    ("0", "desc") => query.OrderByDescending(s => s.StudentName),
+                    ("1", "asc") => query.OrderBy(s => s.ClassroomName),
+                    ("1", "desc") => query.OrderByDescending(s => s.ClassroomName),
+                    ("2", "asc") => query.OrderBy(s => s.LectuerName),
+                    ("2", "desc") => query.OrderByDescending(s => s.LectuerName),
+                    ("3", "asc") => query.OrderBy(s => s.excuse),
+                    ("3", "desc") => query.OrderByDescending(s => s.excuse),
+                    ("4", "asc") => query.OrderBy(s => s.Date),
+                    ("4", "desc") => query.OrderByDescending(s => s.Date),
+                    _ => query.OrderBy(s => s.StudentName)
+                };
+
+                // التقطيع (Pagination)
+                var data = await query
+                        .Skip(start)
+                        .Take(length)
+                        .ToListAsync();
+
+                var students = data.
+                Select(s => new AttendanceViewModel
+                {
+                    Id = s.id,
+                    ClassroomName = s.ClassroomName,
+                    StudentName = s.StudentName,
+                    LectuerName = s.LectuerName,
+                    DateAndTime = s.Date,
+                    Excuse = s.excuse,
+                    AttendanceStatus = s.Status
+                    })
+                    .ToList();
+
+                var result = new
+                {
+                    draw,
+                    recordsTotal = totalRecords,
+                    recordsFiltered = filteredCount,
+                    data = students
+                };
+                Console.WriteLine($"Count Stuent Teacher: {students.Count()}");
+                return Json(result);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"Error: {e.Message}");
+                return Json(new { error = e.Message, stack = e.StackTrace });
+            }
         }
 
-        // GET: Attendance
-        public async Task<IActionResult> Index(int idTeacher)
+
+        [HttpGet]
+        [AuthorizeRoles("Teacher")]
+        public IActionResult ViewAttendance(int teacherId)
         {
-            var teacher = await _context.Teachers.FindAsync(idTeacher);
-            var systemSchoolDbContext =await _context.Attendances./*Where(a=> a.IdTeacher == idTeacher ).*/Include(a => a.IdLectuerNavigation).Include(a => a.IdStudentNavigation).Include(a => a.IdTeacherNavigation).Include(a => a.IdClassNavigation)
-            .ToListAsync();
-            ViewData["Teacher"] = teacher.Name;
-            ViewData["idTeacher"] = teacher.Id;
-            return View(systemSchoolDbContext);
+            ViewBag.IdTeach = teacherId;
+            var name = _context.Teachers.FirstOrDefault(c => c.Id == teacherId);
+            ViewBag.name = name?.Name??"Null";
+            ViewBag.IdTeacher = Request.Query["teacherId"];
+            return View();
         }
 
         // GET: Attendance/Details/5
-        public async Task<IActionResult> Details(int? id)
-        {
+        [AuthorizeRoles("Teacher")]
+        public async Task<IActionResult> Details(int? id){
+
             if (id == null)
             {
-                return NotFound();
+                _notyf.Error("You cannot go to this page without an ID.");
+                return View(nameof(Index));
             }
 
             var attendance = await _context.Attendances
@@ -44,7 +175,8 @@ namespace SchoolSystem.Controllers
                 .FirstOrDefaultAsync(m => m.Id == id);
             if (attendance == null)
             {
-                return NotFound();
+                _notyf.Error("Invalid routing ID");
+                return View(nameof(Index));
             }
 
             return View(attendance);
@@ -52,49 +184,80 @@ namespace SchoolSystem.Controllers
 
         // GET: Attendance/Create
         [HttpGet]
+        [AuthorizeRoles("Teacher")]
         public async Task<IActionResult> Create(int idLectuer, int idTeacher, int idClass)
         {
-            Console.WriteLine($"Lectuer: {idLectuer}");
-            Console.WriteLine($"Teacher: {idTeacher}");
-            Console.WriteLine($"Class: {idClass}");
-            var lectuer = _context.TeacherLectuers
-                .Where(tl => tl.IdTeacher == idTeacher && tl.IdLectuer == idLectuer)
-                .FirstOrDefault();
-            if (lectuer != null )
-            {
-                var teacher = _context.TeacherClasses
-                    .Where(tc => tc.IdTeacher == idTeacher && tc.IdClass == idClass)
-                    .FirstOrDefault();
-                if (teacher != null){
-                    ViewData["DateAndTime"] = DateOnly.FromDateTime(DateTime.Now);
-                    ViewData["Status"] = new SelectList(new List<SelectListItem> {
-                        new SelectListItem { Text = "Present", Value = "1" },
-                        new SelectListItem { Text = "Absent", Value = "0" },
-                        new SelectListItem { Text = "Excused", Value = "m" }
-                    }, "Value", "Text");
-                    ViewData["IdLectuer"] = idLectuer;
-                    ViewData["IdStudent"] = new SelectList(_context.Students, "Id", "Name");
-                    ViewData["IdTeacher"] = idTeacher;
-                    ViewData["IdClass"] = idClass;
-                    var student = await _context.StudentTeachers
-                        .Where(t => t.IdTeacher == lectuer.IdTeacher && t.IdTeacher == teacher.IdTeacher)
-                        .Include(st => st.IdStudentNavigation) 
-                        .ToListAsync();
-                    foreach(var i in student){
-                        Console.WriteLine($"Student: {i.IdStudentNavigation.Name}");
-                    }
-                    if (student == null)
-                    {
-                        return NotFound("Student not found.");
-                    }
-                    ViewData["Students"] = student;
-                    
-                    return View();
+            try{
 
-                }else{
-                    return NotFound("Teacher not found.");
+                Teacher tech =await _context.Teachers.FindAsync(idTeacher);
+                Lectuer lec =await _context.Lectuers.FindAsync(idLectuer);
+                TheClass cla  =await _context.TheClasses.FindAsync(idClass);
+                if(tech == null || lec == null || cla == null){
+                    int TeacherId = HttpContext.Session.GetInt32("Id")??0;
+                    if(TeacherId != 0){
+                        _notyf.Error("Data is not Found.");
+                        return View(nameof(Index),new{idTeacher = TeacherId});
+                    }
+                    await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                    _notyf.Error("Unauthenticated user.");
+                    return RedirectToAction("Index","Home");
                 }
-            }else return NotFound("Lectuer not found.");
+                var lectuer = _context.TeacherLectuerClasses
+                    .Where(tl => tl.IdTeacher == idTeacher && tl.IdLectuer == idLectuer)
+                    .FirstOrDefault();
+                if (lectuer != null )
+                {
+                    var teacher = _context.TeacherLectuerClasses
+                        .Where(tc => tc.IdTeacher == idTeacher && tc.IdClass == idClass)
+                        .FirstOrDefault();
+                    if (teacher != null){
+                        ViewData["DateAndTime"] = DateOnly.FromDateTime(DateTime.Now);
+                        ViewData["Status"] = new SelectList(new List<SelectListItem> {
+                            new SelectListItem { Text = "Present", Value = "1" },
+                            new SelectListItem { Text = "Absent", Value = "0" },
+                            new SelectListItem { Text = "Excused", Value = "m" }
+                        }, "Value", "Text");
+                        ViewData["IdLectuer"] = idLectuer;
+                        ViewData["IdStudent"] = new SelectList(_context.Students, "Id", "Name");
+                        ViewData["IdTeacher"] = idTeacher;
+                        ViewData["IdClass"] = idClass;
+                        var student = await _context.StudentLectuerTeachers
+                            .Where(t => t.IdTeacher == lectuer.IdTeacher && t.IdTeacher == teacher.IdTeacher)
+                            .Include(st => st.IdStudentNavigation) 
+                            .ToListAsync();
+                        
+                        if (student == null)
+                        {
+                            _notyf.Error("Student not found.");
+                            return View(nameof(Index));
+                        }
+                        ViewData["Students"] = student;
+                        
+                        return View();
+
+                    }else{
+                        _notyf.Error("Teacher not found.");
+                        return View(nameof(Index));
+                    }
+                    
+                }else {
+                    _notyf.Error("Lectuer not found.");
+                    return View(nameof(Index));
+                    }
+            }catch(Exception ex){
+                int TeacherId = HttpContext.Session.GetInt32("Id")??0;
+                if(TeacherId != 0){
+                    await _logger.LogAsync(ex,"Attendance/Create");
+                    _notyf.Error("Data is not Found.");
+                    return View(nameof(Index),new{idTeacher = TeacherId});
+                }
+                await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+
+                await _logger.LogAsync(ex,"Attendance/Create");
+                _notyf.Error("Unauthenticated user.");
+                return RedirectToAction("Index","Home");
+            }
+                
             
         }
 
@@ -103,38 +266,19 @@ namespace SchoolSystem.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [AuthorizeRoles("Teacher")]
         
         public async Task<IActionResult> Create(List<Attendance> Attendances)
         {
-            Console.WriteLine(1);
-            Console.WriteLine($"Ids Teacher: {Attendances[0].IdTeacher}");
             try{
-                
-
-                foreach(var item in ModelState.Values)
-                {
-                    foreach(var error in item.Errors)
-                    {
-                        Console.WriteLine("Error1: "+error.ErrorMessage);
-                    }
-                }
-                Console.WriteLine(2);
                 if (ModelState.IsValid){
-                    Console.WriteLine(3);
-                    Console.WriteLine($"Attendance: {Attendances.Count}");
                     foreach(var i in Attendances){
-                        Console.WriteLine(4);
-                        Console.WriteLine($"Student: {i.IdStudent}");
-                        Console.WriteLine($"Status: {i.AttendanceStatus}");
-                        Console.WriteLine($"Date: {i.DateAndTime}");
-                        Console.WriteLine($"IdTeacher: {i.IdTeacher}");
-                        Console.WriteLine($"IdLectuer: {i.IdLectuer}");
-                        Console.WriteLine($"IdClass: {i.IdClass}");
-                        Console.WriteLine($"Excuse: {i.Excuse}");
+                        i.IdSchool = _context.Teachers.Find(i.IdTeacher)?.IdSchool??null;
                         await _context.AddRangeAsync(i);
                     }
                     await _context.SaveChangesAsync();
-                    return RedirectToAction("Index", new { idTeacher = Attendances[0].IdTeacher });
+                    _notyf.Success("تم تسجيل الحضور و الغياب بنجاح");
+                    return RedirectToAction("ViewAttendance", new { teacherId = Attendances[0].IdTeacher });
                 }
                 ViewData["IdLectuer"] = new SelectList(_context.Lectuers, "Id", "Name");
                 ViewData["IdStudent"] = new SelectList(_context.Students, "Id", "Name");
@@ -145,9 +289,9 @@ namespace SchoolSystem.Controllers
                         new SelectListItem { Text = "Absent", Value = "0" },
                         new SelectListItem { Text = "Excused", Value = "m" }
                     }, "Value", "Text");
+                _notyf.Error("The entered data is invalid.");
                 return View(Attendances);
             }catch(Exception ex){
-                Console.WriteLine("Error: "+ex.Message);
                 ViewData["IdLectuer"] = new SelectList(_context.Lectuers, "Id", "Name");
                 ViewData["IdStudent"] = new SelectList(_context.Students, "Id", "Name");
                 ViewData["IdTeacher"] = new SelectList(_context.Teachers, "Id", "Name");
@@ -157,27 +301,27 @@ namespace SchoolSystem.Controllers
                         new SelectListItem { Text = "Absent", Value = "0" },
                         new SelectListItem { Text = "Excused", Value = "m" }
                     }, "Value", "Text");
+                _notyf.Error("Unexpected error.");
+                await _logger.LogAsync(ex,"Attendance/Create");
                 return View(Attendances);
             }
 
         }
 
+        [AuthorizeRoles("Teacher")]
         public async Task<IActionResult> GetLectuerForTeacher(int teacherId)
         {
             var lectuer =_context.Attendances
                 .Where(att=> att.DateAndTime == DateOnly.FromDateTime(DateTime.Now))
                 .Select(att => att.IdLectuer)
                 .FirstOrDefaultAsync();
-            var subjects = await _context.TeacherLectuers
+            var subjects = await _context.TeacherLectuerClasses
                 .Where(ts => ts.IdTeacher == teacherId && ts.IdLectuer != lectuer.Result)
                 .Include(ts => ts.IdLectuerNavigation)
                 .Select(ts => new {
                     id = ts.IdLectuerNavigation.Id,
                     name = ts.IdLectuerNavigation.Name
                 }).ToListAsync();
-                foreach(var i in subjects){
-                    Console.WriteLine($"Lectuer: {i.name}");
-                }
 
             return Json(subjects);
         }
@@ -188,11 +332,11 @@ namespace SchoolSystem.Controllers
                 .Where(att=> att.DateAndTime == DateOnly.FromDateTime(DateTime.Now))
                 .Select(att => att.IdClass)
                 .FirstOrDefaultAsync();
-            var grades = await _context.TeacherClasses
+            var grades = await _context.TeacherLectuerClasses
                 .Where(tg => tg.IdTeacher == teacherId && tg.IdClass != TheClass.Result)
                 .Include(tg => tg.IdClassNavigation)
                 .Select(tg => new {
-                    id = tg.IdClassNavigation.Id,
+                    id = tg.IdClass,
                     name = tg.IdClassNavigation.Name
                 }).ToListAsync();
                 foreach(var i in grades){
@@ -201,27 +345,173 @@ namespace SchoolSystem.Controllers
             return Json(grades);
         }
 
+        [AuthorizeRoles("admin", "Student")]
+        [HttpGet]
+        public async Task<IActionResult> AttendancesStudentData(
+            int studentid,
+            [FromQuery] int draw,
+            [FromQuery] int start,
+            [FromQuery] int length = 10,
+            [FromQuery(Name = "search[value]")] string searchValue = "")
+        {
+            try
+            {
+                
+                int? idstudent = HttpContext.Session.GetInt32("Id")??0;
+                if (idstudent == 0)
+                {
+                    return Json(new { success = false, error = "Unauthorized access. Session expired." });
+                }
+                Student? student = await _context.Students.FindAsync(idstudent);
+                if(student == null){
+                    return Json(new { success = false, error = "Unauthorized access. Session expired." });
+                }
+                int? idSchool = student.IdSchool;
+                if(idSchool == null){
+                    return Json(new { success = false, error = "Unauthorized access. Session expired." });
+                }
+                if (length <= 0)
+                    length = 10;
+                var orderColumnIndex = Request.Query["order[0][column]"].ToString();
+                var orderDir = Request.Query["order[0][dir]"].ToString().ToLower();
+
+                // تعيين افتراضي في حالة القيم غير صالحة
+                if (string.IsNullOrEmpty(orderColumnIndex)) orderColumnIndex = "0";
+                if (string.IsNullOrEmpty(orderDir)) orderDir = "asc";
+
+                // إجمالي عدد السجلات بدون فلترة
+                var totalRecords = await _context.Attendances.Where(std => std.IdSchool == idSchool && std.IdStudent == studentid)
+                .Include(l => l.IdStudentNavigation)
+                .Include(l => l.IdLectuerNavigation)
+                .Include(l => l.IdClassNavigation)
+                .CountAsync();
+
+                // الاستعلام الأساسي مع تحسين الأداء
+                var query = _context.Attendances.Where(std => std.IdSchool == idSchool && std.IdStudent == studentid)
+                    .AsNoTracking()
+                    .Select(s => new
+                    {
+                        id = s.Id,
+                        StudentName = s.IdStudentNavigation != null ? s.IdStudentNavigation.Name : "Unknown",
+                        ClassroomName = s.IdClassNavigation != null ? s.IdClassNavigation.Name : "Unknown",
+                        LectuerName = s.IdLectuerNavigation != null ? s.IdLectuerNavigation.Name : "Unknown",
+                        excuse = s.Excuse ?? "Null",
+                        Date = s.DateAndTime ?? new DateOnly(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day),
+                        Status = s.AttendanceStatus
+                        
+                        
+                    });
+                    Console.WriteLine($"Count query Student Att: {query.Count()}");
+
+                // البحث
+                if (!string.IsNullOrWhiteSpace(searchValue))
+                {
+                    query = query.Where(s =>
+                        s.StudentName.Contains(searchValue) ||
+                        s.LectuerName.Contains(searchValue) ||
+                        s.excuse.Contains(searchValue) ||
+                        s.Date.ToString().Contains(searchValue) ||
+                        s.ClassroomName.Contains(searchValue)
+                    );
+                }
+
+                var filteredCount = await query.CountAsync();
+
+                // الترتيب
+                query = (orderColumnIndex, orderDir) switch
+                {
+                    ("0", "asc") => query.OrderBy(s => s.StudentName),
+                    ("0", "desc") => query.OrderByDescending(s => s.StudentName),
+                    ("1", "asc") => query.OrderBy(s => s.ClassroomName),
+                    ("1", "desc") => query.OrderByDescending(s => s.ClassroomName),
+                    ("2", "asc") => query.OrderBy(s => s.LectuerName),
+                    ("2", "desc") => query.OrderByDescending(s => s.LectuerName),
+                    ("3", "asc") => query.OrderBy(s => s.excuse),
+                    ("3", "desc") => query.OrderByDescending(s => s.excuse),
+                    ("4", "asc") => query.OrderBy(s => s.Date),
+                    ("4", "desc") => query.OrderByDescending(s => s.Date),
+                    _ => query.OrderBy(s => s.StudentName)
+                };
+
+                // التقطيع (Pagination)
+                var data = await query
+                        .Skip(start)
+                        .Take(length)
+                        .ToListAsync();
+
+                var students = data.
+                Select(s => new AttendanceViewModel
+                {
+                    Id = s.id,
+                    ClassroomName = s.ClassroomName,
+                    StudentName = s.StudentName,
+                    LectuerName = s.LectuerName,
+                    DateAndTime = s.Date,
+                    Excuse = s.excuse,
+                    AttendanceStatus = s.Status
+                    })
+                    .ToList();
+
+                var result = new
+                {
+                    draw,
+                    recordsTotal = totalRecords,
+                    recordsFiltered = filteredCount,
+                    data = students
+                };
+                Console.WriteLine($"Count Stuent Att: {students.Count()}");
+                return Json(result);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"Error: {e.Message}");
+                return Json(new { error = e.Message, stack = e.StackTrace });
+            }
+        }
+
+
+        [AuthorizeRoles("admin", "Student")]
         public async Task<IActionResult> AttendancesStudent(int studentid)
         {
-            //Console.WriteLine($"Student: {studentid}");
-            var systemSchoolDbContext =await _context.Attendances.Where(g => g.IdStudent == studentid)
-            .Include(g => g.IdLectuerNavigation).Include(g => g.IdStudentNavigation).Include(g => g.IdTeacherNavigation)
-            .Include(c => c.IdClassNavigation).ToListAsync();
-            return View( systemSchoolDbContext);
+            if(HttpContext.Session.GetString("Role") == "admin"){
+                Student? student =await _context.Students.Where(s => s.Id == studentid).Include(s=>s.IdClassNavigation).FirstOrDefaultAsync();
+                if(student != null){
+                    ViewBag.StdClass = student.IdClassNavigation?.Name ?? "Null";
+                    ViewBag.StdId = Request.Query["studentid"];
+                    return View();
+                }
+                return RedirectToAction("ManagerMenegarStudentView","Menegar");
+
+            }else{
+                Student? student =await _context.Students.Where(s => s.Id == studentid).Include(s=>s.IdClassNavigation).FirstOrDefaultAsync();
+                
+                if (student != null)
+                {
+                    ViewBag.StdClass = student.IdClassNavigation?.Name ?? "Null";
+                    ViewBag.StdId = Request.Query["studentid"];
+                    return View();
+                }
+                return RedirectToAction("Index","Student");
+            }
         }
         
         // GET: Attendance/Edit/5
+        [AuthorizeRoles("Teacher")]
         public async Task<IActionResult> Edit(int? id)
         {
             if (id == null)
             {
-                return NotFound();
+                _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة");
+                return View(nameof(ViewAttendance));
             }
 
             var attendance = await _context.Attendances.FindAsync(id);
             if (attendance == null)
             {
-                return NotFound();
+                Exception ex = new Exception("التلاعب بالبيانات المرسلة");
+                await _logger.LogAsync(ex,"Index/SetCredentials");
+                _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة");
+                return View(nameof(ViewAttendance));
             }
             try{
                 if (attendance.IdStudent != null)
@@ -229,13 +519,11 @@ namespace SchoolSystem.Controllers
                     var student = await _context.Students.FindAsync(attendance.IdStudent);
                     if (student == null)
                     {
-                        return NotFound("Student not found.");
+                        Exception ex = new Exception("التلاعب بالبيانات المرسلة");
+                        await _logger.LogAsync(ex,"Attendance/Edit");
+                        _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة");
+                        return View(nameof(ViewAttendance));
                     }
-                    Console.WriteLine($"Teacher: {attendance.IdTeacher}");
-                    Console.WriteLine($"Student: {student.Name}");
-                    Console.WriteLine($"IdStudent: {attendance.IdStudent}");
-                    Console.WriteLine($"IdLectuer: {attendance.IdLectuer}");
-                    Console.WriteLine($"IdClass: {attendance.IdClass}");
                     ViewData["NameStudent"] =student.Name;
                     ViewData["IdLectuer"] =  attendance.IdLectuer;
                     ViewData["IdStudent"] = attendance.IdStudent;
@@ -243,21 +531,25 @@ namespace SchoolSystem.Controllers
                     ViewData["IdClass"] = attendance.IdClass;
                     ViewData["DateAndTime"] = attendance.DateAndTime;
                     ViewData["Status"] = new SelectList(new List<SelectListItem> {  
-                        new SelectListItem { Text = "Present", Value = "1" },
-                        new SelectListItem { Text = "Absent", Value = "0" },
-                        new SelectListItem { Text = "Excused", Value = "m" }
+                        new SelectListItem { Text = "حضور", Value = "1" },
+                        new SelectListItem { Text = "غياب", Value = "0" },
+                        new SelectListItem { Text = "غياب بعذر", Value = "m" }
                     }, "Value", "Text", attendance.AttendanceStatus);
                     ViewData["Excuse"] = attendance.Excuse;
                     return View(attendance);
                 }
                 else
                 {
-                    return NotFound("Student not found.");
+                    Exception ex = new Exception("التلاعب بالبيانات المرسلة");
+                    await _logger.LogAsync(ex,"Attendance/Edit");
+                    _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة");
+                    return View(nameof(ViewAttendance));
                 }
                 
             }catch(Exception ex){
-                //Console.WriteLine("Error: "+ex.Message);
-                return NotFound("Error: "+ex.Message);
+                await _logger.LogAsync(ex,"Index/SetCredentials");
+                _notyf.Error("حدث خطأ غير متوقع\nحاول مرة اخرى لاحقا");
+                return View(nameof(ViewAttendance));
             }
 
         }
@@ -267,44 +559,51 @@ namespace SchoolSystem.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [AuthorizeRoles("Teacher")]
         public async Task<IActionResult> Edit(int id, [Bind("Id,AttendanceStatus,DateAndTime,Excuse,IdTeacher,IdLectuer,IdStudent,IdClass")] Attendance attendance)
         {
+            
             if (id != attendance.Id)
             {
-                return NotFound();
+                _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة");
+
+                return View(attendance);
             }
 
             if (ModelState.IsValid)
             {
                 try
                 {
-                    Console.WriteLine($"Id: {attendance.Id}");
-                    Console.WriteLine($"IdStudent: {attendance.IdStudent}");
-                    Console.WriteLine($"IdLectuer: {attendance.IdLectuer}");
-                    Console.WriteLine($"IdClass: {attendance.IdClass}");
-                    Console.WriteLine($"IdTeacher: {attendance.IdTeacher}");
-                    Console.WriteLine($"AttendanceStatus: {attendance.AttendanceStatus}");
-                    Console.WriteLine($"DateAndTime: {attendance.DateAndTime}");
-                    Console.WriteLine($"Excuse: {attendance.Excuse}");
-                    _context.Update(attendance);
-                    await _context.SaveChangesAsync();
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!AttendanceExists(attendance.Id))
+                    if (attendance.AttendanceStatus == "1" || attendance.AttendanceStatus == "0")
                     {
-                        return NotFound();
+                        attendance.IdSchool = _context.Teachers.Find(attendance.IdTeacher)?.IdSchool ?? null;
+                        attendance.Excuse = null;
+                        _context.Update(attendance);
+                        await _context.SaveChangesAsync();
+                        _notyf.Success("تمت عملية التعديل بنجاح");
+                        return RedirectToAction("ViewAttendance", new { idTeacher = attendance.IdTeacher });
+                    }
+                    else if (attendance.AttendanceStatus == "m")
+                    {
+                        attendance.IdSchool = _context.Teachers.Find(attendance.IdTeacher)?.IdSchool ?? null;
+                        _context.Update(attendance);
+                        await _context.SaveChangesAsync();
+                        _notyf.Success("تمت عملية التعديل بنجاح");
+                        return RedirectToAction("ViewAttendance", new { idTeacher = attendance.IdTeacher });
                     }
                     else
                     {
-                        throw;
+                        _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة");
                     }
+
                 }
-                return RedirectToAction("Index", new { idTeacher = attendance.IdTeacher });;
+                catch (Exception ex)
+                {
+                    await _logger.LogAsync(ex, "Attendance/Edit");
+                    _notyf.Error("حدث خطأ غير متوقع\nحاول مرة اخرى لاحقا");
+                }
+                
             }
-            ViewData["IdLectuer"] = new SelectList(_context.Lectuers, "Id", "Name", attendance.IdLectuer);
-            ViewData["IdStudent"] = new SelectList(_context.Students, "Id", "Name", attendance.IdStudent);
-            ViewData["IdTeacher"] = new SelectList(_context.Teachers, "Id", "Name", attendance.IdTeacher);
             return View(attendance);
         }
 
@@ -332,21 +631,43 @@ namespace SchoolSystem.Controllers
         // POST: Attendance/Delete/5
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
-        {
-            var attendance = await _context.Attendances.FindAsync(id);
-            
-            if (attendance != null)
-            {
-                int teacher = attendance.IdTeacher??0;
-                _context.Attendances.Remove(attendance);
-                await _context.SaveChangesAsync();
-                return RedirectToAction("Index", new { idTeacher = teacher });
-            }
-            else
-            {
-                return NotFound("Data is not Found.");
-            }
+        [AuthorizeRoles("Teacher")]
+        public async Task<IActionResult> DeleteConfirmed(int id) {
+            try{
+                var attendance = await _context.Attendances.FindAsync(id);
+                if (attendance != null)
+                {
+                    int teacher = attendance.IdTeacher??0;
+                    _context.Attendances.Remove(attendance);
+                    await _context.SaveChangesAsync();
+                    _notyf.Success("The deletion process was completed successfully.");
+                    return RedirectToAction("Index", new { idTeacher = teacher });
+                }
+                else
+                {
+                    int TeacherId = HttpContext.Session.GetInt32("Id")??0;
+                    if(TeacherId != 0){
+                        _notyf.Error("Data is not Found.");
+                        return View(nameof(Index),new{idTeacher = TeacherId});
+                    }
+                    await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                    _notyf.Error("Unauthenticated user.");
+                    Exception ex = new Exception("Unauthenticated user.");
+                    await _logger.LogAsync(ex, "Attendance/DeleteConfirmed");
+                    return RedirectToAction("Index","Home");
+                }
+            }catch(Exception ex){
+                int TeacherId = HttpContext.Session.GetInt32("Id")??0;
+                if(TeacherId != 0){
+                    _notyf.Error("Data is not Found.");
+                    await _logger.LogAsync(ex, "Attendance/DeleteConfirmed");
+                    return View(nameof(Index),new{idTeacher = TeacherId});
+                }
+                await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                _notyf.Error("Unauthenticated user.");
+                await _logger.LogAsync(ex, "Attendance/DeleteConfirmed");
+                return RedirectToAction("Index","Home");
+        }
 
             
         }

@@ -1,23 +1,21 @@
 @model List<SchoolSystem.Data.Attendance>
 
 @{
-    ViewData["Title"] = "Create Attendance";
+    ViewData["Title"] = "تسجيل الحضور و الغياب";
 }
-<br>
-<br>
-<br>
-<h1>Create Attendance Records</h1>
+
+<h1>تسجيل حضور و غياب للطلاب</h1>
 <hr />
 <form action="Create" method="post">
     @Html.AntiForgeryToken()
     
 
-    <table class="table">
+    <table class="table" id="attendancesTable">
         <thead>
             <tr>
-                <th>Student Name </th>
-                <th>Status</th>
-                <th>Excuse</th>
+                <th>الاسم </th>
+                <th>الحالة</th>
+                <th>العذر</th>
             </tr>
         </thead>
         <tbody>@{
@@ -42,9 +40,9 @@
                     </td>
                     <td>
                         <select name="Attendances[@i].AttendanceStatus" class="form-control attendance-status">
-                            <option value="1">Absent</option>
-                            <option value="0">Present</option>
-                            <option value="m">Excused</option>
+                            <option value="1">حضور</option>
+                            <option value="0">غياب</option>
+                            <option value="m">غياب بعذر</option>
                         </select>
                     </td>
                     <td> 
@@ -58,15 +56,29 @@
         </tbody>
     </table>
 
-    <button type="submit" class="btn btn-success">Save Attendance</button>
-    <a class="btn btn-dark" asp-action="Index" asp-route-teacherId="@ViewBag.IdTeacher">Back to List</a>
+    <button type="submit" class="btn btn-success">حفظ</button>
+    <a class="btn btn-dark" asp-action="Index" asp-route-teacherId="@ViewBag.IdTeacher">عودة دون حفظ</a>
 </form>
 
 @section Scripts {
     <script>
         $(function() {
-            // تفعيل DataTable
-            new DataTable('.table');
+            $('#attendancesTable').DataTable({
+            paging: false,
+            searching: true,
+            info: true,
+            lengthChange: false,
+            ordering: true,
+            language: {
+                "search": "🔍بحث: ",
+                "info": "عرض من  _START_ الى _END_ من اصل _TOTAL_ سجل",
+                "zeroRecords": "لم يتم العثور على سجلات"
+            },
+            dom:
+            "<'row mb-3'<'col-sm-12 text-end'f>>" +        // البحث فقط في اليمين
+            "<'row'<'col-sm-12'tr>>" +                     // الجدول
+            "<'row mt-3'<'col-sm-6 text-start'i>>" // المعلومات يسار والترقيم يمين
+        });
         });
     </script>
     <script>

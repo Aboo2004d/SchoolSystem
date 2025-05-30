@@ -1,13 +1,21 @@
-using System.ComponentModel.DataAnnotations;
 namespace SchoolSystem.Models{
     public class RegisterViewModel
     {
         public string FullName { get; set; }
 
-        [EmailAddress(ErrorMessage = "Email is not valid.")]
         public string Email { get; set; }
+        public string Phone { get; set; }
 
-        //[Phone(ErrorMessage = "Phone number is not valid.")]
-        public int Phone { get; set; }
+        public int IdNumber { get; set; }
+
+        public string City { get; set; }
+
+        public string Area { get; set; }
+
+        public int? School { get; set; }
+        public string Role { get; set; }
+        public int IdUser { get; set; }
+
+        public DateOnly TheDate{get;set;}
     }
 }

@@ -1,37 +1,83 @@
 @model SchoolSystem.Data.Teacher
 
 @{
-    ViewData["Title"] = "Create";
+    ViewData["Title"] = "إضافة معلم";
 }
-<br>
-<br>
-<br>
-<h1>Create Teacher</h1>
-<hr />
-<div class="row">
-    <div class="col-md-4">
-        <form asp-action="Create">
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-            <div class="form-group">
-                <label asp-for="Name" class="control-label"></label>
-                <input asp-for="Name" class="form-control" />
-                <span asp-validation-for="Name" class="text-danger"></span>
+
+<div class="container mt-5 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card shadow rounded-4">
+                <div class="card-header bg-primary text-white text-center">
+                    <h4 class="mb-0"><i class="bi bi-person-plus-fill"></i> إضافة معلم جديد</h4>
+                </div>
+                <div class="card-body">
+                    <form asp-action="Create">
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label asp-for="Name" class="form-label">الاسم</label>
+                                    <input asp-for="Name" class="form-control" />
+                                    <span asp-validation-for="Name" class="text-danger"></span>
+                                </div>
+
+                                <div class="col-md-6 mb-3">
+                                    <label asp-for="IdNumber" class="form-label">رقم الهوية</label>
+                                    <input asp-for="IdNumber" class="form-control" type="number" autocomplete="off" />
+                                    <span asp-validation-for="IdNumber" class="text-danger"></span>
+                                </div>
+
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label asp-for="Phone" class="form-label">الهاتف</label>
+                                    <input asp-for="Phone" class="form-control" type="tel" autocomplete="off" />
+                                    <span asp-validation-for="Phone" class="text-danger"></span>
+                                </div>
+
+                                <div class="col-md-6 mb-3">
+                                    <label asp-for="Email" class="form-label">الإيميل</label>
+                                    <input asp-for="Email" class="form-control" type="email" />
+                                    <span asp-validation-for="Email" class="text-danger"></span>
+                                </div>
+                                
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label asp-for="City" class="form-label">المدينة</label>
+                                    <input asp-for="City" class="form-control" />
+                                    <span asp-validation-for="City" class="text-danger"></span>
+                                </div>
+
+                                <div class="col-md-6 mb-3">
+                                    <label asp-for="Area" class="form-label ">الحي</label>
+                                    <input asp-for="Area" class="form-control" />
+                                    <span asp-validation-for="Area" class="text-danger"></span>
+                                </div>
+
+                            </div>
+
+                            <div class="row justify-content-center">
+                                <div class="col-md-6 mb-3">
+                                    <label asp-for="TheDate" class="form-label">تاريخ الميلاد:</label>
+                                    <input asp-for="TheDate" class="form-control" type="date" />
+                                    <span asp-validation-for="TheDate" class="text-danger small"></span>
+                                </div>
+                            </div>
+                            <div class="card-footer d-flex justify-content-center gap-2">
+                                <button type="submit" class="btn btn-outline-success">
+                                    <i class="bi bi-save-fill me-1"></i> حفظ
+                                </button>
+                                <a class="btn btn-outline-dark px-4" asp-controller="Menegar" asp-action="ManagerMenegarTeacherView">
+                                    <i class="bi bi-arrow-left-circle"></i> عودة
+                                </a>
+                            </div>
+
+                        
+                    </form>
+                </div>
             </div>
-            <div class="form-group">
-                <label asp-for="Phone" class="control-label"></label>
-                <input asp-for="Phone" class="form-control" />
-                <span asp-validation-for="Phone" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="Email" class="control-label"></label>
-                <input asp-for="Email" class="form-control" />
-                <span asp-validation-for="Email" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <input type="submit" value="Create" class="btn btn-primary" />
-                <a class="btn btn-dark" asp-action="Index">Back to List</a>
-            </div>
-        </form>
+        </div>
     </div>
 </div>
 

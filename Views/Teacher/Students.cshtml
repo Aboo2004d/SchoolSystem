@@ -1,0 +1,99 @@
+@{
+    ViewData["Title"] = "ادارة الطلاب";
+}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css" />
+
+<h2>الطلاب</h2>
+<a class="btn btn-dark" asp-controller="Teacher" asp-action="Index">عودة</a>
+<hr>
+<table id="studentsTable" class="display" style="width:100%">
+    <thead>
+        <tr>
+            <th>اسم الطالب</th>
+            <th>الصف</th>
+            <th>المادة</th>
+        </tr>
+    </thead>
+</table>
+<form asp-action="Delete" id="DeleteStudent" >
+    <input type="hidden" name="Id" id="studentid" />
+</form>
+@section Scripts {
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js" defer></script>
+    <script>
+        $(document).ready(function () {
+            var idTeacher = @Html.Raw(ViewBag.IdTeacher);
+            $('#studentsTable').DataTable({
+                "deferRender": true,
+                "processing": true,
+                "serverSide": true,
+                "ajax": {
+                    "url": "/Teacher/ManagerStudentToTeacher?idTeacher="+idTeacher,
+                    "type": "GET",
+                    "dataSrc": function (json) {
+                        if (json.error) {
+                            alert(json.error);
+                            window.location.href = "/Account/Login";
+                            return [];
+                        }
+                        return json.data;
+                    }
+                },
+                "columns": [
+                    { "data": "studentName",
+                        "render": function (data) {
+                            const parts = data.trim().split(" ");
+                            if (parts.length === 1) return parts[0]; // اسم واحد فقط
+                            return parts[0] + " " + parts[1] + " " + parts[parts.length - 1]; // الاسم الأول + الأخير
+                        } },
+                    { "data": "classroomName"},
+                    { "data": "lectuerName"},
+                ],
+                "language": {
+                    "search": "🔍بحث: ",
+                    "lengthMenu": "عرض _MENU_ سجل",
+                    "info": "عرض من  _START_ الى _END_ من اصل _TOTAL_ سجل",
+                    "paginate": {
+                        "next": "الصفحة التالية",
+                        "previous": "الصفحة السابقة"
+                    },
+                    "zeroRecords": "لم يتم العثور على سجلات"
+                }
+            });
+        });
+    </script>
+    <script>
+        $(function() {
+            
+            // التعامل مع زر الحذف
+            $(document).on('click', '.delete', function(e) {
+                e.preventDefault();
+
+                var btn = $(this);
+                var id = btn.data('id');
+
+                Swal.fire({
+                    title: "Are you sure?",
+                    text: "You won't be able to revert this!",
+                    icon: "warning",
+                    showCancelButton: true,
+                    confirmButtonColor: "#3085d6",
+                    cancelButtonColor: "#d33",
+                    confirmButtonText: "Yes, delete it!"
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        $('#studentid').val(id);
+                        $('#DeleteStudent').submit();
+
+                        Swal.fire({
+                            title: "Deleted!",
+                            text: "Student has been deleted.",
+                            icon: "success"
+                        });
+                    }
+                });
+            });
+
+        });
+    </script>
+}

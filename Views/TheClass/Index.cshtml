@@ -3,9 +3,7 @@
 @{
     ViewData["Title"] = "Index";
 }
-<br>
-<br>
-<br>
+
 <h1>Index</h1>
 
 <p>
@@ -23,7 +21,7 @@
     <tbody>
 @foreach (var item in Model) {
         <tr>
-            <td>
+            <td >
                 @Html.DisplayFor(modelItem => item.Name)
             </td>
             <td>

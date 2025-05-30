@@ -15,54 +15,37 @@
             <input type="hidden" asp-for="GradesId" />
             <div class="form-group">
                 <label asp-for="FirstMonth" class="control-label"></label>
-                <input asp-for="FirstMonth" class="form-control" />
+                <input asp-for="FirstMonth" value="@Model.FirstMonth" class="form-control" />
                 <span asp-validation-for="FirstMonth" class="text-danger"></span>
             </div>
             <div class="form-group">
                 <label asp-for="Mid" class="control-label"></label>
-                <input asp-for="Mid" class="form-control" />
+                <input asp-for="Mid" value="@Model.Mid" class="form-control" />
                 <span asp-validation-for="Mid" class="text-danger"></span>
             </div>
             <div class="form-group">
                 <label asp-for="SecondMonth" class="control-label"></label>
-                <input asp-for="SecondMonth" class="form-control" />
+                <input asp-for="SecondMonth" value="@Model.SecondMonth" class="form-control" />
                 <span asp-validation-for="SecondMonth" class="text-danger"></span>
             </div>
             <div class="form-group">
                 <label asp-for="Activity" class="control-label"></label>
-                <input asp-for="Activity" class="form-control" />
+                <input asp-for="Activity" value="@Model.Activity" class="form-control" />
                 <span asp-validation-for="Activity" class="text-danger"></span>
             </div>
             <div class="form-group">
                 <label asp-for="Final" class="control-label"></label>
-                <input asp-for="Final" class="form-control" />
+                <input asp-for="Final" value="@Model.Final" class="form-control" />
                 <span asp-validation-for="Final" class="text-danger"></span>
             </div>
             <div class="form-group">
-                <label asp-for="IdStudent" class="control-label"></label>
-                <select asp-for="IdStudent" class="form-control" asp-items="ViewBag.IdStudent"></select>
-                <span asp-validation-for="IdStudent" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="IdTeacher" class="control-label"></label>
-                <select asp-for="IdTeacher" class="form-control" asp-items="ViewBag.IdTeacher"></select>
-                <span asp-validation-for="IdTeacher" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="IdLectuer" class="control-label"></label>
-                <select asp-for="IdLectuer" class="form-control" asp-items="ViewBag.IdLectuer"></select>
-                <span asp-validation-for="IdLectuer" class="text-danger"></span>
-            </div>
-            <div class="form-group">
                 <input type="submit" value="Save" class="btn btn-primary" />
+                <a class="btn btn-dark" asp-action="Index" asp-route-teacherId="@Model.IdTeacher">Back</a>
             </div>
         </form>
     </div>
 </div>
 
-<div>
-    <a asp-action="Index">Back to List</a>
-</div>
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}

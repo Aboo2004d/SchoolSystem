@@ -1,51 +1,144 @@
 @model SchoolSystem.Models.EditProfileViewModel
 
 @{
-    ViewData["Title"] = "Edit Information";
+    ViewData["Title"] = "تعديل معلوماتي";
+    string Role = Context.Session.GetString("Role") ?? "Null";
 }
-<br>
-<br>
-<br>
-<h1>Edit Admin</h1>
-<hr />
-<div class="row">
-    <div class="col-md-4">
-        <form asp-action="Edit">
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-            <input type="hidden" asp-for="Id" />
-            
-            <div class="form-group">
-                <label asp-for="Name" class="control-label"></label>
-                <input asp-for="Name" class="form-control" />
-                <span asp-validation-for="Name" class="text-danger"></span>
-            </div>
-            
-            <div class="form-group">
-                <label asp-for="Phone" class="control-label"></label>
-                <input asp-for="Phone" class="form-control" />
-                <span asp-validation-for="Phone" class="text-danger"></span>
-            </div>
-            
-            <div class="form-group">
-                <label asp-for="Email" class="control-label"></label>
-                <input asp-for="Email" class="form-control" />
-                <span asp-validation-for="Email" class="text-danger"></span>
-            </div>
-            
-            <div class="form-group">
-                <label asp-for="UserName" class="control-label"></label>
-                <input asp-for="UserName" class="form-control" />
-                <span asp-validation-for="UserName" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="Role" class="control-label">Role</label>
-                <input type="text" class="form-control" asp-for="Role" readonly />
-            </div>
-            <div class="form-group">
-                <input type="submit" value="Save" class="btn btn-primary" />
-                <a class="btn btn-dark" asp-action="IndexProfile">Back to Profile</a>
-            </div>
-        </form>
+
+<div class="container mt-5">
+    <div class="card shadow-lg">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">تعديل المعلومات الشخصية</h4>
+        </div>
+        <div class="card-body">
+            <form asp-action="Edit">
+                <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+                <input type="hidden" asp-for="Id" />
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label asp-for="Name" class="control-label">الاسم</label>
+                            <input asp-for="Name" class="form-control" />
+                            <span asp-validation-for="Name" class="text-danger"></span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label asp-for="IdNumber" class="control-label">رقم الهوية</label>
+                            <input asp-for="IdNumber" class="form-control" readonly />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label asp-for="Phone" class="control-label">رقم الهاتف</label>
+                            <input asp-for="Phone" class="form-control" />
+                            <span asp-validation-for="Phone" class="text-danger"></span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label asp-for="Email" class="control-label">الايميل</label>
+                            <input asp-for="Email" class="form-control" />
+                            <span asp-validation-for="Email" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label asp-for="City" class="control-label">المدينة</label>
+                            <input asp-for="City" class="form-control" />
+                            <span asp-validation-for="City" class="text-danger"></span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label asp-for="Area" class="control-label">الحي</label>
+                            <input asp-for="Area" class="form-control" />
+                            <span asp-validation-for="Area" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label asp-for="UserName" class="control-label">اسم المستخدم</label>
+                            <input asp-for="UserName" class="form-control" />
+                            <span asp-validation-for="UserName" class="text-danger"></span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label asp-for="Role" class="control-label">الدور</label>
+                            <input asp-for="Role" class="form-control" readonly />
+                        </div>
+                    </div>
+                </div>
+
+                @if (Role == "Student")
+                {
+                    <!-- عرض المدرسة والصف -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label asp-for="School" class="control-label">المدرسة</label>
+                                <input asp-for="School" class="form-control" readonly />
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label asp-for="TheClass" class="control-label">الصف</label>
+                                <input asp-for="TheClass" class="form-control" readonly />
+                            </div>
+                        </div>
+                    </div>
+                    <!-- عرض تاريخ الميلاد في سطر مستقل -->
+                    <div class="row d-flex justify-content-center">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label asp-for="TheDate" class="control-label">تاريخ الميلاد</label>
+                                <input asp-for="TheDate" class="form-control" type="date" />
+                                <span asp-validation-for="TheDate" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <!-- عرض المدرسة وتاريخ الميلاد بجانب بعض -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label asp-for="School" class="control-label">المدرسة</label>
+                                <input asp-for="School" class="form-control" readonly />
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label asp-for="TheDate" class="control-label">تاريخ الميلاد</label>
+                                <input asp-for="TheDate" class="form-control" type="date" />
+                                <span asp-validation-for="TheDate" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                <div class="card-footer d-flex justify-content-center gap-2 mt-3">
+                    <button type="submit" class="btn btn-outline-success">
+                        <i class="bi bi-save-fill me-1"></i> حفظ
+                    </button>
+                    <a class="btn btn-outline-secondary ml-2" asp-action="IndexProfile">
+                        <i class="bi bi-arrow-left"></i> عودة
+                    </a>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 

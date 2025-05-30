@@ -47,3 +47,109 @@ body {
   height: 50px;
   font-size: 18px;
 }
+
+.btn-outline-info {
+    font-weight: 600;
+    border-width: 2px;
+    transition: all 0.3s ease-in-out;
+}
+
+.btn-outline-info:hover {
+    background-color: #0dcaf0;
+    color: white;
+}
+
+.dropdown-menu .dropdown-item {
+    font-weight: 500;
+    color: #212529;
+    padding: 0.5rem 1rem;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    border-radius: 0.375rem;
+}
+
+.dropdown-menu .dropdown-item:hover {
+    background-color: #343a40;
+    color: #ffffff;
+}
+
+.link-custom {
+    transition: color 0.3s ease, border-bottom 0.3s ease;
+    position: relative;
+    color: #0d6efd; /* لون أزرق افتراضي */
+}
+
+.link-custom::after {
+    content: "";
+    position: absolute;
+    width: 0%;
+    height: 2px;
+    left: 0;
+    bottom: 0;
+    background-color: #0d6efd;
+    transition: width 0.3s ease;
+}
+
+.link-custom:hover::after {
+    width: 100%;
+}
+
+.link-custom:hover {
+    color: #0a58ca;
+}
+
+/* اللون الأساسي */
+input.form-control,
+textarea.form-control {
+    background-color: #ffffff;
+    border: 1px solid #000000;
+    color: #000000; 
+    transition: all 0.3s ease-in-out;
+}
+.select2-container--default .select2-selection--single {
+    background-color: #ffffff; /* نفس لون الخلفية للحقول النصية */
+    border: 1px solid #090909; /* نفس لون الحدود للحقول النصية */
+    color: #000000; /* نفس لون النص للحقول النصية */
+    transition: all 0.3s ease-in-out;
+}
+
+/* عند مرور الماوس */
+input.form-control:hover,
+textarea.form-control:hover{
+    border-color: #9f4cc6;
+    background-color: #ffffff;
+    color: #141313; 
+    box-shadow: 0 0 5px rgba(68, 87, 108, 0.2);
+}
+.select2-container--default .select2-selection--single:hover {
+    background-color: #9f4cc6; /* نفس لون الخلفية عند مرور الماوس على الحقول النصية */
+    border-color: #ffffff; /* نفس لون الحدود عند مرور الماوس على الحقول النصية */
+    color: #141313; /* نفس لون النص عند مرور الماوس على الحقول النصية */
+    box-shadow: 0 0 5px rgba(68, 87, 108, 0.2); /* نفس ظل الإطار عند مرور الماوس */
+}
+
+/* عند الضغط (Focus) */
+input.form-control:focus,
+textarea.form-control:focus{
+    background-color: rgb(252, 208, 171);
+    border-color: #ff6a00;
+    color: #000000; 
+    box-shadow: 0 0 8px rgba(0, 123, 255, 0.4);
+    outline: none;
+}
+.select2-container--default .select2-selection--single.select2-focused {
+    background-color: rgb(252, 208, 171); /* نفس لون الخلفية عند التركيز على الحقول النصية */
+    border-color: #ff6a00; /* نفس لون الحدود عند التركيز على الحقول النصية */
+    color: #000000; /* نفس لون النص عند التركيز على الحقول النصية */
+    box-shadow: 0 0 8px rgba(0, 123, 255, 0.4); /* نفس ظل الإطار عند التركيز */
+    outline: none; /* إزالة حدود التركيز الافتراضية */
+}
+
+.select2-container--default .select2-results__option {
+    background-color: #ff6a00; /* لون الخلفية للقائمة */
+    color: #000000; /* لون النص للقائمة */
+}
+
+.select2-container--default .select2-results__option[aria-selected=true] {
+    background-color: #ff6a00; /* لون الخلفية عند تحديد الخيار */
+    color: #000000; /* لون النص عند تحديد الخيار */
+}

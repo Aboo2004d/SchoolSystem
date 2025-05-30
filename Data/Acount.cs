@@ -18,4 +18,8 @@ public partial class Acount
     public string ResetToken { get; set; } = null!;
 
     public DateTime ResetTokenExpiry { get; set; }
+
+    public int? IdUser { get; set; }
+
+    public bool? IsActive { get; set; }
 }

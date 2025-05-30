@@ -1,37 +1,93 @@
 @model SchoolSystem.Data.Student
 
 @{
-    ViewData["Title"] = "Details";
+    ViewData["Title"] = "تفاصيل الطالب";
 }
-<br>
-<br>
-<br>
-<h1>Details Student</h1>
 
-<div>
-    <hr />
-    <dl class="row">
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.Name)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.Name)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.Phone)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.Phone)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.Email)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.Email)
-        </dd>
-    </dl>
-</div>
-<div>
-    <a class="btn btn-warning" asp-action="Edit" asp-route-id="@Model?.Id">Edit</a>
-    <a class="btn btn-dark" asp-controller="Menegar" asp-action="ManagerMenegarStudent">Back to List</a>
+<div class="container mt-5">
+    <div class="card shadow rounded-4">
+        <div class="card-header bg-primary text-white rounded-top-4 d-flex justify-content-between align-items-center">
+            <h3 class="mb-0"><i class="bi bi-person-vcard-fill me-2"></i> تفاصيل الطالب</h3>
+        </div>
+
+        <div class="card-body">
+            <div class="row mb-3">
+                <label class="col-sm-3 fw-bold text-secondary">الاسم:</label>
+                <div class="col-sm-9">
+                    @Html.DisplayFor(model => model.Name)
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <label class="col-sm-3 fw-bold text-secondary">رقم الهوية:</label>
+                <div class="col-sm-9">
+                    @Html.DisplayFor(model => model.IdNumber)
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <label class="col-sm-3 fw-bold text-secondary">رقم الجوال:</label>
+                <div class="col-sm-9">
+                    @Html.DisplayFor(model => model.Phone)
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <label class="col-sm-3 fw-bold text-secondary">البريد الإلكتروني:</label>
+                <div class="col-sm-9">
+                    @Html.DisplayFor(model => model.Email)
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <label class="col-sm-3 fw-bold text-secondary">تاريخ الميلاد:</label>
+                <div class="col-sm-9">
+                    @{
+                        DateOnly TheDate = Model.TheDate ?? new DateOnly(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day);
+                    }
+                    @TheDate
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <label class="col-sm-3 fw-bold text-secondary">المدرسة:</label>
+                <div class="col-sm-9">
+                    @{
+                        string NameSchool = Model.IdSchoolNavigation?.Name ?? "غير محددة";
+                    }
+                    @NameSchool
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <label class="col-sm-3 fw-bold text-secondary">الصف:</label>
+                <div class="col-sm-9">
+                    @{
+                        string NameClass = Model.IdClassNavigation?.Name ?? "غير محدد";
+                    }
+                    @NameClass
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <label class="col-sm-3 fw-bold text-secondary">العنوان:</label>
+                <div class="col-sm-9">
+                    @{
+                        var city = Model?.City ?? "غير متوفر";
+                        var area = Model?.Area ?? "غير متوفر";
+                    }
+                    @city / @area
+                </div>
+            </div>
+        </div>
+
+        <div class="card-footer d-flex justify-content-center gap-2">
+            <a class="btn btn-outline-warning" asp-action="Edit" asp-route-id="@Model?.Id">
+                <i class="bi bi-pencil-fill"></i> تعديل
+            </a>
+            <a class="btn btn-outline-secondary" asp-controller="Menegar" asp-action="ManagerMenegarStudentView">
+                <i class="bi bi-arrow-return-left"></i> عودة
+            </a>
+        </div>
+    </div>
 </div>

@@ -1,169 +1,198 @@
-@model IEnumerable<SchoolSystem.Data.Student>
-@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@model SchoolSystem.Data.Student
 @{
-    ViewData["Title"] = "Index";
+    ViewData["Title"] = "لوحتي";
 }
-<br>
-<br>
-<br>
-@{
-    var role = Context.Session.GetString("Role");
-    var email = Context.Session.GetString("Email");
-    if(role == "admin"){
-        <h1>Students</h1>
-        <p>
-            <a class="btn btn-success" asp-action="Create">Create New Student</a>
-        </p>
 
-    }
-    else{
-        foreach(var item in Model){
-            if(email == item.Email){
-                <h1>Student: @item.Name</h1>
-                
-            }
-        }
-    }
+<div class="container mt-3 mt-md-5">
+    <h2 class="text-center mb-4"><i class="bi bi-speedometer2"></i> لوحة الطالب</h2>
 
-}
-<hr/>
-<table class="table">
-    <thead>
-        <tr>
-            <th  >
-                Name
-            </th>
-            <th class="d-none d-sm-table-cell"  style="width: 20%;">
-                Phone
-            </th>
-            <th >
-                Email
-            </th>
-            <th >Avg</th>
-            <th >Optioens</th>
-        </tr>
-    </thead>
-    <tbody>
-@foreach (var item in Model) {
-    @if(email == item.Email){
-        <tr>
-            <td>
-                @{
-                    var fullname = item.Name.Split(' ');
-                    var firstName = fullname.FirstOrDefault();
-                    var lastName = fullname.LastOrDefault();
-                    if(fullname.Length > 1){
-                        lastName = fullname.LastOrDefault();
-                        <p>@firstName - @lastName</p> 
-                    }else{
-                        @firstName
-                    }
-                }
-            </td>
-            <td class="d-none d-sm-table-cell">
-                @Html.DisplayFor(modelItem => item.Phone)
-            </td>
-            
-            <td >
-                @{
-                    if(item.Email != null){
-                        var emailParts = item.Email.Split('@');
-                        var emailName = emailParts[0];
-                        var emailDomain = emailParts[1];
-                        string visibleName = new string(emailName.Take(3).ToArray());
+    <!-- معلوماتي الشخصية -->
+    <div class="row justify-content-center mb-4">
+        <div class="col-12 col-md-6">
+            <div class="card shadow-sm border-0 rounded-4">
+                <div class="card-body text-center bg-light p-3 p-md-4">
+                    <a class="btn btn-lg btn-outline-primary w-100" asp-controller="Profile" asp-action="IndexProfile">
+                        <i class="bi bi-person-circle"></i> معلوماتي الشخصية
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
 
-                        // الجزء الأخير من النطاق
-                        var lastDomainPart = emailDomain.Split('.').Last();
-
-                        // الطباعة في سطر واحد:
-                        <text>@visibleName***@@***.@lastDomainPart</text>
-                        } 
-                }
-            </td>
-            <td>@ViewBag.Avg%</td>
-            <td>
-                @if(role == "admin"){
-                    <a class="btn btn-warning" asp-action="Edit" asp-route-id="@item.Id">Edit</a> 
-                    <a class="btn btn-info" asp-action="ManagerStudentLectuer" asp-route-idstudent="@item.Id">Manager Lectuer</a> 
-                    <a class="btn btn-danger delete" data-id="@item.Id">Delete</a>
-                }else{
-                    <div class="dropdown">
-                        <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
-                            Manager
-                        </button>
-                        <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                            <li><a class="dropdown-item" asp-controller="Grades" asp-action="MarkStudent" asp-route-studentid="@item.Id">Marks</a></li>
-                            <li><a class="dropdown-item" asp-action="AttendancesStudent" asp-controller="Attendance" asp-route-studentid="@item.Id">Attendance</a></li>
-                        </ul>
+    <!-- الرسوم البيانية -->
+    <div class="row g-4">
+        <!-- مخطط الدرجات -->
+        <div class="col-12 col-md-6">
+            <div class="card shadow-sm rounded-4 h-100">
+                <div class="card-header bg-primary text-white text-center rounded-top-4 py-3">
+                    <h5 class="mb-0"><i class="bi bi-bar-chart-fill"></i> توزيع الدرجات حسب المادة</h5>
+                </div>
+                <div class="card-body p-4">
+                    <div class="d-grid gap-2 mb-3">
+                        <a class="btn btn-outline-warning" asp-action="MarkStudent" asp-controller="Grades" asp-route-studentid="@Model.Id">
+                            <i class="bi bi-columns-gap"></i> إدارة العلامات
+                        </a>
                     </div>
-                }
-            </td>
-        </tr>
-    }else if(role=="admin"){
-        <tr>
-            <td>
-                @Html.DisplayFor(modelItem => item.Name)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.Phone)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.Email)
-            </td>
-            <td>
-                <a class="btn btn-warning" asp-action="Edit" asp-route-id="@item.Id">Edit</a> 
-                <a class="btn btn-info" asp-action="ManagerStudentLectuer" asp-route-idstudent="@item.Id">Manager Lectuer</a> 
-                <a class="btn btn-danger delete" data-id="@item.Id">Delete</a>
-            </td>
-        </tr>
-    }
-}
-    </tbody>
-</table>
+                    <div class="chart-container">
+                        <canvas id="gradesChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-<form asp-action="Delete" id="DeleteStudent" >
-    <input type="hidden" name="id" id="studentid" />
-</form>
-
+        <!-- مخطط الحضور والغياب -->
+        <div class="col-12 col-md-6">
+            <div class="card shadow-sm rounded-4 h-100">
+                <div class="card-header bg-success text-white text-center rounded-top-4 py-3">
+                    <h5 class="mb-0"><i class="bi bi-clipboard-check-fill"></i>نسب الحضور والغياب حسب المادة</h5>
+                </div>
+                <div class="card-body p-4">
+                    <div class="d-grid gap-2 mb-3">
+                        <a class="btn btn-outline-info" asp-controller="Attendance" asp-action="AttendancesStudent" asp-route-studentid="@Model.Id">
+                            <i class="bi bi-journal-bookmark-fill"></i> الحضور و الغياب
+                        </a>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="attendanceChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 @section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <script>
-        $(function() {
-            // تفعيل DataTable
-            new DataTable('.table');
-            
-            // التعامل مع زر الحذف
-            $('.delete').click(function(e) {
-                e.preventDefault();
+        document.addEventListener("DOMContentLoaded", function () {
+            // جلب بيانات الدرجات
+            fetch('@Url.Action("GetStudentCountPerGrades", "Student", new { idStudent = Model.Id })')
+                .then(response => response.json())
+                .then(data => {
+                    const labels = data.map(item => item.lectuerName);
+                    const grades = data.map(item => item.totalSessions);
 
-                var btn = $(this);
-                var id = btn.data('id');
-
-                // استخدام SweetAlert لتأكيد الحذف
-                Swal.fire({
-                    title: "Are you sure?",
-                    text: "You won't be able to revert this!",
-                    icon: "warning",
-                    showCancelButton: true,
-                    confirmButtonColor: "#3085d6",
-                    cancelButtonColor: "#d33",
-                    confirmButtonText: "Yes, delete it!"
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        // وضع الـ id في الحقل المخفي
-                        $('#studentrid').val(id);
-
-                        // تقديم النموذج
-                        $('#DeleteStudent').submit();
-
-                        // إظهار رسالة النجاح
-                        Swal.fire({
-                            title: "Deleted!",
-                            text: "Student has been deleted.",
-                            icon: "success"
-                        });
-                    }
+                    const ctxGrades = document.getElementById('gradesChart').getContext('2d');
+                    new Chart(ctxGrades, {
+                        type: 'bar',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'الدرجات',
+                                data: grades,
+                                backgroundColor: '#3498db'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    title: {
+                                        display: true,
+                                        text: 'الدرجة'
+                                    }
+                                }
+                            },
+                            plugins: {
+                                title: {
+                                    display: true,
+                                    text: 'توزيع الدرجات حسب المادة'
+                                }
+                            }
+                        }
+                    });
                 });
-            });
+
+            // جلب بيانات الحضور والغياب
+            fetch('@Url.Action("GetStudentCountPerAttendance", "Student", new { idStudent = Model.Id })')
+                .then(response => response.json())
+                .then(data => {
+                    const labels = data.map(item => item.subjectName);
+                    const present = data.map(item => item.presentPercentage);
+                    const excused = data.map(item => item.excusedPercentage);
+                    const absent = data.map(item => 100 - item.presentPercentage - item.excusedPercentage);
+
+                    const ctxAttendance = document.getElementById('attendanceChart').getContext('2d');
+                    new Chart(ctxAttendance, {
+                        type: 'bar',
+                        data: {
+                            labels: labels,
+                            datasets: [
+                                {
+                                    label: 'حضور',
+                                    data: present,
+                                    backgroundColor: '#2ecc71'
+                                },
+                                {
+                                    label: 'غياب بعذر',
+                                    data: excused,
+                                    backgroundColor: '#f1c40f'
+                                },
+                                {
+                                    label: 'غياب بدون عذر',
+                                    data: absent,
+                                    backgroundColor: '#e74c3c'
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    max: 100,
+                                    title: {
+                                        display: true,
+                                        text: 'النسبة المئوية (%)'
+                                    }
+                                }
+                            },
+                            plugins: {
+                                title: {
+                                    display: true,
+                                    text: 'نسب الحضور والغياب حسب المادة'
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function (context) {
+                                            return `${context.dataset.label}: ${context.raw.toFixed(1)}%`;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                });
         });
     </script>
+
+    <style>
+        .chart-container {
+            height: 400px;
+        }
+
+        canvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        @@media (max-width: 768px) {
+            .btn {
+                font-size: 0.9rem;
+                padding: 0.5rem;
+            }
+
+            h5 {
+                font-size: 1.1rem;
+            }
+
+            .chart-container {
+                height: 300px;
+            }
+        }
+    </style>
 }
+

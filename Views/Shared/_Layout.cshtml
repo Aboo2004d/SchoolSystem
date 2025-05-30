@@ -1,34 +1,190 @@
 ﻿<!DOCTYPE html>
-<html lang="en">
+<html lang="ar" dir="rtl">
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - SchoolSystem</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>@ViewData["Title"] - مدرستي</title>
 
-    <!-- تضمين Bootstrap CSS -->
+    <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
-    <!-- الأنماط الخاصة بالمشروع -->
+    <!-- تنسيق مخصص -->
     <style>
-        /* محاذاة العنوان في المنتصف */
-        .navbar-brand-centered {
-            position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
+        .navbar {
+            background-color: #003366 !important; /* لون الشريط العلوي */
         }
 
-        /* إخفاء القائمة المعزولة على الأجهزة الكبيرة */
+        .navbar-nav .nav-link {
+            border: 2px solid #ffffff55;
+            margin: 0 5px;
+            border-radius: 25px;
+            color: #ffffffcc !important;
+            padding: 6px 15px;
+            transition: all 0.3s ease;
+        }
+
+        .navbar-nav .nav-link.active,
+        .navbar-nav .nav-link:focus,
+        .navbar-nav .nav-link:hover {
+            background-color: #ffffff;
+            color: #003366 !important;
+            font-weight: bold;
+        }
+
+        .navbar-brand {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            white-space: nowrap;
+            color: #ffffff !important;
+        }
+
         .offcanvas-menu {
             display: none;
         }
 
-        /* إظهار القائمة المعزولة على الأجهزة الصغيرة */
+        .footer {
+            font-size: 1rem;
+        }
+
         @@media (max-width: 991.98px) {
+            #navbarNavStart {
+                display: none !important;
+            }
+
+            .offcanvas-menu {
+                display: block;
+            }
+
             .navbar-brand-centered {
                 display: none;
             }
-            .offcanvas-menu {
+
+            .btn,
+            .dropdown-menu {
+                font-size: 13px;
+            }
+
+            .footer {
+                font-size: 0.8rem;
+            }
+
+            /* تصميم أنيق للقائمة الجانبية */
+            .offcanvas-body .navbar-nav .nav-item {
+                margin-bottom: 10px;
+                background: linear-gradient(to left, #1d3557, #457b9d);
+                border-radius: 50px;
+                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+                transition: transform 0.2s ease-in-out, background-color 0.3s ease;
+            }
+
+            .offcanvas-body .navbar-nav .nav-item:hover {
+                transform: scale(1.03);
+                background: linear-gradient(to left, #1a2c4b, #3d6f8d);
+            }
+
+            .offcanvas-body .navbar-nav .nav-link {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 12px 20px;
+                font-size: 15px;
+                font-weight: bold;
+                color: #fff !important;
+                border-radius: 50px;
+                text-decoration: none;
+            }
+
+            .offcanvas-body .navbar-nav .nav-link i {
+                margin-left: 8px;
+                font-size: 18px;
+            }
+
+            .offcanvas-body .navbar-nav .nav-link.active {
+                background-color: #f1faee;
+                color: #1d3557 !important;
+            }
+
+            .offcanvas-body .navbar-nav .nav-item {
+                margin: 10px auto;
+                width: 100%;
+                max-width: 240px;
+            }
+
+            .offcanvas-body .navbar-nav .sidebar-link {
                 display: block;
+                width: 100%;
+                padding: 20px 30px;
+                background: linear-gradient(to left, #1d3557, #457b9d);
+                border-radius: 30px;
+                font-size: 16px;
+                font-weight: bold;
+                color: #ffffff !important;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+                transition: all 0.2s ease-in-out;
+                text-decoration: none;
+
+                /* 👇 التعديلات المهمة */
+                white-space: normal;         /* للسماح بانتقال الأسطر */
+                word-break: break-word;      /* لكسر الكلمات الطويلة */
+                overflow-wrap: break-word;   /* دعم أوسع لكسر الكلمات */
+                text-align: center;          /* لجعل النص في المنتصف */
+            }
+
+            .offcanvas-body .navbar-nav .sidebar-link:hover {
+                background: linear-gradient(to left, #1a2c4b, #3d6f8d);
+                transform: scale(1.05);
+                color: #ffffff !important;
+            }
+
+            .navbar {
+                overflow: visible !important;
+                position: relative;
+                z-index: 1000;
+            }
+
+            /* إصلاح موضع القائمة المنسدلة */
+            .navbar .dropdown-menu {
+                position: absolute !important;
+                top: 100% !important; /* لتكون أسفل الزر */
+                left: auto !important;
+                right: 0 !important; /* لأنها في RTL */
+                
+                z-index: 2000; /* تتجاوز عناصر أخرى */
+            }
+            .pb-3 {
+                padding-top: 30px;
+                padding-bottom: 80px;
+            }
+
+        }
+
+
+        table thead {
+            direction: rtl;
+            text-align: right;
+        }
+
+        .offcanvas-custom {
+            width: 210px !important;
+            max-width: 100%;
+            height: 370px !important;
+        }
+
+        .navbar .dropdown-menu {
+            left: 0% !important;
+            right: auto !important;
+        }
+
+        .navbar-collapse {
+            overflow: visible !important;
+        }
+
+        @@media (min-width: 992px) {
+            .pb-3 {
+                padding-top: 70px;
+                padding-bottom: 80px;
             }
         }
     </style>
@@ -39,87 +195,104 @@
 <body>
 
     <header>
-        <!-- شريط التنقل -->
-        <nav class="navbar navbar-expand-lg fixed-top navbar-dark bg-dark" aria-label="Main navigation">
-            <div class="container-fluid">
-                <!-- العنوان في المنتصف -->
-                <a class="navbar-brand navbar-brand-centered" asp-area="" asp-controller="Home" asp-action="Index">School Mangment App MVC</a>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
 
-                <!-- زر الثلاث خطوط -->
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        @{
+            string username = Context.Session.GetString("UserName") ?? "null";
+            string role = Context.Session.GetString("Role") ?? "null";
+        }
+
+        <nav class="navbar navbar-expand-lg fixed-top navbar-dark" aria-label="Main navigation">
+            <div class="container-fluid position-relative">
+
+                <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileSidebar" aria-controls="mobileSidebar" aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
                 </button>
 
-                <!-- الروابط في اليمين -->
-                <div class="collapse navbar-collapse justify-content-start" id="navbarNav">
+                <div class="collapse navbar-collapse justify-content-start" id="navbarNavStart">
                     <ul class="navbar-nav">
                         <li class="nav-item">
-                            <a class="nav-link active" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
+                            <a class="nav-link @(ViewContext.RouteData.Values["action"].ToString() == "Index" ? "active" : "")"
+                               asp-area="" asp-controller="Home" asp-action="Index">
+                                <i class="bi bi-house-door-fill"></i> الرئيسية</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-controller="Home" asp-action="About">About</a>
+                            <a class="nav-link @(ViewContext.RouteData.Values["action"].ToString() == "About" ? "active" : "")"
+                               asp-area="" asp-controller="Home" asp-action="About">
+                                <i class="bi bi-person-vcard"></i> من نحن</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+                            <a class="nav-link @(ViewContext.RouteData.Values["action"].ToString() == "Privacy" ? "active" : "")"
+                               asp-area="" asp-controller="Home" asp-action="Privacy">
+                                <i class="bi bi-shield-lock"></i> الخصوصية</a>
                         </li>
                     </ul>
                 </div>
-                <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
+
+                <div class="mx-auto text-center">
+                    <a class="navbar-brand fw-bold" asp-area="" asp-controller="Home" asp-action="Index">مدرستي</a>
+                </div>
+
+                <div class="d-flex me-auto align-items-center">
                     <ul class="navbar-nav">
-                        @if (Context.Session.GetString("UserName") != null)
+                        @if (username != "null" && role != "null")
                         {
                             <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">@Context.Session.GetString("UserName")</a>
+                                <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    @username
+                                </a>
                                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-                                    
-                                    @if(Context.Session.GetString("Role").Equals("admin")){
-                                        <li><a class="dropdown-item" asp-area="" asp-controller="Menegar" asp-action="Index">Manager</a></li>
-                                    }else if (Context.Session.GetString("Role").Equals("Teacher")){
-                                        <li><a class="dropdown-item" asp-area="" asp-controller="Teacher" asp-action="Index">Manager</a></li>
-                                    }else if (Context.Session.GetString("Role").Equals("Student")){
-                                        int id = int.Parse(Context.Session.GetString("Id").ToString());
-                                        <li><a class="dropdown-item" asp-area="" asp-controller="Student" asp-action="Index" asp-route-StudentId="@id">Manager</a></li>
+                                    @if(role =="admin")
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="Menegar" asp-action="Index">لوحة القيادة</a></li>
                                     }
-                                    <li><a class="dropdown-item" asp-area="" asp-controller="Profile" asp-action="IndexProfile">Profile</a></li>
-                                    <li><a class="dropdown-item" asp-area="" asp-controller="Account" asp-action="Logout">Logout</a></li>
+                                    else if(role == "Teacher")
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="Teacher" asp-action="Index">لوحة القيادة</a></li>
+                                    }
+                                    else if(role == "Student")
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="Student" asp-action="Index">لوحة القيادة</a></li>
+                                    }
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" asp-controller="Account" asp-action="Logout">تسجيل خروج</a></li>
                                 </ul>
                             </li>
                         }
                         else
                         {
-                        <a class="btn btn-info" asp-area="" asp-controller="Account" asp-action="Login">Log in</a>
+                            <li class="nav-item">
+                                <a class="btn btn-outline-light" asp-controller="Account" asp-action="Login">تسجيل دخول</a>
+                            </li>
                         }
                     </ul>
                 </div>
             </div>
         </nav>
 
-        <!-- القائمة المعزولة (للأجهزة الصغيرة فقط) -->
-        <div class="offcanvas offcanvas-start offcanvas-menu" tabindex="-1" id="offcanvasMenu" aria-labelledby="offcanvasMenuLabel">
+        <div class="offcanvas offcanvas-end offcanvas-custom text-bg-dark" tabindex="-1" id="mobileSidebar" aria-labelledby="mobileSidebarLabel">
             <div class="offcanvas-header">
-                <h5 class="offcanvas-title" id="offcanvasMenuLabel">@Context.Session.GetString("UserName")</h5>
-                <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+                <h5 class="offcanvas-title" id="mobileSidebarLabel">القائمة</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="إغلاق"></button>
             </div>
             <div class="offcanvas-body">
-                @if (Context.Session.GetString("UserName") != null)
-                {
-                    <ul class="list-unstyled">
-                        <li><a class="dropdown-item" asp-area="" asp-controller="Profile" asp-action="IndexProfile">Profile</a></li>
-                        <li><a class="dropdown-item" asp-area="" asp-controller="Account" asp-action="Logout">Logout</a></li>
-                    </ul>
-                }
-                else
-                {
-                    <ul class="list-unstyled">
-                        <li><a class="dropdown-item" asp-area="" asp-controller="Account" asp-action="Login">Log in</a></li>
-                        <li><a class="dropdown-item" asp-area="" asp-controller="Account" asp-action="Register">Sign up</a></li>
-                    </ul>
-                }
+                <ul class="navbar-nav w-100 text-center">
+                    <li class="nav-item">
+                        <a class="nav-link sidebar-link" asp-controller="Home" asp-action="Index">الرئيسية</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link sidebar-link" asp-controller="Home" asp-action="About">من نحن</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link sidebar-link" asp-controller="Home" asp-action="Privacy">الخصوصية</a>
+                    </li>
+                </ul>
+
             </div>
         </div>
     </header>
 
-    <div class="container">
+    <div class="container ">
         <main role="main" class="pb-3">
             @RenderBody()
         </main>
@@ -127,26 +300,22 @@
 
     <footer class="border-top footer text-muted">
         <div class="container">
-            &copy; 2025 - Powered by Abdolly Techno - <a href="Https://wa.me/message/FT7DT2UF5WZQM1">Contact Us</a>
+            &copy; 2025 - @DateTime.Now.Year - جميع الحقوق محفوظة لدى وزارة التربية والتعليم 
         </div>
     </footer>
 
-    <!-- تضمين jQuery -->
+    <!-- سكريبتات -->
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
-
-    <!-- تضمين Bootstrap JavaScript -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
-    <!-- تضمين SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-    <!-- تضمين DataTables -->
-    <script src="https://cdn.datatables.net/2.2.1/js/dataTables.js"></script>
-    <script src="https://cdn.datatables.net/2.2.1/js/dataTables.bootstrap5.js"></script>
-
-    <!-- تضمين ملف JavaScript الخاص بالمشروع -->
+    <script src="https://cdn.datatables.net/2.2.1/js/dataTables.js "></script>
+    <script src="https://cdn.datatables.net/2.2.1/js/dataTables.bootstrap5.js "></script>
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/toastify-js@1.12.0/src/toastify.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
 
     @await RenderSectionAsync("Scripts", required: false)
+    @await Component.InvokeAsync("Notyf")
 </body>
 </html>

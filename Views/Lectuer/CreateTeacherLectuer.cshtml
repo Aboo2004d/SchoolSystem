@@ -1,44 +1,50 @@
 @model SchoolSystem.Models.LectuerTeacherViewModel
 
 @{
-    ViewData["Title"] = "Add Teacher In Lectuer";
+    ViewData["Title"] = "اضافة معلم للمادة";
 }
-<br>
-<br>
-<br>
-<h1>Add Teacher To Lectuer</h1>
-<hr /> 
-<div class="row">
-    <div class="col-md-4">
-        <form asp-action="CreateTeacherInLectuer">
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-            <div class="form-group">
-                <label asp-for="IdLectuer" class="control-label">Lectuer</label>
-                <select asp-for="IdLectuer" class="form-control" asp-items="ViewBag.Lec" disabled></select>
-                <input type="hidden" asp-for="IdLectuer" />
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow rounded-4">
+                <div class="card-header text-center bg-primary text-white">
+                    <h4 class="mb-0"><i class="bi bi-person-plus"></i> إضافة معلم للمادة: @ViewBag.NameLectuer</h4>
+                </div>
+                <div class="card-body">
+                    <form asp-action="CreateTeacherInLectuer" asp-route-idLectuer="@ViewBag.IdLectuer">
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                        <input type="hidden" value="@ViewBag.IdLectuer" asp-for="IdLectuer" />
+
+                        <div class="mb-3">
+                            <label asp-for="IdTeacher" class="form-label fw-bold">اسم المعلم</label>
+                            <select asp-for="IdTeacher" class="form-control select2" asp-items="ViewBag.IdTeacher"></select>
+                            <span asp-validation-for="IdTeacher" class="text-danger small"></span>
+                        </div>
+
+                        <div class="d-flex justify-content-center gap-3 mt-4">
+                            <button type="submit" class="btn btn-outline-success">
+                                <i class="bi bi-check-circle"></i> حفظ
+                            </button>
+                            <a class="btn btn-outline-dark" asp-action="LectuerView">
+                                <i class="bi bi-arrow-left-circle"></i> عودة</a>
+                        </div>
+                    </form>
+                </div>
             </div>
-            <div class="form-group">
-                <label asp-for="IdTeacher" class="control-label">Teacher name</label>
-                <select asp-for="IdTeacher" class ="form-control" asp-items="ViewBag.IdTeacher"></select>
-            </div>
-            <div class="form-group">
-                <label asp-for="IdClass" class="control-label">Class</label>
-                <select asp-for="IdClass" class ="form-control" asp-items="ViewBag.IdClass"></select>
-            </div>
-            <div class="form-group">
-                <input type="submit" value="Create" class="btn btn-primary"  />
-                @{
-                    var item = ViewBag.IdLectuer;
-                        <a class="btn btn-dark" asp-action="ManagerTeacherLectuer" asp-route-idLectuer="@item">@item Back to The List</a>
-                    
-                }
-                
-                
-            </div>
-        </form>
+        </div>
     </div>
 </div>
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        $(document).ready(function () {
+            $('.select2').select2({
+                placeholder: "ابحث عن معلم...",
+                allowClear: true
+            });
+        });
+    </script>
 }
