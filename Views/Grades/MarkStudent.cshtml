@@ -6,15 +6,19 @@
 
 <div class="container mt-3">
     <div class="row mb-3">
-        <div class="col-12 text-center">
-            <h4>علامات الطالب: @ViewBag.name</h4>
+        <div class="col-12 d-flex justify-content-between align-items-center flex-wrap">
+            <h4 class="mb-2">علامات الطالب: @ViewBag.name</h4>
             @if ((Context.Session.GetString("Role") ?? "Null") == "admin")
             {
-                <a class="btn btn-outline-dark mt-2" asp-action="ManagerMenegarStudentView" asp-controller="Menegar">عودة</a>
+                <a class="btn btn-outline-dark mb-2" asp-action="ManagerMenegarStudentView" asp-controller="Menegar">
+                    <i class="bi bi-arrow-left"></i> عودة
+                </a>
             }
             else
             {
-                <a class="btn btn-outline-dark mt-2" asp-action="Index" asp-controller="Student" asp-route-StudentId="@ViewBag.IdStd">عودة</a>
+                <a class="btn btn-outline-dark mb-2" asp-action="Index" asp-controller="Student" asp-route-StudentId="@ViewBag.IdStudent">
+                    <i class="bi bi-arrow-left"></i> عودة
+                </a>
             }
         </div>
     </div>
@@ -68,9 +72,9 @@
                     { data: "total" },
                 ],
                 "language": {
-                    "search": "🔍بحث: ",
+                    "search": "🔍 بحث: ",
                     "lengthMenu": "عرض _MENU_ سجل",
-                    "info": "عرض من  _START_ الى _END_ من اصل _TOTAL_ سجل",
+                    "info": "عرض من _START_ إلى _END_ من أصل _TOTAL_ سجل",
                     "paginate": {
                         "next": "الصفحة التالية",
                         "previous": "الصفحة السابقة"
@@ -84,6 +88,8 @@
     <style>
         body {
             font-size: 14px;
+            direction: rtl;
+            text-align: right;
         }
 
         @@media (max-width: 768px) {
@@ -93,6 +99,9 @@
 
             table {
                 font-size: 12px;
+                overflow-x: auto;
+                display: block;
+                width: 100%;
             }
 
             .btn {

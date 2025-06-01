@@ -134,28 +134,28 @@ namespace SchoolSystem.Controllers
                                     }
                                     break;
                                 default:
-                                    ShowErrornotification("فشل تسجيل الدخول");
+                                    _notyf.Error("فشل تسجيل الدخول");
                                     break;
                             }
                         }
                         else
                         {
-                            ShowErrornotification("فشل تسجيل الدخول");
+                            _notyf.Error("فشل تسجيل الدخول");
                         }
                     }
                     else
                     {
-                        ShowErrornotification("اسم المستخدم او كلمة المرور خاظئة");
+                        _notyf.Error("اسم المستخدم او كلمة المرور خاظئة");
                     }
                 }
                 else
                 {
-                    ShowErrornotification("اسم المستخدم او كلمة المرور خاظئة");
+                    _notyf.Error("اسم المستخدم او كلمة المرور خاظئة");
                 }
             }
             else
             {
-                ShowErrornotification("خطأ في البيانات المدخلة");
+                _notyf.Error("خطأ في البيانات المدخلة");
             }
             return View(model);
         }
@@ -170,7 +170,7 @@ namespace SchoolSystem.Controllers
                 school == null || 
                 string.IsNullOrWhiteSpace(name))
             {
-                ShowErrornotification("فشل تسجيل الدخول. يرجى المحاولة مرة أخرى.");
+                _notyf.Error("فشل تسجيل الدخول. يرجى المحاولة مرة أخرى.");
                 return false;
             }
 
@@ -204,7 +204,7 @@ namespace SchoolSystem.Controllers
 
             // ✅ ترحيب بالاسم الأول
             var firstName = name.Split(" ")[0];
-            ShowSuccessnotification($"مرحباً {firstName}");
+            _notyf.Success($"مرحباً {firstName}");
             return true;
         }
 
@@ -231,7 +231,7 @@ namespace SchoolSystem.Controllers
                 var result = await _accountService.RegisterUserAsync(model);
                 if (!result.IsSuccess)
                 {
-                    ShowErrornotification(result.Message);
+                    _notyf.Error(result.Message);
                     return View(model);
                 }
                 HttpContext.Session.SetString("email", model.Email);
@@ -244,7 +244,7 @@ namespace SchoolSystem.Controllers
             }
             
             Console.WriteLine($"Name: {model.FullName}");
-            ShowErrornotification("بيانات التحقق غير صحيحة");
+            _notyf.Error("بيانات التحقق غير صحيحة");
             return View(model);
 
         }
@@ -264,7 +264,7 @@ namespace SchoolSystem.Controllers
 
             if (email == null || role == null || idUser == null || school == null)
             {
-                ShowErrornotification("البيانات غير متوفرة أو انتهت الجلسة");
+                _notyf.Error("البيانات غير متوفرة أو انتهت الجلسة");
                 return RedirectToAction("Register");
             }
             Console.WriteLine($"Role: {role}");
@@ -299,14 +299,14 @@ namespace SchoolSystem.Controllers
                         Console.WriteLine($"خطأ في الحقل: {key} - الرسالة: {error.ErrorMessage}");
                     }
                 }
-                ShowErrornotification("خطأ بالبيانات المدخلة");
+                _notyf.Error("خطأ بالبيانات المدخلة");
                 return View(model);
             }
 
             // التحقق مما إذا كانت كلمة المرور وتأكيد كلمة المرور متطابقتين
             if (model.Password != model.ConfirmPassword)
             {
-                ShowErrornotification("كلمة المرور غير متطابقة");
+                _notyf.Error("كلمة المرور غير متطابقة");
                 return View(model);
             }
 
@@ -314,7 +314,7 @@ namespace SchoolSystem.Controllers
             bool account1 = _context.Acounts.Any(a => a.UsersName == model.UserName);
             if (account1 == true)
             {
-                ShowErrornotification("اسم المستخدم موجود مسبقا");
+                _notyf.Error("اسم المستخدم موجود مسبقا");
                 return View(model);
             }
 
@@ -345,7 +345,7 @@ namespace SchoolSystem.Controllers
             HttpContext.Session.Clear(); // مسح الجلسة
             // تسجيل الخروج باستخدام ملفات تعريف الارتباط
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            ShowSuccessnotification("تم تسجيل الخروج");
+            _notyf.Success("تم تسجيل الخروج");
             // إعادة توجيه المستخدم إلى صفحة تسجيل الدخول
             return RedirectToAction("Login");
         }
@@ -399,10 +399,10 @@ namespace SchoolSystem.Controllers
                 }
                 Console.WriteLine($"Email: {model.Email}");
 
-                ShowSuccessnotification($"An email to reset the password has been sent to the email {model.Email}.");
+                _notyf.Success($"An email to reset the password has been sent to the email {model.Email}.");
                 return RedirectToAction("Login");
             }
-            ShowErrornotification("There is an error in the entered data.");
+            _notyf.Error("There is an error in the entered data.");
             return View(model);
         }
 
@@ -469,12 +469,12 @@ namespace SchoolSystem.Controllers
 
             if (model.NewPassword != model.ConfirmPassword)
             {
-                ShowErrornotification("كلمة المرور المطابقة غير صحيحة");
+                _notyf.Error("كلمة المرور المطابقة غير صحيحة");
                 return View(model);
             }
             if (account.Passwords == hashedPassword)
             {
-                ShowErrornotification("لا يمكن ان تكون كلمة المرور الجديدة تشبه القديمة");
+                _notyf.Error("لا يمكن ان تكون كلمة المرور الجديدة تشبه القديمة");
                 return View(model);
             }
 
@@ -485,7 +485,7 @@ namespace SchoolSystem.Controllers
 
             _context.SaveChanges();
 
-            ShowSuccessnotification("تم تحديث كلمة المرور بنجاح");
+            _notyf.Success("تم تحديث كلمة المرور بنجاح");
             return RedirectToAction("Login");
         }
 
@@ -505,7 +505,7 @@ namespace SchoolSystem.Controllers
         {
             if (!ModelState.IsValid)
             {
-                ShowErrornotification("خطأ بالبيانات المدخلة");
+                _notyf.Error("خطأ بالبيانات المدخلة");
                 return View(model);
             }
             string username = HttpContext.Session.GetString("UserName") ?? "null";
@@ -521,22 +521,22 @@ namespace SchoolSystem.Controllers
             string Hash = HashPassword(model.LastPassword);
             if (Hash != account.Passwords)
             {
-                ShowErrornotification("كلمة المرور القديمة خاطئة");
+                _notyf.Error("كلمة المرور القديمة خاطئة");
                 return View(model);
             }
             if (model.NewPassword != model.ConfirmPassword)
             {
-                ShowErrornotification("كلمة المرور المدخلة للتأكيد خاطئة");
+                _notyf.Error("كلمة المرور المدخلة للتأكيد خاطئة");
                 return View(model);
             }
             if (HashPassword(model.NewPassword) == Hash)
             {
-                ShowErrornotification("لا يمكن ان تكون كلمة المرور القديمة تشبه الجديدة");
+                _notyf.Error("لا يمكن ان تكون كلمة المرور القديمة تشبه الجديدة");
                 return View(model);
             }
             account.Passwords = HashPassword(model.NewPassword);
             _context.SaveChanges();
-            ShowSuccessnotification("تم تحديث كلمة المرور");
+            _notyf.Success("تم تحديث كلمة المرور");
             return RedirectToAction("IndexProfile", "Profile");
         }
 
@@ -547,7 +547,5 @@ namespace SchoolSystem.Controllers
             return RedirectToAction("Index", "Home");
         }
 
-        protected void ShowErrornotification(string message) => _notyf.Error(message);
-        protected void ShowSuccessnotification(string message) => _notyf.Success(message);
     }
 }

@@ -1,17 +1,21 @@
 @{
-    ViewData["Title"] = "الحضور و الغياب";
+    ViewData["Title"] = "الحضور والغياب";
 }
 
 <div class="container mt-3">
+    <!-- العنوان وزر العودة -->
     <div class="row mb-3">
-        <div class="col-12 text-center">
-            <h4>الحضور والغياب في الصف: @ViewBag.StdClass</h4>
-            <a class="btn btn-outline-dark mt-2" asp-action="Index" asp-controller="Student">عودة</a>
+        <div class="col-12 d-flex justify-content-between align-items-center flex-wrap">
+            <h4 class="mb-2">الحضور والغياب في الصف: @ViewBag.StdClass</h4>
+            <a class="btn btn-outline-dark mb-2" asp-action="Index" asp-controller="Student">
+                <i class="bi bi-arrow-left"></i> عودة
+            </a>
         </div>
     </div>
 
     <hr>
 
+    <!-- جدول الحضور والغياب -->
     <div class="table-responsive">
         <table class="table table-bordered table-striped text-center align-middle" id="attendancesTable">
             <thead class="table-dark">
@@ -26,8 +30,6 @@
     </div>
 </div>
 
-
-
 @section Scripts {
     <script>
         $(document).ready(function () {
@@ -37,7 +39,7 @@
                 "processing": true,
                 "serverSide": true,
                 "ajax": {
-                    "url": "/Attendance/AttendancesStudentData?studentid="+idStudent,
+                    "url": "/Attendance/AttendancesStudentData?studentid=" + idStudent,
                     "type": "GET",
                     "dataSrc": function (json) {
                         if (json.error) {
@@ -49,33 +51,25 @@
                     }
                 },
                 "columns": [
-                    { "data": "lectuerName"},
-                    { 
+                    { "data": "lectuerName" },
+                    {
                         "data": "attendanceStatus",
-                            "render": function (data, type, row) {
-                                if(data == '1')
-                                {
-                                    return "حضور";
-                                }else if (data == '0')
-                                {
-                                    return "غياب";
-                                }else if(data == 'm')
-                                {
-                                    return "غياب بعذر";
-                                }
-                                else
-                                {
-                                    return "قيمة غير صالحة";
-                                }
+                        "render": function (data) {
+                            switch (data) {
+                                case '1': return "حضور";
+                                case '0': return "غياب";
+                                case 'm': return "غياب بعذر";
+                                default: return "قيمة غير صالحة";
                             }
+                        }
                     },
-                    { "data": "dateAndTime"},
-                    { "data": "excuse"}
+                    { "data": "dateAndTime" },
+                    { "data": "excuse" }
                 ],
                 "language": {
-                    "search": "🔍بحث: ",
+                    "search": "🔍 بحث: ",
                     "lengthMenu": "عرض _MENU_ سجل",
-                    "info": "عرض من  _START_ الى _END_ من اصل _TOTAL_ سجل",
+                    "info": "عرض من _START_ إلى _END_ من أصل _TOTAL_ سجل",
                     "paginate": {
                         "next": "الصفحة التالية",
                         "previous": "الصفحة السابقة"
@@ -85,9 +79,13 @@
             });
         });
     </script>
+
+    <!-- تحسينات CSS -->
     <style>
         body {
             font-size: 14px;
+            direction: rtl;
+            text-align: right;
         }
 
         @@media (max-width: 768px) {
@@ -97,6 +95,9 @@
 
             table {
                 font-size: 12px;
+                overflow-x: auto;
+                display: block;
+                width: 100%;
             }
 
             .btn {
@@ -109,7 +110,4 @@
             }
         }
     </style>
-
-
-
 }

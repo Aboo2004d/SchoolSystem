@@ -17,13 +17,15 @@ namespace SchoolSystem.Controllers
         private readonly SystemSchoolDbContext _context;
         private readonly INotyfService _notyf;
         private readonly IErrorLoggerService _logger;
-        
+        private readonly ISessionValidatorService _sessionValidatorService;
 
-        public LectuerController(SystemSchoolDbContext context, INotyfService notyf,IErrorLoggerService logger)
+
+        public LectuerController(SystemSchoolDbContext context, ISessionValidatorService sessionValidatorService, INotyfService notyf, IErrorLoggerService logger)
         {
             _logger = logger;
             _context = context;
             _notyf = notyf;
+            _sessionValidatorService = sessionValidatorService;
         }
 
         [AuthorizeRoles("admin")]
@@ -32,23 +34,22 @@ namespace SchoolSystem.Controllers
             [FromQuery] int start,
             [FromQuery] int length = 10,
             [FromQuery(Name = "search[value]")] string searchValue = "")
-            
+
         {
             try
             {
-                
-                int? idMenegar = HttpContext.Session.GetInt32("Id")??0;
-                if (idMenegar == 0)
+                // التحقق من صلاحية المستخدم و التلاعب بالبيانات
+                var (IsValid, IdSchool, status) = await _sessionValidatorService.ValidateAdminSessionAsync(HttpContext, "Lectuer/Lectuers");
+                if (!IsValid)
                 {
-                    return Json(new { success = false, error = "Unauthorized access. Session expired." });
+                    return Json(new { success = false, status = status, error = "Unauthorized access. Session expired." });
                 }
-                var menegar = await _context.Menegars.FindAsync(idMenegar);
-                int? idSchool = menegar?.IdSchool;
-                if(idSchool == 0){
-                    return Json(new { success = false, error = "Unauthorized access. Session expired." });
-                }
+
+                // تعيين قيمة افتراضية اذا لم يتم ارسال القيمة
                 if (length <= 0)
                     length = 10;
+
+                // الحصول على القيم المرسلة
                 var orderColumnIndex = Request.Query["order[0][column]"].ToString();
                 var orderDir = Request.Query["order[0][dir]"].ToString().ToLower();
 
@@ -58,18 +59,18 @@ namespace SchoolSystem.Controllers
 
                 // إجمالي عدد السجلات بدون فلترة
                 var totalRecords = await _context.Lectuers
-                .Where(std => std.IdSchool == idSchool)
+                .Where(std => std.IdSchool == IdSchool)
                 .CountAsync();
 
                 // الاستعلام الأساسي مع تحسين الأداء
-                var query = _context.Lectuers.Where(std => std.IdSchool == idSchool )
+                var query = _context.Lectuers.Where(std => std.IdSchool == IdSchool)
                     .AsNoTracking()
                     .Select(s => new
                     {
                         s.Id,
                         s.Name,
                         NumberOfStudentsInLectuer = s.StudentLectuerTeachers.Select(sc => sc.IdStudent).Distinct().Count(),
-                        NumberOfTeacherInLectuer= s.TeacherLectuerClasses.Select(sc => sc.IdTeacher).Distinct().Count(),
+                        NumberOfTeacherInLectuer = s.TeacherLectuerClasses.Select(sc => sc.IdTeacher).Distinct().Count(),
                     });
 
                 // البحث
@@ -80,6 +81,7 @@ namespace SchoolSystem.Controllers
                     );
                 }
 
+                // الحصول على القيم بعد الفلترة
                 var filteredCount = await query.CountAsync();
 
                 // الترتيب
@@ -94,19 +96,21 @@ namespace SchoolSystem.Controllers
                     _ => query.OrderBy(s => s.Name)
                 };
 
+                // التقطيع (Pagination)
                 var data = await query
                         .Skip(start)
                         .Take(length)
                         .ToListAsync();
 
+                // الحصول على البيانات للعرض
                 var lectuers = data.
                 Select(s => new Lectuer
-                    {
-                        Id = s.Id,
-                        Name = s.Name,
-                        NumberOfStudentsInLectuer = s.NumberOfStudentsInLectuer,
-                        NumberOfTeacherInLectuer = s.NumberOfTeacherInLectuer
-                    })
+                {
+                    Id = s.Id,
+                    Name = s.Name,
+                    NumberOfStudentsInLectuer = s.NumberOfStudentsInLectuer,
+                    NumberOfTeacherInLectuer = s.NumberOfTeacherInLectuer
+                })
                     .ToList();
 
                 var result = new
@@ -116,12 +120,13 @@ namespace SchoolSystem.Controllers
                     recordsFiltered = filteredCount,
                     data = lectuers
                 };
-                Console.WriteLine($"Count Lectuers: {lectuers.Count()}");
+
                 return Json(result);
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Error: {e.Message}");
+                await _logger.LogAsync(e, "Lectuer/Lectuers");
+                _notyf.Error("حدث خطا غير متوقع\nيرجى المحاولة لاحقا");
                 return Json(new { error = e.Message, stack = e.StackTrace });
             }
         }
@@ -170,7 +175,18 @@ namespace SchoolSystem.Controllers
         {
             if (ModelState.IsValid)
             {
-                lectuer.IdSchool = HttpContext.Session.GetInt32("School") ?? 0;
+                if (string.IsNullOrEmpty(lectuer.Name))
+                {
+                    _notyf.Error("الرجاء ادخال اسم المادة");
+                    return View(lectuer);
+                }
+                int school = HttpContext.Session.GetInt32("School") ?? 0;
+                if (_context.Lectuers.Any(c => c.Name == lectuer.Name && c.IdSchool == school))
+                {
+                    _notyf.Error("المادة موجودة مسبقا");
+                    return View(lectuer);
+                }
+                lectuer.IdSchool = school;
                 _context.Add(lectuer);
                 await _context.SaveChangesAsync();
                 _notyf.Success($"تمت عملية الاضافة بنجاح");
@@ -179,110 +195,6 @@ namespace SchoolSystem.Controllers
             return View(lectuer);
         }
 
-        
-        /*public IActionResult CreateStudentLectuer(int idLectuer)
-        {
-            var nameLectuer = _context.Lectuers.Where(lec => lec.Id == idLectuer).FirstOrDefault();
-            if (nameLectuer == null)
-            {
-                return NotFound();
-            }
-            ViewBag.NameLectuer = nameLectuer.Name;
-            ViewBag.IdLectuer = idLectuer;
-            int id = HttpContext.Session.GetInt32("Id")??0;
-            if (id == 0)
-            {
-                return NotFound();
-            }
-            var IdMenegar = _context.Menegars.Where(m => m.Id == id).FirstOrDefault();
-            if (IdMenegar == null)
-            {
-                return NotFound();
-            }
-            var studentIdsInLectuer = _context.StudentLectuerTeachers
-                .Where(sl => sl.IdLectuer == idLectuer)
-                .Select(sl => sl.IdStudent)
-                .ToList();
-
-            var StudentInLectuer1 = _context.Students
-                .Where(s => s.IdSchool == IdMenegar.IdSchool)
-                .Where(s => !studentIdsInLectuer.Contains(s.Id))
-                .ToList();
-            
-            ViewData["IdStudent"] = new SelectList(StudentInLectuer1, "Id", "Name");
-            return View();
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> CreateStudentLectuer([Bind("IdStudent,IdLectuer")] LectuerStudentViewModel studentLectuer)
-        {
-
-            // التحقق من صحة البيانات
-            if (!ModelState.IsValid)
-            {
-                var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage);
-                foreach (var error in errors)
-                {
-                    Console.WriteLine($"Validation Error: {error}");
-                }
-
-                // عند وجود خطأ، يتم إعادة التوجيه إلى نفس الصفحة مع تمرير البيانات
-                return RedirectToAction(nameof(CreateStudentLectuer), new { idLectuer = studentLectuer.IdLectuer });
-            }
-
-            try
-            {
-                
-                var studentlectuer = _context.StudentLectuerTeachers
-                .FirstOrDefault(sl => sl.IdStudent == studentLectuer.IdStudent && sl.IdLectuer == studentLectuer.IdLectuer);
-                
-                if(studentlectuer == null){
-                    
-                    var student = new StudentLectuerTeacher{
-                        IdLectuer = studentLectuer.IdLectuer,
-                        IdStudent = studentLectuer.IdStudent
-                    };
-                    
-                    _context.StudentLectuerTeachers.Add(student);
-                
-                    int? studentclass = _context.StudentLectuerTeachers.Where(sc => sc.IdStudent == studentLectuer.IdStudent)
-                    .Select(sc => (int?)sc.IdClass).FirstOrDefault();
-                    if(studentclass != null){
-
-                        int? teacherlectuer = _context.StudentLectuerTeachers.Where(tlc => tlc.IdLectuer == studentLectuer.IdLectuer)
-                        .Select(t => (int?)t.IdTeacher).FirstOrDefault();
-
-                        if(teacherlectuer!=null){
-
-                            int? teacherlectuerclass = _context.TeacherLectuerClasses.Where(tc => tc.IdClass == studentclass )
-                            .Select(t => (int?)t.IdTeacher).FirstOrDefault();
-                            if(teacherlectuerclass != null){
-
-                                var teachstu = new StudentLectuerTeacher{
-                                    IdStudent = studentLectuer.IdStudent,
-                                    IdTeacher = teacherlectuerclass??0
-                                };
-
-                                _context.StudentLectuerTeachers.Add(teachstu);
-                                await _context.SaveChangesAsync();
-                                return RedirectToAction("ManagerLectuer", new { idLectuer = studentLectuer.IdLectuer });
-
-                            }else return RedirectToAction(nameof(CreateStudentLectuer), new { idLectuer = studentLectuer.IdLectuer });
-                        }else return RedirectToAction(nameof(CreateStudentLectuer), new { idLectuer = studentLectuer.IdLectuer });
-                    }else return RedirectToAction(nameof(CreateStudentLectuer), new { idLectuer = studentLectuer.IdLectuer });
-                }else return RedirectToAction(nameof(CreateStudentLectuer), new { idLectuer = studentLectuer.IdLectuer });
-                
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Database Error: {ex.Message}");
-                ModelState.AddModelError("", "حدث خطأ أثناء حفظ البيانات. الرجاء المحاولة مرة أخرى.");
-                // إعادة المستخدم إلى نفس الصفحة مع البيانات الحالية
-                return RedirectToAction(nameof(CreateStudentLectuer), new { idLectuer = studentLectuer.IdLectuer });
-            }
-        }
-*/
         [HttpGet]
         public IActionResult CreateTeacherLectuer(int idLectuer)
         {
@@ -290,9 +202,7 @@ namespace SchoolSystem.Controllers
             Lectuer? nameLectuer = _context.Lectuers.Where(lec => lec.Id == idLectuer).FirstOrDefault();
             if (nameLectuer == null)
             {
-                _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة");
-                ex = new Exception("تلاعب بالبيانات المرسلة");
-                _logger.LogAsync(ex, "Lectuer/CreateTeacherLectuer");
+                errorOperation("لا يمكن التلاعب بالبيانات المرسلة", "Lectuer/CreateTeacherLectuer", new Exception("تلاعب بالبيانات المرسلة"));
                 return View(nameof(LectuerView));
             }
             ViewBag.NameLectuer = nameLectuer.Name;
@@ -304,7 +214,7 @@ namespace SchoolSystem.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> CreateTeacherInLectuer(int idLectuer,[Bind("IdTeacher,IdLectuer")] LectuerTeacherViewModel teacherLectuer)
+        public async Task<IActionResult> CreateTeacherInLectuer(int idLectuer, [Bind("IdTeacher,IdLectuer")] LectuerTeacherViewModel teacherLectuer)
         {
             try
             {
@@ -334,20 +244,20 @@ namespace SchoolSystem.Controllers
                                 }
                                 else
                                 {
-                                    _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة");
-                                    await _logger.LogAsync(new Exception("تلاعب بالبيانات المرسلة"), "Lectuer/CreateTeacherLectuer");
+                                    errorOperation("لا يمكن التلاعب بالبيانات المرسلة", "Lectuer/CreateTeacherLectuer", new Exception("تلاعب بالبيانات المرسلة"));
                                 }
                             }
                             else
                             {
+                                errorOperation("لا يمكن التلاعب بالبيانات المرسلة", "Lectuer/CreateTeacherLectuer", new Exception("تلاعب بالبيانات المرسلة"));
                                 _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة");
                                 await _logger.LogAsync(new Exception("تلاعب بالبيانات المرسلة"), "Lectuer/CreateTeacherLectuer");
                             }
                         }
                         else
                         {
-                            _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة");
-                            await _logger.LogAsync(new Exception("تلاعب بالبيانات المرسلة"), "Lectuer/CreateTeacherLectuer");
+                            errorOperation("لا يمكن التلاعب بالبيانات المرسلة", "Lectuer/CreateTeacherLectuer", new Exception("تلاعب بالبيانات المرسلة"));
+
                         }
                     }
                     else
@@ -357,15 +267,14 @@ namespace SchoolSystem.Controllers
                 }
                 else
                 {
-                    _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة");
-                    await _logger.LogAsync(new Exception("تلاعب بالبيانات المرسلة"), "Lectuer/CreateTeacherLectuer");
+                    errorOperation("لا يمكن التلاعب بالبيانات المرسلة", "Lectuer/CreateTeacherLectuer", new Exception("تلاعب بالبيانات المرسلة"));
+
                 }
 
             }
             catch (Exception ex)
             {
-                _notyf.Error("حدث خطا غير متوقع\nحاول لاحقا");
-                await _logger.LogAsync(ex, "Lectuer/CreateTeacherLectuer");
+                errorOperation("حدث خطأ غير متوقع\nحاول مرة اخرى لاحقا", "Lectuer/CreateTeacherLectuer", ex );
             }
             return RedirectToAction("TeacherLectuerView", new { idLectuer = teacherLectuer.IdLectuer });
         }
@@ -399,9 +308,7 @@ namespace SchoolSystem.Controllers
             Exception e = new Exception();
             if (id != lectuer.Id)
             {
-                e = new Exception("البيانات المرسلة غير صحيحة");
-                await _logger.LogAsync(e, "TheClass/Edit");
-                _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة للتحقق و الحفظ");
+                errorOperation("لا يمكن التلاعب بالبيانات المرسلة للتحقق و الحفظ", "Lectuer/Edit", new Exception("البيانات المرسلة غير صحيحة"));
                 return RedirectToAction(nameof(LectuerView));
             }
 
@@ -409,13 +316,11 @@ namespace SchoolSystem.Controllers
             {
                 try
                 {
-                    Lectuer lect = await _context.Lectuers.FirstOrDefaultAsync(c => c.Id == lectuer.Id);
+                    Lectuer? lect = await _context.Lectuers.FirstOrDefaultAsync(c => c.Id == lectuer.Id);
                     if (lect == null)
                     {
-                        e = new Exception("تلاعب بالبيانات المرسلة للتحقق و الحفظ");
-                        await _logger.LogAsync(e, "TheClass/Edit");
-                        _notyf.Error(" لا يمكن التلاعب بالبيانات المرسلة للتحقق و الحفظ");
-                        return RedirectToAction(nameof(LectuerView));
+                        errorOperation("لا يمكن التلاعب بالبيانات المرسلة للتحقق و الحفظ", "Lectuer/Edit", new Exception("تلاعب بالبيانات المرسلة للتحقق و الحفظ"));
+                       return RedirectToAction(nameof(LectuerView));
                     }
                     if (lect.Name == lectuer.Name)
                     {
@@ -429,11 +334,10 @@ namespace SchoolSystem.Controllers
                 }
                 catch (Exception ex)
                 {
-                    await _logger.LogAsync(ex, "TheClass/Edit");
-                    _notyf.Error("حدث خطأ غير متوقع\nحاول مرة اخرى لاحقا");
+                    errorOperation("حدث خطأ غير متوقع\nحاول مرة اخرى لاحقا", "Lectuer/Edit", ex );
                     return View(lectuer);
                 }
-                
+
             }
             _notyf.Error("البيانات المدخلة خاطئة");
             return View(lectuer);
@@ -481,23 +385,22 @@ namespace SchoolSystem.Controllers
             [FromQuery] int start,
             [FromQuery] int length = 10,
             [FromQuery(Name = "search[value]")] string searchValue = "")
-            
+
         {
             try
             {
-                
-                int? idMenegar = HttpContext.Session.GetInt32("Id")??0;
-                if (idMenegar == 0)
+                // التحقق من صلاحية المستخدم و التلاعب بالبيانات
+                var (IsValid, IdSchool, status) = await _sessionValidatorService.ValidateAdminSessionAsync(HttpContext, "Lectuer/TeacherLectuer");
+                if (!IsValid)
                 {
-                    return Json(new { success = false, error = "Unauthorized access. Session expired." });
+                    return Json(new { success = false, status = status, error = "Unauthorized access. Session expired." });
                 }
-                var menegar = await _context.Menegars.FindAsync(idMenegar);
-                int? idSchool = menegar?.IdSchool;
-                if(idSchool == 0){
-                    return Json(new { success = false, error = "Unauthorized access. Session expired." });
-                }
+                
+                // تعيين قيمة افتراضية اذا لم يتم ارسال القيمة
                 if (length <= 0)
                     length = 10;
+                
+                // الحصول على القيم المرسلة
                 var orderColumnIndex = Request.Query["order[0][column]"].ToString();
                 var orderDir = Request.Query["order[0][dir]"].ToString().ToLower();
 
@@ -507,11 +410,11 @@ namespace SchoolSystem.Controllers
 
                 // إجمالي عدد السجلات بدون فلترة
                 var totalRecords = await _context.TeacherLectuerClasses
-                    .Where(std => std.IdSchool == idSchool && std.IdLectuer == idLectuer)
+                    .Where(std => std.IdSchool == IdSchool && std.IdLectuer == idLectuer)
                     .CountAsync();
 
                 // الاستعلام الأساسي مع تحسين الأداء
-                var query = _context.TeacherLectuerClasses.Where(std => std.IdSchool == idSchool && std.IdLectuer == idLectuer)
+                var query = _context.TeacherLectuerClasses.Where(std => std.IdSchool == IdSchool && std.IdLectuer == idLectuer)
                     .Include(s => s.IdClassNavigation)
                     .Include(s => s.IdTeacherNavigation)
                     .Include(s => s.IdLectuerNavigation)
@@ -519,25 +422,25 @@ namespace SchoolSystem.Controllers
                     .Select(s => new
                     {
                         Id = s.Id,
-                        ClassroomName = s.IdClassNavigation!= null?s.IdClassNavigation.Name:"UnKnown",
-                        TeacherName = s.IdTeacherNavigation!= null?s.IdTeacherNavigation.Name:"UnKnown",
+                        ClassroomName = s.IdClassNavigation != null ? s.IdClassNavigation.Name : "UnKnown",
+                        TeacherName = s.IdTeacherNavigation != null ? s.IdTeacherNavigation.Name : "UnKnown",
                         IdTeacher = s.IdTeacher,
-                        LectureName = s.IdLectuerNavigation!= null?s.IdLectuerNavigation.Name:"UnKnown",
+                        LectureName = s.IdLectuerNavigation != null ? s.IdLectuerNavigation.Name : "UnKnown",
                         IdLectuer = s.IdLectuer,
-                        
-                        
+
+
                     });
 
                 // البحث
                 if (!string.IsNullOrWhiteSpace(searchValue))
                 {
                     query = query.Where(s =>
-                        s.TeacherName.Contains(searchValue)||
-                        s.ClassroomName.Contains(searchValue)||
-                        s.LectureName.Contains(searchValue)
+                        (s.TeacherName != null && s.TeacherName.Contains(searchValue)) ||
+                        (s.TeacherName != null && s.ClassroomName.Contains(searchValue)) ||
+                        (s.TeacherName != null && s.LectureName.Contains(searchValue))
                     );
                 }
-
+                // الحصول على القيم بعد الفلترة
                 var filteredCount = await query.CountAsync();
 
                 // الترتيب
@@ -551,14 +454,17 @@ namespace SchoolSystem.Controllers
                     ("2", "desc") => query.OrderByDescending(s => s.LectureName),
                     _ => query.OrderBy(s => s.TeacherName)
                 };
+
+                // التقطيع (Pagination)
                 var data = await query
                             .Skip(start)
                             .Take(length)
-                            .ToListAsync(); // بدون Select هنا
+                            .ToListAsync();
 
-                // التقطيع (Pagination)
+                // ارسال البيانات الى العرض
                 var teachersLectuer = data.
-                Select(s => new LectuerViewModel {
+                Select(s => new LectuerViewModel
+                {
                     Id = s.Id,
                     LectureName = s.LectureName,
                     IdLectuer = s.IdLectuer,
@@ -574,12 +480,13 @@ namespace SchoolSystem.Controllers
                     recordsFiltered = filteredCount,
                     data = teachersLectuer
                 };
-                Console.WriteLine($"Count Lectuers: {teachersLectuer.Count()}");
+                
                 return Json(result);
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Error: {e.Message}");
+                await _logger.LogAsync(e, "Lectuer/Lectuers");
+                _notyf.Error("حدث خطا غير متوقع\nيرجى المحاولة لاحقا");
                 return Json(new { error = e.Message, stack = e.StackTrace });
             }
         }
@@ -587,11 +494,25 @@ namespace SchoolSystem.Controllers
 
         [HttpGet]
         [AuthorizeRoles("admin")]
-        public IActionResult TeacherLectuerView(int idLectuer)
+        public async Task<IActionResult> TeacherLectuerView(int idLectuer)
         {
-            ViewBag.IdLect = idLectuer;
-            var name = _context.Lectuers.FirstOrDefault(c => c.Id == idLectuer);
-            ViewBag.name = name?.Name??"Null";
+            // التحقق من صلاحية المستخدم و التلاعب بالبيانات
+            var (IsValid, IdSchool, status) = await _sessionValidatorService.ValidateAdminSessionAsync(HttpContext, "Lectuer/TeacherLectuer");
+            if (!IsValid)
+            {
+                if (!status)
+                    return RedirectToAction("Login", "Account");
+
+                return View(nameof(LectuerView));
+            }
+            Lectuer? lectuer = await _context.Lectuers.SingleOrDefaultAsync(c => c.Id == idLectuer);
+            if (lectuer == null)
+            {
+                errorOperation("لا يمكن التلاعب بالبيانات المرسلة", "Lectuer/CreateTeacherLectuer", new Exception("تلاعب بالبيانات المرسلة"));
+                return View(nameof(LectuerView));
+            
+            }
+            ViewBag.name = lectuer?.Name ?? "Null";
             ViewBag.IdLectuer = Request.Query["idLectuer"];
             return View();
         }
@@ -603,23 +524,21 @@ namespace SchoolSystem.Controllers
             [FromQuery] int start,
             [FromQuery] int length = 10,
             [FromQuery(Name = "search[value]")] string searchValue = "")
-            
+
         {
             try
             {
-                
-                int? idMenegar = HttpContext.Session.GetInt32("Id")??0;
-                if (idMenegar == 0)
+                // التحقق من صلاحية المستخدم و التلاعب بالبيانات
+                var (IsValid, IdSchool, status) = await _sessionValidatorService.ValidateAdminSessionAsync(HttpContext, "Lectuer/TeacherLectuer");
+                if (!IsValid)
                 {
-                    return Json(new { success = false, error = "Unauthorized access. Session expired." });
+                    return Json(new { success = false, status = status, error = "Unauthorized access. Session expired." });
                 }
-                var menegar = await _context.Menegars.FindAsync(idMenegar);
-                int? idSchool = menegar?.IdSchool;
-                if(idSchool == 0){
-                    return Json(new { success = false, error = "Unauthorized access. Session expired." });
-                }
+
                 if (length <= 0)
                     length = 10;
+
+                // الحصول على القيم المرسلة
                 var orderColumnIndex = Request.Query["order[0][column]"].ToString();
                 var orderDir = Request.Query["order[0][dir]"].ToString().ToLower();
 
@@ -629,11 +548,11 @@ namespace SchoolSystem.Controllers
 
                 // إجمالي عدد السجلات بدون فلترة
                 var totalRecords = await _context.StudentLectuerTeachers
-                .Where(std => std.IdSchool == idSchool && std.IdLectuer == idLectuer)
+                .Where(std => std.IdSchool == IdSchool && std.IdLectuer == idLectuer)
                 .CountAsync();
 
                 // الاستعلام الأساسي مع تحسين الأداء
-                var query = _context.StudentLectuerTeachers.Where(std => std.IdSchool == idSchool && std.IdLectuer == idLectuer)
+                var query = _context.StudentLectuerTeachers.Where(std => std.IdSchool == IdSchool && std.IdLectuer == idLectuer)
                     .Include(s => s.IdClassNavigation)
                     .Include(s => s.IdStudentNavigation)
                     .Include(s => s.IdClassNavigation)
@@ -641,28 +560,29 @@ namespace SchoolSystem.Controllers
                     .Select(s => new
                     {
                         Id = s.Id,
-                        StudentName = s.IdStudentNavigation!= null?s.IdStudentNavigation.Name:"UnKnown",
+                        StudentName = s.IdStudentNavigation != null ? s.IdStudentNavigation.Name : "UnKnown",
                         IdStudent = s.IdStudent,
-                        ClassroomName = s.IdClassNavigation!= null?s.IdClassNavigation.Name:"UnKnown",
-                        TeacherName = s.IdTeacherNavigation!= null?s.IdTeacherNavigation.Name:"UnKnown",
+                        ClassroomName = s.IdClassNavigation != null ? s.IdClassNavigation.Name : "UnKnown",
+                        TeacherName = s.IdTeacherNavigation != null ? s.IdTeacherNavigation.Name : "UnKnown",
                         IdTeacher = s.IdTeacher,
-                        LectureName = s.IdLectuerNavigation!= null?s.IdLectuerNavigation.Name:"UnKnown",
+                        LectureName = s.IdLectuerNavigation != null ? s.IdLectuerNavigation.Name : "UnKnown",
                         IdLectuer = s.IdLectuer,
-                        
-                        
+
+
                     });
 
                 // البحث
                 if (!string.IsNullOrWhiteSpace(searchValue))
                 {
                     query = query.Where(s =>
-                        s.StudentName.Contains(searchValue)||
-                        s.TeacherName.Contains(searchValue)||
-                        s.ClassroomName.Contains(searchValue)||
-                        s.LectureName.Contains(searchValue)
+                        (s.StudentName != null && s.StudentName.Contains(searchValue)) ||
+                        (s.TeacherName != null && s.TeacherName.Contains(searchValue)) ||
+                        (s.ClassroomName != null && s.ClassroomName.Contains(searchValue)) ||
+                        (s.LectureName != null && s.LectureName.Contains(searchValue))
                     );
                 }
 
+                // الحصول على القيم بعد الفلترة
                 var filteredCount = await query.CountAsync();
 
                 // الترتيب
@@ -679,22 +599,24 @@ namespace SchoolSystem.Controllers
                     _ => query.OrderBy(s => s.StudentName)
                 };
 
+                // تقطيع
                 var data = await query
                         .Skip(start)
                         .Take(length)
                         .ToListAsync();
 
+                // الحصول على البيانات للعرض
                 var studentsLectuer = data.
                 Select(s => new LectuerViewModel
-                    {
-                        Id = s.Id,
-                        LectureName = s.LectureName,
-                        IdLectuer = s.IdLectuer,
-                        TeacherName = s.TeacherName,
-                        IdTeacher = s.IdTeacher,
-                        ClassroomName = s.ClassroomName,
-                        StudentName = s.StudentName
-                    })
+                {
+                    Id = s.Id,
+                    LectureName = s.LectureName,
+                    IdLectuer = s.IdLectuer,
+                    TeacherName = s.TeacherName,
+                    IdTeacher = s.IdTeacher,
+                    ClassroomName = s.ClassroomName,
+                    StudentName = s.StudentName
+                })
                     .ToList();
 
                 var result = new
@@ -704,12 +626,13 @@ namespace SchoolSystem.Controllers
                     recordsFiltered = filteredCount,
                     data = studentsLectuer
                 };
-                Console.WriteLine($"Count Lectuers: {studentsLectuer.Count()}");
+                
                 return Json(result);
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Error: {e.Message}");
+                await _logger.LogAsync(e, "Lectuer/Lectuers");
+                _notyf.Error("حدث خطا غير متوقع\nيرجى المحاولة لاحقا");
                 return Json(new { error = e.Message, stack = e.StackTrace });
             }
         }
@@ -717,11 +640,24 @@ namespace SchoolSystem.Controllers
 
         [HttpGet]
         [AuthorizeRoles("admin")]
-        public IActionResult StudentLectuerView(int idLectuer)
+        public async Task<IActionResult> StudentLectuerView(int idLectuer)
         {
-            ViewBag.IdLect = idLectuer;
-            var name = _context.Lectuers.FirstOrDefault(c => c.Id == idLectuer);
-            ViewBag.name = name?.Name??"Null";
+            // التحقق من صلاحية المستخدم و التلاعب بالبيانات
+            var (IsValid, IdSchool, status) = await _sessionValidatorService.ValidateAdminSessionAsync(HttpContext, "Lectuer/TeacherLectuer");
+            if (!IsValid)
+            {
+                if (!status)
+                    return RedirectToAction("Login", "Account");
+                return View(nameof(LectuerView));
+            }
+            Lectuer? lectuer = await _context.Lectuers.SingleOrDefaultAsync(c => c.Id == idLectuer);
+            if (lectuer == null)
+            {
+                errorOperation("لا يمكن التلاعب بالبيانات المرسلة", "Lectuer/CreateTeacherLectuer", new Exception("تلاعب بالبيانات المرسلة"));
+                return View(nameof(LectuerView));
+            
+            }
+            ViewBag.name = lectuer?.Name ?? "Null";
             ViewBag.IdLectuer = Request.Query["idLectuer"];
             return View();
         }
@@ -732,5 +668,12 @@ namespace SchoolSystem.Controllers
         {
             return _context.Lectuers.Any(e => e.Id == id);
         }
+
+        private void errorOperation(string messageNotyf, string source, Exception e)
+        {
+            _notyf.Error(messageNotyf);
+            _logger.LogAsync(e, source);
+        }
+
     }
 }

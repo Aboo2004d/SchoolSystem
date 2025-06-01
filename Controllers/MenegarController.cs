@@ -18,22 +18,22 @@ namespace SchoolSystem.Controllers
         private readonly SystemSchoolDbContext _context;
         private readonly INotyfService _notyf;
         private readonly IErrorLoggerService _logger;
-        
+        private readonly ISessionValidatorService _sessionValidatorService;
 
-        public MenegarController(SystemSchoolDbContext context, INotyfService notyf,IErrorLoggerService logger)
+
+        public MenegarController(SystemSchoolDbContext context, ISessionValidatorService sessionValidatorService, INotyfService notyf, IErrorLoggerService logger)
         {
             _logger = logger;
             _context = context;
             _notyf = notyf;
+            _sessionValidatorService = sessionValidatorService;
         }
+
         [AuthorizeRoles("admin")]
         // GET: Menegar
-        public async Task<IActionResult> Index()
+        public  IActionResult Index()
         {
-            if(HttpContext.Session.GetString("Role") == "admin"){
-                return View(await _context.Menegars.Where(m => m.Id == HttpContext.Session.GetInt32("Id")).ToListAsync());
-            }
-            return RedirectToAction("Login", "Account");
+            return View();
         }
         [AuthorizeRoles("admin")]
         // GET: Menegar/Details/5
@@ -66,7 +66,7 @@ namespace SchoolSystem.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [AuthorizeRoles("admin")]
-        public async Task<IActionResult> Create([Bind("Name,Phone,Email")] Menegar menegar)
+        public async Task<IActionResult> Create([Bind("Name,Phone,Email, TheDate, IdNumber")] Menegar menegar)
         {
             if (ModelState.IsValid)
             {
@@ -180,22 +180,18 @@ namespace SchoolSystem.Controllers
         {
             try
             {
-                
-                int? idMenegar = HttpContext.Session.GetInt32("Id")??0;
-                Console.WriteLine($"Session: {idMenegar}");
-                if (idMenegar == 0)
+                // التحقق من صلاحية المستخدم و التلاعب بالبيانات
+                var (IsValid, IdSchool, status) = await _sessionValidatorService.ValidateAdminSessionAsync(HttpContext, "Lectuer/TeacherLectuer");
+                if (!IsValid)
                 {
-                    return Json(new { success = false, error = "Unauthorized access. Session expired." });
+                    return Json(new { success = false, status = status, error = "Unauthorized access. Session expired." });
                 }
-                var menegar = await _context.Menegars.FindAsync(idMenegar);
-                int? idSchool = menegar?.IdSchool;
-                Console.WriteLine($"Menegar: {menegar.Name}");
-                if(idSchool == 0){
-                    return Json(new { success = false, error = "Unauthorized access. Session expired." });
-                }
-                Console.WriteLine($"School: {idSchool}");
+
+                // تعيين قيمة افتراضية اذا لم يتم ارسال القيمة
                 if (length <= 0)
                     length = 10;
+
+                // الحصول على القيم المرسلة
                 var orderColumnIndex = Request.Query["order[0][column]"].ToString();
                 var orderDir = Request.Query["order[0][dir]"].ToString().ToLower();
 
@@ -205,11 +201,11 @@ namespace SchoolSystem.Controllers
 
                 // إجمالي عدد السجلات بدون فلترة
                 var totalRecords = await _context.Students
-                .Where(std => std.IdSchool == idSchool)
+                .Where(std => std.IdSchool == IdSchool)
                 .CountAsync();
 
                 // الاستعلام الأساسي مع تحسين الأداء
-                var query = _context.Students.Where(std => std.IdSchool == idSchool && std.IsDeleted == false)
+                var query = _context.Students.Where(std => std.IdSchool == IdSchool && std.IsDeleted == false)
                     .AsNoTracking()
                     .Select(s => new
                     {
@@ -233,6 +229,7 @@ namespace SchoolSystem.Controllers
                     );
                 }
 
+                // الحصول على القيم بعد الفلترة
                 var filteredCount = await query.CountAsync();
 
                 // الترتيب
@@ -250,12 +247,14 @@ namespace SchoolSystem.Controllers
                     ("4", "desc") => query.OrderByDescending(s => s.address),
                     _ => query.OrderBy(s => s.name)
                 };
-
+                
+                //تقطيع
                 var data = await query
                         .Skip(start)
                         .Take(length)
                         .ToListAsync();
 
+                // ارسال بيانات للعرض
                 var students = data.
                 Select(s => new MenegarStudentViewModel
                     {
@@ -280,7 +279,8 @@ namespace SchoolSystem.Controllers
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Error: {e.Message}");
+                await _logger.LogAsync(e, "Menegar/ManagerMenegarStudent");
+                _notyf.Error("حدث خطا غير متوقع\nيرجى المحاولة لاحقا");
                 return Json(new { error = e.Message, stack = e.StackTrace });
             }
         }
@@ -301,20 +301,18 @@ namespace SchoolSystem.Controllers
         {
             try
             {
-                
-                int? idMenegar = HttpContext.Session.GetInt32("Id")??0;
-                Console.WriteLine($"Session: {idMenegar}");
-                if (idMenegar == 0)
+                // التحقق من صلاحية المستخدم و التلاعب بالبيانات
+                var (IsValid, IdSchool, status) = await _sessionValidatorService.ValidateAdminSessionAsync(HttpContext, "Lectuer/ManagerMenegarTeacher");
+                if (!IsValid)
                 {
-                    return Json(new { success = false, error = "Unauthorized access. Session expired." });
+                    return Json(new { success = false, status = status, error = "Unauthorized access. Session expired." });
                 }
-                var menegar = await _context.Menegars.FindAsync(idMenegar);
-                int? idSchool = menegar?.IdSchool;
-                if(idSchool == 0){
-                    return Json(new { success = false, error = "Unauthorized access. Session expired." });
-                }
+                
+                // تعيين قيمة افتراضية اذا لم يتم ارسال القيمة
                 if (length <= 0)
                     length = 10;
+
+                // الحصول على القيم المرسلة
                 var orderColumnIndex = Request.Query["order[0][column]"].ToString();
                 var orderDir = Request.Query["order[0][dir]"].ToString().ToLower();
 
@@ -324,11 +322,11 @@ namespace SchoolSystem.Controllers
 
                 // إجمالي عدد السجلات بدون فلترة
                 var totalRecords = await _context.Teachers
-                .Where(std => std.IdSchool == idSchool)
+                .Where(std => std.IdSchool == IdSchool)
                 .CountAsync();
 
                 // الاستعلام الأساسي مع تحسين الأداء
-                var query = _context.Teachers.Where(Teach => Teach.IdSchool == idSchool && Teach.IsDeleted == false)
+                var query = _context.Teachers.Where(Teach => Teach.IdSchool == IdSchool && Teach.IsDeleted == false)
                     .AsNoTracking()
                     .Select(t => new
                     {
@@ -351,6 +349,7 @@ namespace SchoolSystem.Controllers
                     );
                 }
 
+                // الحصول على القيم بعد الفلترة
                 var filteredCount = await query.CountAsync();
 
                 // الترتيب
@@ -364,11 +363,14 @@ namespace SchoolSystem.Controllers
                     ("2", "desc") => query.OrderByDescending(s => s.phone),
                     _ => query.OrderBy(s => s.name)
                 };
+
+                //تقطيع
                 var data = await query
                         .Skip(start)
                         .Take(length)
                         .ToListAsync();
 
+                // ارسال بيانات للعرض
                 var teachers = data.
                 Select(s => new MenegarTeacherViewModel
                 {
@@ -393,7 +395,8 @@ namespace SchoolSystem.Controllers
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Error: {e.Message}");
+                await _logger.LogAsync(e, "Menegar/ManagerMenegarTeacher");
+                _notyf.Error("حدث خطا غير متوقع\nيرجى المحاولة لاحقا");
                 return Json(new { error = e.Message, stack = e.StackTrace });
             }
         }
@@ -404,6 +407,7 @@ namespace SchoolSystem.Controllers
         {
             return View();
         }
+
         [AuthorizeRoles("admin")]
         public async Task<IActionResult> ManagerMenegarClass(
             [FromQuery] int draw,
@@ -414,18 +418,18 @@ namespace SchoolSystem.Controllers
         {
             try
             {
-                int? idMenegar = HttpContext.Session.GetInt32("Id")??0;
-                if (idMenegar == 0)
+                // التحقق من صلاحية المستخدم و التلاعب بالبيانات
+                var (IsValid, IdSchool, status) = await _sessionValidatorService.ValidateAdminSessionAsync(HttpContext, "Lectuer/ManagerMenegarClass");
+                if (!IsValid)
                 {
-                    return Json(new { success = false, error = "Unauthorized access. Session expired." });
+                    return Json(new { success = false, status = status, error = "Unauthorized access. Session expired." });
                 }
-                var menegar = await _context.Menegars.FindAsync(idMenegar);
-                int? idSchool = menegar?.IdSchool;
-                if(idSchool == 0){
-                    return Json(new { success = false, error = "Unauthorized access. Session expired." });
-                }
+
+                // تعيين قيمة افتراضية اذا لم يتم ارسال القيمة
                 if (length <= 0)
                     length = 10;
+
+                // الحصول على القيم المرسلة
                 var orderColumnIndex = Request.Query["order[0][column]"].ToString();
                 var orderDir = Request.Query["order[0][dir]"].ToString().ToLower();
 
@@ -435,17 +439,17 @@ namespace SchoolSystem.Controllers
 
                 // إجمالي عدد السجلات بدون فلترة
                 var totalRecords = await _context.TheClasses
-                .Where(std => std.IdSchool == idSchool)
+                .Where(std => std.IdSchool == IdSchool)
                 .CountAsync();
 
                 // الاستعلام الأساسي مع تحسين الأداء
-                var query = _context.TheClasses.Where(std => std.IdSchool == idSchool )
+                var query = _context.TheClasses.Where(std => std.IdSchool == IdSchool )
                     .AsNoTracking()
                     .Select(s => new
                     {
                         id = s.Id,
                         name = s.Name,
-                        NumberOfStudents = s.Students.Where(std => std.IdClass == s.Id && s.IdSchool == idSchool)
+                        NumberOfStudents = s.Students.Where(std => std.IdClass == s.Id && s.IdSchool == IdSchool)
                         .Select(sc => sc.Id).Distinct().Count(),
 
                         NumberOfTeacher = s.TeacherLectuerClasses.Select(sc => sc.IdTeacher).Distinct().Count()
@@ -496,12 +500,13 @@ namespace SchoolSystem.Controllers
                     recordsFiltered = filteredCount,
                     data = students
                 };
-                Console.WriteLine($"Count Class: {students.Count()}");
+                
                 return Json(result);
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Error: {e.Message}");
+                await _logger.LogAsync(e, "Menegar/ManagerMenegarClass");
+                _notyf.Error("حدث خطا غير متوقع\nيرجى المحاولة لاحقا");
                 return Json(new { error = e.Message, stack = e.StackTrace });
             }
         }
@@ -514,48 +519,7 @@ namespace SchoolSystem.Controllers
             return View();
         }
         
-        /*[HttpGet]
-        public async Task<IActionResult> ManagerMenegarStudentInClass([FromQuery] int idClass)
-        {
-            if (idClass == 0)
-            {
-                _notyf.Warning("Invalid class ID.");
-                return RedirectToAction("ManagerMenegarClass", "Menegar");
-            }
-
-            try
-            {
-
-                var students = await _context.StudentLectuerTeachers.AsNoTracking()
-                    .Where(sc => sc.IdClass == idClass)
-                    .Select(ts => new ManagerMenegarStudentInClassViewModel
-                    {
-                        Id = ts.Id,
-                        IdStudent = ts.IdStudentNavigation != null ? ts.IdStudentNavigation.Id : 0,
-                        IdClass = ts.IdClassNavigation != null ? ts.IdClassNavigation.Id : 0,
-                        StudentName = ts.IdStudentNavigation != null ? ts.IdStudentNavigation.Name : "Unknown",
-                        ClassroomName = ts.IdClassNavigation != null ? ts.IdClassNavigation.Name : "Unknown"
-                    })
-                    .ToListAsync();
-
-                // إذا لم يتم العثور على طلاب، إضافة صف فارغ مع IdClass
-                if (!students.Any())
-                {
-                    students.Add(new ManagerMenegarStudentInClassViewModel
-                    {
-                        IdClass = idClass,
-                    });
-                }
-                return View(students);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error: {ex.Message}");
-                await _logger.LogAsync(ex, $"An error occurred while fetching students for class ID: {idClass}");
-                _notyf.Warning("Something went wrong while fetching the students.");
-                return RedirectToAction("ManagerMenegarClass", "Menegar");
-            }
-        }*/
+        
         [HttpGet]
         [AuthorizeRoles("admin")]
         public async Task<IActionResult> ManagerMenegarStudentInClass(
@@ -568,19 +532,18 @@ namespace SchoolSystem.Controllers
         {
             try
             {
-                
-                int? idMenegar = HttpContext.Session.GetInt32("Id")??0;
-                if (idMenegar == 0)
+                // التحقق من صلاحية المستخدم و التلاعب بالبيانات
+                var (IsValid, IdSchool, status) = await _sessionValidatorService.ValidateAdminSessionAsync(HttpContext, "Lectuer/ManagerMenegarClass");
+                if (!IsValid)
                 {
-                    return Json(new { success = false, error = "Unauthorized access. Session expired." });
+                    return Json(new { success = false, status = status, error = "Unauthorized access. Session expired." });
                 }
-                var menegar = await _context.Menegars.FindAsync(idMenegar);
-                int? idSchool = menegar?.IdSchool;
-                if(idSchool == 0){
-                    return Json(new { success = false, error = "Unauthorized access. Session expired." });
-                }
+
+                // تعيين قيمة افتراضية اذا لم يتم ارسال القيمة
                 if (length <= 0)
                     length = 10;
+
+                // الحصول على القيم المرسلة
                 var orderColumnIndex = Request.Query["order[0][column]"].ToString();
                 var orderDir = Request.Query["order[0][dir]"].ToString().ToLower();
 
@@ -590,11 +553,11 @@ namespace SchoolSystem.Controllers
 
                 // إجمالي عدد السجلات بدون فلترة
                 var totalRecords = await _context.TheClasses
-                .Where(std => std.IdSchool == idSchool)
+                .Where(std => std.IdSchool == IdSchool)
                 .CountAsync();
 
                 // الاستعلام الأساسي مع تحسين الأداء
-                var query = _context.Students.Where(std => std.IdSchool == idSchool && std.IdClass == idClass && std.IsDeleted == false)
+                var query = _context.Students.Where(std => std.IdSchool == IdSchool && std.IdClass == idClass && std.IsDeleted == false)
                     .AsNoTracking()
                     .Select(s => new
                     {
@@ -613,6 +576,7 @@ namespace SchoolSystem.Controllers
                     );
                 }
 
+                // الحصول على القيم بعد الفلترة
                 var filteredCount = await query.CountAsync();
 
                 // الترتيب
@@ -625,11 +589,13 @@ namespace SchoolSystem.Controllers
                     _ => query.OrderBy(s => s.name)
                 };
 
+                // تقطيع
                 var data = await query
                         .Skip(start)
                         .Take(length)
                         .ToListAsync();
 
+                // ارسال بيانات للعرض
                 var students = data.
                 Select(s => new ManagerMenegarStudentInClassViewModel
                 {
@@ -653,7 +619,8 @@ namespace SchoolSystem.Controllers
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Error: {e.Message}");
+                await _logger.LogAsync(e, "Menegar/ManagerMenegarStudentInClass");
+                _notyf.Error("حدث خطا غير متوقع\nيرجى المحاولة لاحقا");
                 return Json(new { error = e.Message, stack = e.StackTrace });
             }
         }
@@ -661,12 +628,15 @@ namespace SchoolSystem.Controllers
 
         [HttpGet]
         [AuthorizeRoles("admin")]
-        public IActionResult ManagerMenegarStudentInClassView(int idClass)
+        public async Task<IActionResult> ManagerMenegarStudentInClassView(int idClass)
         {
-            ViewBag.IdClas = idClass;
-            var name = _context.TheClasses.FirstOrDefault(c => c.Id == idClass);
-            ViewBag.name = name?.Name ?? "Null";
-            Console.WriteLine($"name student: {name.Name}");
+            TheClass? theClass = await _context.TheClasses.SingleOrDefaultAsync(c => c.Id == idClass);
+            if (theClass == null)
+            {
+                errorOperation("لا يمكن التلاعب بالبيانات المرسلة", "Lectuer/CreateTeacherLectuer", new Exception("تلاعب بالبيانات المرسلة"));
+                return View(nameof(ManagerMenegarClass));
+            }
+            ViewBag.name = theClass?.Name ?? "Null";
             ViewBag.IdClass = Request.Query["idClass"];
             return View();
         }
@@ -684,18 +654,18 @@ namespace SchoolSystem.Controllers
             try
             {
                 
-                int? idMenegar = HttpContext.Session.GetInt32("Id")??0;
-                if (idMenegar == 0)
+                // التحقق من صلاحية المستخدم و التلاعب بالبيانات
+                var (IsValid, IdSchool, status) = await _sessionValidatorService.ValidateAdminSessionAsync(HttpContext, "Lectuer/ManagerMenegarClass");
+                if (!IsValid)
                 {
-                    return Json(new { success = false, error = "Unauthorized access. Session expired." });
+                    return Json(new { success = false, status = status, error = "Unauthorized access. Session expired." });
                 }
-                var menegar = await _context.Menegars.FindAsync(idMenegar);
-                int? idSchool = menegar?.IdSchool;
-                if(idSchool == 0){
-                    return Json(new { success = false, error = "Unauthorized access. Session expired." });
-                }
+
+                // تعيين قيمة افتراضية اذا لم يتم ارسال القيمة
                 if (length <= 0)
                     length = 10;
+
+                // الحصول على القيم المرسلة
                 var orderColumnIndex = Request.Query["order[0][column]"].ToString();
                 var orderDir = Request.Query["order[0][dir]"].ToString().ToLower();
 
@@ -705,11 +675,11 @@ namespace SchoolSystem.Controllers
 
                 // إجمالي عدد السجلات بدون فلترة
                 var totalRecords = await _context.TeacherLectuerClasses
-                .Where(std => std.IdSchool == idSchool && std.IdClass == idClass)
+                .Where(std => std.IdSchool == IdSchool && std.IdClass == idClass)
                 .CountAsync();
 
                 // الاستعلام الأساسي مع تحسين الأداء
-                var query = _context.TeacherLectuerClasses.Where(tlc => tlc.IdSchool == idSchool && tlc.IdClass == idClass && tlc.IdTeacherNavigation.IsDeleted == false )
+                var query = _context.TeacherLectuerClasses.Where(tlc => tlc.IdSchool == IdSchool && tlc.IdClass == idClass && tlc.IdTeacherNavigation.IsDeleted == false )
                     .AsNoTracking()
                     .Select(s => new
                     {
@@ -726,12 +696,13 @@ namespace SchoolSystem.Controllers
                 if (!string.IsNullOrWhiteSpace(searchValue))
                 {
                     query = query.Where(s =>
-                        s.TeacherName.Contains(searchValue)||
-                        s.ClassroomName.Contains(searchValue)||
-                        s.LectuerName.Contains(searchValue)
+                        (s.TeacherName != null && s.TeacherName.Contains(searchValue))||
+                        (s.ClassroomName != null && s.ClassroomName.Contains(searchValue))||
+                        (s.LectuerName != null && s.LectuerName.Contains(searchValue))
                     );
                 }
 
+                // الحصول على القيم بعد الفلترة
                 var filteredCount = await query.CountAsync();
 
                 // الترتيب
@@ -746,11 +717,13 @@ namespace SchoolSystem.Controllers
                     _ => query.OrderBy(s => s.TeacherName)
                 };
 
+                // تقطيع
                 var data = await query
                         .Skip(start)
                         .Take(length)
                         .ToListAsync();
 
+                // ارسال البيانات للعرض
                 var teacher = data.
                 Select(s => new ManagerMenegarTeacherInClassViewModel
                     {
@@ -771,12 +744,13 @@ namespace SchoolSystem.Controllers
                     recordsFiltered = filteredCount,
                     data = teacher
                 };
-                Console.WriteLine($"Count Teacher Class: {teacher.Count()}");
+                
                 return Json(result);
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Error: {e.Message}");
+                await _logger.LogAsync(e, "Menegar/ManagerMenegarTeacherInClass");
+                _notyf.Error("حدث خطا غير متوقع\nيرجى المحاولة لاحقا");
                 return Json(new { error = e.Message, stack = e.StackTrace });
             }
         }
@@ -784,11 +758,15 @@ namespace SchoolSystem.Controllers
 
         [HttpGet]
         [AuthorizeRoles("admin")]
-        public IActionResult  ManagerMenegarTeacherInClassView(int idClass)
+        public async Task<IActionResult>  ManagerMenegarTeacherInClassView(int idClass)
         {
-            ViewBag.IdClas = idClass;
-            var name = _context.TheClasses.FirstOrDefault(c => c.Id == idClass);
-            ViewBag.name = name?.Name??"Null";
+            TheClass? theClass = await _context.TheClasses.SingleOrDefaultAsync(c => c.Id == idClass);
+            if (theClass == null)
+            {
+                errorOperation("لا يمكن التلاعب بالبيانات المرسلة", "Lectuer/CreateTeacherLectuer", new Exception("تلاعب بالبيانات المرسلة"));
+                return View(nameof(ManagerMenegarClass));
+            }
+            ViewBag.name = theClass?.Name ?? "Null";
             ViewBag.IdClass = Request.Query["idClass"];
             return View();
         }
@@ -825,5 +803,12 @@ namespace SchoolSystem.Controllers
         {
             return _context.Menegars.Any(e => e.Id == id);
         }
+
+        private void errorOperation(string messageNotyf, string source, Exception e)
+        {
+            _notyf.Error(messageNotyf);
+            _logger.LogAsync(e, source);
+        }
+
     }
 }

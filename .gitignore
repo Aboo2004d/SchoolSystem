@@ -9,3 +9,5 @@
 # Ignore build results
 bin/
 obj/
+PrivateImages/
+*.env

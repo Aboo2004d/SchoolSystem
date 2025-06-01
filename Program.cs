@@ -30,6 +30,7 @@ builder.Services.AddDbContext<SystemSchoolDbContext>(options => options.UseSqlSe
 builder.Services.AddScoped<IErrorLoggerService, ErrorLoggerService>();
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IEmailValidationService, EmailValidationService>();
+builder.Services.AddScoped<ISessionValidatorService, SessionValidatorService>();
 
 // 🧠 إعداد الجلسات (Session)
 builder.Services.AddSession(options =>

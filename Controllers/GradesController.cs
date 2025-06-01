@@ -22,13 +22,15 @@ namespace SchoolSystem.Controllers
         private readonly INotyfService _notyf;
         private readonly IErrorLoggerService _logger;
         private readonly SystemSchoolDbContext _context;
-        
+        private readonly SessionValidatorService _sessionValidatorService;
 
-        public GradesController(SystemSchoolDbContext context, INotyfService notyf,IErrorLoggerService logger)
+
+        public GradesController(SystemSchoolDbContext context, INotyfService notyf, IErrorLoggerService logger, SessionValidatorService sessionValidatorService)
         {
             _logger = logger;
             _context = context;
             _notyf = notyf;
+            _sessionValidatorService = sessionValidatorService;
         }
         // GET: Grades
         [HttpGet]
@@ -42,19 +44,18 @@ namespace SchoolSystem.Controllers
         {
             try
             {
-                
-                int? idTeacher = HttpContext.Session.GetInt32("Id")??0;
-                if (idTeacher == 0)
+                // التحقق من صلاحية المستخدم و التلاعب بالبيانات
+                var (IsValid, IdTeacher, IdSchool,status) = await _sessionValidatorService.ValidateTeacherSessionAsync(HttpContext, teacherId, "Grades/DataGrades");
+                if (!IsValid)
                 {
-                    return Json(new { success = false, error = "Unauthorized access. Session expired." });
+                    return Json(new { success = false, status = status, error = "Unauthorized access. Session expired." });
                 }
-                var teacher = await _context.Teachers.FindAsync(idTeacher);
-                int? idSchool = teacher?.IdSchool;
-                if(idSchool == 0){
-                    return Json(new { success = false, error = "Unauthorized access. Session expired." });
-                }
+
+                // تعيين قيمة افتراضية اذا لم يتم ارسال القيمة
                 if (length <= 0)
                     length = 10;
+
+                // الحصول على القيم المرسلة
                 var orderColumnIndex = Request.Query["order[0][column]"].ToString();
                 var orderDir = Request.Query["order[0][dir]"].ToString().ToLower();
 
@@ -63,11 +64,11 @@ namespace SchoolSystem.Controllers
                 if (string.IsNullOrEmpty(orderDir)) orderDir = "asc";
 
                 // إجمالي عدد السجلات بدون فلترة
-                var totalRecords = await _context.Grades.Where(std => std.IdSchool == idSchool && std.IdTeacher == idTeacher)
+                var totalRecords = await _context.Grades.Where(std => std.IdSchool == IdSchool && std.IdTeacher == IdTeacher)
                 .CountAsync();
 
                 // الاستعلام الأساسي مع تحسين الأداء
-                var query = _context.Grades.Where(std => std.IdSchool == idSchool && std.IdTeacher == idTeacher)
+                var query = _context.Grades.Where(std => std.IdSchool == IdSchool && std.IdTeacher == IdTeacher)
                     .AsNoTracking()
                     .Select(s => new
                     {
@@ -92,12 +93,13 @@ namespace SchoolSystem.Controllers
                 if (!string.IsNullOrWhiteSpace(searchValue))
                 {
                     query = query.Where(s =>
-                        s.StudentName.Contains(searchValue) ||
-                        s.LectuerName.Contains(searchValue) ||
-                        s.ClassroomName.Contains(searchValue)
+                        (s.StudentName != null && s.StudentName.Contains(searchValue)) ||
+                        (s.StudentName != null && s.LectuerName.Contains(searchValue)) ||
+                        (s.StudentName != null && s.ClassroomName.Contains(searchValue))
                     );
                 }
 
+                // عدد السجلات الكلي التي تنطبق عليها الشروط
                 var filteredCount = await query.CountAsync();
 
                 // الترتيب
@@ -118,6 +120,7 @@ namespace SchoolSystem.Controllers
                         .Take(length)
                         .ToListAsync();
 
+                // الحصول على البيانات للعرض
                 var students = data.
                 Select(s => new GradesViewModel
                 {
@@ -144,12 +147,13 @@ namespace SchoolSystem.Controllers
                     recordsFiltered = filteredCount,
                     data = students
                 };
-                Console.WriteLine($"Count Stuent Teacher: {students.Count()}");
+                
                 return Json(result);
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Error: {e.Message}");
+                _notyf.Error("حدث خطا غير متوقع\nيرجى المحاولة لاحقا");
+                await _logger.LogAsync(e, "Grades/DataGrades");
                 return Json(new { error = e.Message, stack = e.StackTrace });
             }
         }
@@ -157,15 +161,17 @@ namespace SchoolSystem.Controllers
 
         [HttpGet]
         [AuthorizeRoles("Teacher")]
-        public IActionResult ViewGrades(int teacherId)
+        public async Task<IActionResult> ViewGrades(int teacherId)
         {
-            ViewBag.IdTeach = teacherId;
-            var name = _context.Teachers.FirstOrDefault(c => c.Id == teacherId);
-
-            Console.WriteLine($"Teacher: {teacherId}");
-            Console.WriteLine($"name Teacher: {name.Name}");
-            ViewBag.name = name?.Name??"Null";
-            ViewBag.IdTeacher = Request.Query["teacherId"];
+            // التحقق من صلاحية المستخدم و التلاعب بالبيانات
+            var (IsValid, IdTeacher, IdSchool,status) = await _sessionValidatorService.ValidateTeacherSessionAsync(HttpContext, teacherId, "Grades/DataGrades");
+            if (!IsValid)
+            {
+                if (!status)
+                    return RedirectToAction("Login", "Account");
+                return RedirectToAction("Index", "Teacher");
+            }
+            ViewBag.IdTeacher = Request.Query["IdTeacher"];
             return View();
         }
 
@@ -287,8 +293,8 @@ namespace SchoolSystem.Controllers
 
                 return new { Student = student, Grade = grade };
                 }).ToList();
-                var lectuer = _context.Lectuers.FirstOrDefault(l => l.Id == subjectId).Name;
-                var Classes = _context.TheClasses.FirstOrDefault(c => c.Id == gradeId).Name;
+                string lectuer = _context.Lectuers.SingleOrDefault(l => l.Id == subjectId)?.Name??"غير معرف";
+                string Classes = _context.TheClasses.SingleOrDefault(c => c.Id == gradeId)?.Name??"غير معرف";
                 ViewBag.StudentsWithGrades = studentsWithGrades;
                 ViewBag.SubjectId = subjectId;
                 ViewBag.SubjectName = lectuer;
@@ -299,57 +305,7 @@ namespace SchoolSystem.Controllers
             return View();
         }
 
-        /*[HttpPost]
-        [AuthorizeRoles("Teacher")]
-        public IActionResult SaveMark(int studentId, string markType, int markValue, int teacherId, int subjectId)
-        {
-            // البحث عن السجل إذا كان موجود
-            var grade = _context.Grades
-                .FirstOrDefault(g => g.IdStudent == studentId && g.IdTeacher == teacherId && g.IdLectuer == subjectId);
-
-            // إذا لم يكن موجودًا، يتم إنشاؤه
-            if (grade == null)
-            {
-                grade = new Grade
-                {
-                    IdStudent = studentId,
-                    IdTeacher = teacherId,
-                    IdLectuer = subjectId,
-                    FirstMonth = 0,
-                    Mid = 0,
-                    SecondMonth = 0,
-                    Activity = 0,
-                    Final = 0
-                    // لا تضع Total هنا، لأنه يُحسب تلقائيًا من قاعدة البيانات
-                };
-                _context.Grades.Add(grade);
-            }
-
-            // تعديل القيمة حسب نوع العلامة
-            switch (markType)
-            {
-                case "FirstMonth":
-                    grade.FirstMonth = markValue;
-                    break;
-                case "Mid":
-                    grade.Mid = markValue;
-                    break;
-                case "SecondMonth":
-                    grade.SecondMonth = markValue;
-                    break;
-                case "Activity":
-                    grade.Activity = markValue;
-                    break;
-                case "Final":
-                    grade.Final = markValue;
-                    break;
-            }
-
-            _context.SaveChanges();
-
-            return Ok();
-        }
-        */
+        
         [HttpPost]
         [AuthorizeRoles("Teacher")]
         public IActionResult SaveAll(List<GradeInputViewModel> Grades, int teacherId, int subjectId)
@@ -402,58 +358,6 @@ namespace SchoolSystem.Controllers
             }
         }
         
-        /*[HttpGet]
-        [AuthorizeRoles("Student","admin")]
-        public async Task<IActionResult> MarkStudent(int studentid)
-        {
-            Exception ex = new Exception();
-            string Role = HttpContext.Session.GetString("Role")??"Null";
-            if(Role == "admin"){
-
-                bool student = _context.Students.Any(t => t.Id ==studentid);
-                if(!student){
-                    
-                    int Id = HttpContext.Session.GetInt32("Id")??0;
-                        if(Id != 0){
-                            _notyf.Error("The transmitted data cannot be tampered with.");
-                            ex = new Exception("Manipulation of transmitted data");
-                            await _logger.LogAsync(ex,"Grades/MarkStudent");
-                            return RedirectToAction("managerMenegarStudentView","Menegar");
-                        }
-                        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                        _notyf.Error("Unauthenticated user.");
-                        ex = new Exception("Unauthenticated user.");
-                        await _logger.LogAsync(ex, "Grades/MarkStudent");
-                        return RedirectToAction("Index","Home");
-                }
-                var systemSchoolDbContext = _context.Grades.Where(g => g.IdStudent == studentid).Include(g => g.IdLectuerNavigation).Include(g => g.IdStudentNavigation).Include(g => g.IdTeacherNavigation);
-                return View(await systemSchoolDbContext.ToListAsync());
-            }else if(Role == "Student"){
-                bool student = _context.Students.Any(t => t.Id ==studentid);
-                if(!student){
-                    int Id = HttpContext.Session.GetInt32("Id")??0;
-                        if(Id != 0){
-                            _notyf.Error("The transmitted data cannot be tampered with.");
-                            ex = new Exception("Manipulation of transmitted data");
-                            await _logger.LogAsync(ex,"Grades/MarkStudent");
-                            return RedirectToAction("Inedx","Student");
-                        }
-                        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                        _notyf.Error("Unauthenticated user.");
-                        ex = new Exception("Unauthenticated user.");
-                        await _logger.LogAsync(ex, "Grades/MarkStudent");
-                        return RedirectToAction("Index","Home");
-                }
-                var systemSchoolDbContext = _context.Grades.Where(g => g.IdStudent == studentid).Include(g => g.IdLectuerNavigation).Include(g => g.IdStudentNavigation).Include(g => g.IdTeacherNavigation);
-                return View(await systemSchoolDbContext.ToListAsync());
-            }
-            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            _notyf.Error("Unauthenticated user.");
-            ex = new Exception("Unauthenticated user.");
-            await _logger.LogAsync(ex, "Grades/MarkStudent");
-            return RedirectToAction("Index","Home");
-        }
-        */
         [HttpGet]
         [AuthorizeRoles("Student","admin")]
         public async Task<IActionResult> DataGradesStudent(
@@ -465,19 +369,17 @@ namespace SchoolSystem.Controllers
         {
             try
             {
-                
-                int? idTeacher = HttpContext.Session.GetInt32("Id")??0;
-                if (idTeacher == 0)
+                // التحقق من صلاحية المستخدم و التلاعب بالبيانات
+                var (IsValid, IdStudent, IdSchool,status) = await _sessionValidatorService.ValidateStudentSessionAsync(HttpContext, studentid, "Grades/DataGradesStudent");
+                if (!IsValid)
                 {
-                    return Json(new { success = false, error = "Unauthorized access. Session expired." });
+                    return Json(new { success = false, status= status, error = "Unauthorized access. Session expired." });
                 }
-                var student = await _context.Students.FindAsync(studentid);
-                int? idSchool = student?.IdSchool;
-                if(idSchool == 0){
-                    return Json(new { success = false, error = "Unauthorized access. Session expired." });
-                }
+                // تعيين قيمة افتراضية اذا لم يتم ارسال القيمة
                 if (length <= 0)
                     length = 10;
+
+                // الحصول على القيم المرسلة
                 var orderColumnIndex = Request.Query["order[0][column]"].ToString();
                 var orderDir = Request.Query["order[0][dir]"].ToString().ToLower();
 
@@ -486,11 +388,11 @@ namespace SchoolSystem.Controllers
                 if (string.IsNullOrEmpty(orderDir)) orderDir = "asc";
 
                 // إجمالي عدد السجلات بدون فلترة
-                var totalRecords = await _context.Grades.Where(std => std.IdSchool == idSchool && std.IdStudent == studentid)
+                var totalRecords = await _context.Grades.Where(std => std.IdSchool == IdSchool && std.IdStudent == IdStudent)
                 .CountAsync();
 
                 // الاستعلام الأساسي مع تحسين الأداء
-                var query = _context.Grades.Where(std => std.IdSchool == idSchool && std.IdStudent == studentid)
+                var query = _context.Grades.Where(std => std.IdSchool == IdSchool && std.IdStudent == IdStudent)
                     .AsNoTracking()
                     .Select(s => new
                     {
@@ -515,12 +417,13 @@ namespace SchoolSystem.Controllers
                 if (!string.IsNullOrWhiteSpace(searchValue))
                 {
                     query = query.Where(s =>
-                        s.StudentName.Contains(searchValue) ||
-                        s.LectuerName.Contains(searchValue) ||
-                        s.ClassroomName.Contains(searchValue)
+                        (s.StudentName != null && s.StudentName.Contains(searchValue)) ||
+                        (s.LectuerName != null && s.LectuerName.Contains(searchValue)) ||
+                        (s.ClassroomName != null && s.ClassroomName.Contains(searchValue))
                     );
                 }
 
+                // الحصول على القيم بعد الفلترة
                 var filteredCount = await query.CountAsync();
 
                 // الترتيب
@@ -540,7 +443,8 @@ namespace SchoolSystem.Controllers
                         .Skip(start)
                         .Take(length)
                         .ToListAsync();
-
+                
+                // الحصول على البيانات للعرض
                 var students = data.
                 Select(s => new GradesViewModel
                 {
@@ -567,12 +471,13 @@ namespace SchoolSystem.Controllers
                     recordsFiltered = filteredCount,
                     data = students
                 };
-                Console.WriteLine($"Count Stuent Teacher: {students.Count()}");
+                
                 return Json(result);
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Error: {e.Message}");
+                await _logger.LogAsync(e, "Grades/DataGradesStudent");
+                _notyf.Error("حدث خطا غير متوقع\nيرجى المحاولة لاحقا");
                 return Json(new { error = e.Message, stack = e.StackTrace });
             }
         }
@@ -580,37 +485,37 @@ namespace SchoolSystem.Controllers
 
         [HttpGet]
         [AuthorizeRoles("Student","admin")]
-        public IActionResult MarkStudent(int studentid)
+        public async Task<IActionResult> MarkStudent(int studentid)
         {
-            ViewBag.IdStd = studentid;
+            if (HttpContext.Session.GetString("Role") == "admin")
+            {
+                // التحقق من صلاحية المستخدم و التلاعب بالبيانات
+                var (IsValid, IdStudent, IdSchool, status) = await _sessionValidatorService.ValidateStudentSessionAsync(HttpContext, studentid, "Attendance/AttendancesStudentData");
+                if (!IsValid)
+                {
+                    if(!status)
+                        return RedirectToAction("Login", "Account");
+                    return RedirectToAction("ManagerMenegarStudentView", "Menegar");
+                }
+            }
+            else
+            {
+
+                // التحقق من صلاحية المستخدم و التلاعب بالبيانات
+                var (IsValid, IdStudent, IdSchool, status) = await _sessionValidatorService.ValidateStudentSessionAsync(HttpContext, studentid, "Attendance/AttendancesStudentData");
+                if (!IsValid)
+                {
+                    if(!status)
+                        return RedirectToAction("Login", "Account");
+                    return RedirectToAction("Index", "Student");
+                }
+            }
+            
             var name = _context.Students.FirstOrDefault(c => c.Id == studentid);
             ViewBag.name = name?.Name??"Null";
             ViewBag.IdStudent = Request.Query["studentid"];
             return View();
         }
-
-
-        // POST: Grades/Create
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
-        
-        /*
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        [AuthorizeRoles("Teacher")]
-        public async Task<IActionResult> Create([Bind("GradesId,FirstMonth,Mid,SecondMonth,Activity,Final,Total,IdStudent,IdTeacher,IdLectuer")] Grade grade)
-        {
-            if (ModelState.IsValid)
-            {
-                _context.Add(grade);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
-            }
-            ViewData["IdLectuer"] = new SelectList(_context.Lectuers, "Id", "Name", grade.IdLectuer);
-            ViewData["IdStudent"] = new SelectList(_context.Students, "Id", "Name", grade.IdStudent);
-            ViewData["IdTeacher"] = new SelectList(_context.Teachers, "Id", "Name", grade.IdTeacher);
-            return View(grade);
-        }*/
 
         // GET: Grades/Edit/5
         [HttpGet]
@@ -833,7 +738,7 @@ namespace SchoolSystem.Controllers
                 .Include(tg => tg.IdClassNavigation)
                 .Select(tg => new {
                     id = tg.IdClass,
-                    name = tg.IdClassNavigation.Name
+                    name = tg.IdClassNavigation!= null ? tg.IdClassNavigation.Name:"غير معرف"
                 }).Distinct().ToListAsync();
             if(grades.Count()<=0){
                 _notyf.Error("There are no lectuers.");
