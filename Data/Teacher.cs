@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace SchoolSystem.Data;
 
-public partial class Teacher 
+public partial class Teacher
 {
     public int Id { get; set; }
 

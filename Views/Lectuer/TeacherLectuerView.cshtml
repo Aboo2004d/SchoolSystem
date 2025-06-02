@@ -51,22 +51,21 @@
         $(document).ready(function () {
             var idLectuer = @Html.Raw(ViewBag.idLectuer);
             $('#TeacherlectuerTable').DataTable({
-                responsive: true,
-                processing: true,
-                serverSide: true,
-                deferRender: true,
-                ajax: {
-                    url: "/Lectuer/TeacherLectuer?idLectuer=" + idLectuer,
-                    type: "GET",
-                    dataSrc: function (json) {
+                "responsive": true,
+                "processing": true,
+                "serverSide": true,
+                "deferRender": true,
+                "ajax": {
+                    "url": "/Lectuer/TeacherLectuer?idLectuer=" + idLectuer,
+                    "type": "GET",
+                    "dataSrc": function (json) {
                         if (json.error) {
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'خطأ',
-                                text: json.error
-                            }).then(() => {
+                            if(!json.status){
+                                alert(json.error);
                                 window.location.href = "/Account/Login";
-                            });
+                            }
+                            alert(json.error);
+                            window.location.href = "/Lectuer/LectuerView";
                             return [];
                         }
                         return json.data;

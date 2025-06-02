@@ -181,7 +181,7 @@ namespace SchoolSystem.Controllers
             try
             {
                 // التحقق من صلاحية المستخدم و التلاعب بالبيانات
-                var (IsValid, IdSchool, status) = await _sessionValidatorService.ValidateAdminSessionAsync(HttpContext, "Lectuer/TeacherLectuer");
+                var (IsValid, IdSchool, status) = await _sessionValidatorService.ValidateAdminSessionAsync(HttpContext, "Menegar/ManagerMenegarStudent");
                 if (!IsValid)
                 {
                     return Json(new { success = false, status = status, error = "Unauthorized access. Session expired." });
@@ -614,7 +614,7 @@ namespace SchoolSystem.Controllers
                     recordsFiltered = filteredCount,
                     data = students
                 };
-                Console.WriteLine($"Count Stuent Class: {students.Count()}");
+                
                 return Json(result);
             }
             catch (Exception e)

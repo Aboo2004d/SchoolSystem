@@ -27,13 +27,7 @@ namespace SchoolSystem.Controllers
             _notyf = notyf;
         }
 
-        // GET: TheClass
-        public async Task<IActionResult> Index()
-        {
-            return View(await _context.TheClasses.ToListAsync());
-        }
-
-        // GET: TheClass/Details/5
+       // GET: TheClass/Details/5
         public async Task<IActionResult> Details(int? id)
         {
             if (id == null)
@@ -183,45 +177,14 @@ namespace SchoolSystem.Controllers
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
             var theClass = await _context.TheClasses.FindAsync(id);
-            var theStudent =  _context.Students
-            .Where(sc => sc.IdClass == id).ToList();
-            var theTeacher =  _context.TeacherLectuerClasses
-            .Where(sc => sc.IdClass == id).ToList();
             if (theClass != null)
             {
-                
-                foreach (var item in theTeacher)
-                {
-                    _context.TeacherLectuerClasses.Remove(item);
-                    
-                }
-                _context.TheClasses.Remove(theClass);
+                theClass.IsDeleted = true;
             }
 
             await _context.SaveChangesAsync();
             return RedirectToAction("ManagerMenegarClass","Menegar");
         }
-
-        public async Task<IActionResult> ManagerClassStudent([FromQuery]int idclass)
-            {
-                try{
-                    var students = await _context.Students
-                    .Where(ts => ts.IdClass ==idclass )
-                    .Select(ts => new ClassStudentViewModel{
-                        StudentName = ts.Name??"Null",
-                        Email = ts.Email??"Null",
-                        Phone = ts.Phone??"Null",
-                        ClassName=ts.Name??"Null"
-                        
-                        })
-                        .ToListAsync(); 
-                    return View(students);
-                        
-                }catch(Exception e){
-                    Console.WriteLine($"Error: {e.Message}");
-                    return RedirectToAction(nameof(Index));
-                }
-            }
 
         [HttpGet]
         public IActionResult CreateTeacherClass(int idClass)

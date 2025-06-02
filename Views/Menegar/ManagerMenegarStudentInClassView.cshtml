@@ -38,22 +38,21 @@
         var idClass = @Html.Raw(ViewBag.IdClass);
         $(document).ready(function () {
             $('#studentsTable').DataTable({
-                responsive: true,
-                processing: true,
-                serverSide: true,
-                deferRender: true,
-                ajax: {
-                    url: "/Menegar/ManagerMenegarStudentInClass?idClass=" + idClass,
-                    type: "GET",
-                    dataSrc: function (json) {
+                "responsive": true,
+                "processing": true,
+                "serverSide": true,
+                "deferRender": true,
+                "ajax": {
+                    "url": "/Menegar/ManagerMenegarStudentInClass?idClass=" + idClass,
+                    "type": "GET",
+                    "dataSrc": function (json) {
                         if (json.error) {
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'خطأ',
-                                text: json.error
-                            }).then(() => {
-                                window.location.href = "/Account/Login";
-                            });
+                            if(!json.status){
+                                alert(json.error);
+                            window.location.href = "/Account/Login";
+                            }
+                            alert(json.error);
+                            window.location.href = "/Menegar/Index";
                             return [];
                         }
                         return json.data;

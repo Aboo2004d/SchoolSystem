@@ -20,13 +20,15 @@ namespace SchoolSystem.Controllers
         private readonly SystemSchoolDbContext _context;
         private readonly INotyfService _notyf;
         private readonly IErrorLoggerService _logger;
-        
+        private readonly ISessionValidatorService _sessionValidatorService;
 
-        public TeacherController(SystemSchoolDbContext context, INotyfService notyf,IErrorLoggerService logger)
+
+        public TeacherController(SystemSchoolDbContext context, ISessionValidatorService sessionValidatorService, INotyfService notyf, IErrorLoggerService logger)
         {
             _logger = logger;
             _context = context;
             _notyf = notyf;
+            _sessionValidatorService = sessionValidatorService;
         }
 
         // GET: Teacher
@@ -235,18 +237,18 @@ namespace SchoolSystem.Controllers
             try
             {
                 
-                int? idTeacher = HttpContext.Session.GetInt32("Id")??0;
-                if (idTeacher == 0)
+                // التحقق من صلاحية المستخدم و التلاعب بالبيانات
+                var (IsValid, IdTeacher, IdSchool,status) = await _sessionValidatorService.ValidateTeacherSessionAsync(HttpContext, teacherId, "Attendance/DataAttendance");
+                if (!IsValid)
                 {
-                    return Json(new { success = false, error = "Unauthorized access. Session expired." });
+                    return Json(new { success = false, status = status, error = "Unauthorized access. Session expired." });
                 }
-                var teacher = await _context.Teachers.FindAsync(idTeacher);
-                int? idSchool = teacher?.IdSchool;
-                if(idSchool == 0){
-                    return Json(new { success = false, error = "Unauthorized access. Session expired." });
-                }
+
+                //فحص اذا كان تم ارسال قيمة المتغير ام لا و وصع قيمة افتراضية اذا كان لا
                 if (length <= 0)
                     length = 10;
+
+                // تحديد قيمة الـ searchValue
                 var orderColumnIndex = Request.Query["order[0][column]"].ToString();
                 var orderDir = Request.Query["order[0][dir]"].ToString().ToLower();
 
@@ -255,11 +257,11 @@ namespace SchoolSystem.Controllers
                 if (string.IsNullOrEmpty(orderDir)) orderDir = "asc";
 
                 // إجمالي عدد السجلات بدون فلترة
-                var totalRecords = await _context.StudentLectuerTeachers.Where(std => std.IdSchool == idSchool && std.IdTeacher == idTeacher)
+                var totalRecords = await _context.StudentLectuerTeachers.Where(std => std.IdSchool == IdSchool && std.IdTeacher == IdTeacher)
                 .CountAsync();
 
                 // الاستعلام الأساسي مع تحسين الأداء
-                var query = _context.StudentLectuerTeachers.Where(std => std.IdSchool == idSchool && std.IdTeacher == idTeacher)
+                var query = _context.StudentLectuerTeachers.Where(std => std.IdSchool == IdSchool && std.IdTeacher == IdTeacher)
                     .AsNoTracking()
                     .Select(s => new
                     {
@@ -277,12 +279,13 @@ namespace SchoolSystem.Controllers
                 if (!string.IsNullOrWhiteSpace(searchValue))
                 {
                     query = query.Where(s =>
-                        s.StudentName.Contains(searchValue)||
-                        s.LectuerName.Contains(searchValue)||
-                        s.ClassroomName.Contains(searchValue)
+                        (s.StudentName != null && s.StudentName.Contains(searchValue))||
+                        (s.LectuerName != null && s.LectuerName.Contains(searchValue))||
+                        (s.ClassroomName != null && s.ClassroomName.Contains(searchValue))
                     );
                 }
 
+                // عدد السجلات الاصلية التي تنطبق عليها الشروط
                 var filteredCount = await query.CountAsync();
 
                 // الترتيب
@@ -303,6 +306,7 @@ namespace SchoolSystem.Controllers
                         .Take(length)
                         .ToListAsync();
 
+                //ارسال بيانات للعرض
                 var students = data.
                 Select(s => new ManagerMenegarStudentInClassViewModel
                 {
@@ -322,12 +326,13 @@ namespace SchoolSystem.Controllers
                     recordsFiltered = filteredCount,
                     data = students
                 };
-                Console.WriteLine($"Count Stuent Teacher: {students.Count()}");
+                
                 return Json(result);
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Error: {e.Message}");
+                // حال كان هناك خطأ غير متوقع
+                await _logger.LogAsync(e, "Attendance/DataAttendance");
                 return Json(new { error = e.Message, stack = e.StackTrace });
             }
         }
@@ -335,10 +340,17 @@ namespace SchoolSystem.Controllers
 
         [HttpGet]
         [AuthorizeRoles("Teacher")]
-        public IActionResult Students(int teacherId)
+        public async Task<IActionResult> Students(int teacherId)
         {
-            ViewBag.IdTeach = teacherId;
-            var name = _context.Teachers.FirstOrDefault(c => c.Id == teacherId);
+            // التحقق من صلاحية المستخدم و التلاعب بالبيانات
+            var (IsValid, IdTeacher, IdSchool,status) = await _sessionValidatorService.ValidateTeacherSessionAsync(HttpContext, teacherId, "Attendance/ViewAttendance");
+            if (!IsValid)
+            {
+                if (!status)
+                    return RedirectToAction("Login", "Account");
+                return View(nameof(Index));
+            }
+            var name = _context.Teachers.FirstOrDefault(c => c.Id == IdTeacher);
             ViewBag.name = name?.Name??"Null";
             ViewBag.IdTeacher = Request.Query["teacherId"];
             return View();

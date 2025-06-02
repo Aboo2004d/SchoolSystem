@@ -15,6 +15,8 @@ public partial class TeacherLectuerClass
 
     public int? IdClass { get; set; }
 
+    public bool? IsDeleted { get; set; }
+
     public virtual TheClass? IdClassNavigation { get; set; }
 
     public virtual Lectuer? IdLectuerNavigation { get; set; }

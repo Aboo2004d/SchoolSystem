@@ -32,7 +32,7 @@ public class SessionValidatorService : ISessionValidatorService
             }
 
             var teacher = await _context.Teachers.FindAsync(idTeacher);
-            if (teacherId != idTeacher || teacher != null)
+            if (teacherId != idTeacher || teacher == null)
             {
                 _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة");
                 await _logger.LogAsync(new Exception("التلاعب بالبيانات المرسلة."), sours);
@@ -74,15 +74,15 @@ public class SessionValidatorService : ISessionValidatorService
                 await httpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
                 return (false, 0, 0, false);
             }
+            var student = await _context.Students.FindAsync(studentId);
 
-            if (studentId != idstudent)
+            if (studentId != idstudent || student == null)
             {
                 _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة");
                 await _logger.LogAsync(new Exception("التلاعب بالبيانات المرسلة."), sours);
                 return (false, 0, 0, true);
             }
 
-            var student = await _context.Students.FindAsync(studentId);
             int? idSchool = student?.IdSchool ?? 0;
             if (idSchool == 0)
             {
@@ -110,8 +110,7 @@ public class SessionValidatorService : ISessionValidatorService
 
             int? idmenegar = httpContext.Session.GetInt32("Id") ?? 0;
 
-
-            if (idmenegar == 0 )
+            if (idmenegar == 0)
             {
                 _notyf.Error("دخول غير مصرح به. انتهت صلاحية الجلسة.");
                 await _logger.LogAsync(new Exception("دخول غير مصرح."), sours);
@@ -120,7 +119,7 @@ public class SessionValidatorService : ISessionValidatorService
             }
             Menegar? menegar = await _context.Menegars.FindAsync(idmenegar);
 
-            if (menegar != null)
+            if (menegar == null)
             {
                 _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة");
                 await _logger.LogAsync(new Exception("التلاعب بالبيانات المرسلة."), sours);

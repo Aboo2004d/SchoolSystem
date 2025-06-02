@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace SchoolSystem.Data;
 
-public partial class SystemSchoolDbContext : DbContext 
+public partial class SystemSchoolDbContext : DbContext
 {
     public SystemSchoolDbContext(DbContextOptions<SystemSchoolDbContext> options)
         : base(options)
@@ -14,7 +14,6 @@ public partial class SystemSchoolDbContext : DbContext
     public virtual DbSet<Acount> Acounts { get; set; }
 
     public virtual DbSet<Attendance> Attendances { get; set; }
-
 
     public virtual DbSet<ErrorLog> ErrorLogs { get; set; }
 
@@ -34,6 +33,7 @@ public partial class SystemSchoolDbContext : DbContext
 
     public virtual DbSet<Student> Students { get; set; }
 
+    public virtual DbSet<StudentAverage> StudentAverages { get; set; }
 
     public virtual DbSet<StudentLectuerTeacher> StudentLectuerTeachers { get; set; }
 
@@ -269,7 +269,26 @@ public partial class SystemSchoolDbContext : DbContext
                 .HasConstraintName("FK__Student__IdSchoo__24E777C3");
         });
 
-        
+        modelBuilder.Entity<StudentAverage>(entity =>
+        {
+            entity.HasKey(e => e.IdStudentAvg).HasName("PK__StudentA__9A002AFC4CA4B91A");
+
+            entity.ToTable("StudentAverage");
+
+            entity.HasIndex(e => e.IdSchool, "IX_StudentAverage_IdSchool");
+
+            entity.HasOne(d => d.IdClassNavigation).WithMany(p => p.StudentAverages)
+                .HasForeignKey(d => d.IdClass)
+                .HasConstraintName("FK__StudentAv__IdCla__03BB8E22");
+
+            entity.HasOne(d => d.IdSchoolNavigation).WithMany(p => p.StudentAverages)
+                .HasForeignKey(d => d.IdSchool)
+                .HasConstraintName("FK__StudentAv__IdSch__6E565CE8");
+
+            entity.HasOne(d => d.IdStudentNavigation).WithMany(p => p.StudentAverages)
+                .HasForeignKey(d => d.IdStudent)
+                .HasConstraintName("FK_StudentAverage_Student");
+        });
 
         modelBuilder.Entity<StudentLectuerTeacher>(entity =>
         {

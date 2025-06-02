@@ -12,4 +12,6 @@ public partial class ProfileImage
     public string? Email { get; set; }
 
     public string? ProfileImagePath { get; set; }
+
+    public bool? IsDeleted { get; set; }
 }

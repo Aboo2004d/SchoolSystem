@@ -29,6 +29,8 @@ public partial class Grade
 
     public int? IdSchool { get; set; }
 
+    public bool? IsDeleted { get; set; }
+
     public virtual TheClass? IdClassNavigation { get; set; }
 
     public virtual Lectuer? IdLectuerNavigation { get; set; }

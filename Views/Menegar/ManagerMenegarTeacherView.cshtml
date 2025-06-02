@@ -45,9 +45,21 @@
             $('#teachersTable').DataTable({
                 processing: true,
                 serverSide: true,
-                ajax: {
-                    url: "/Menegar/ManagerMenegarTeacher",
-                    type: "GET"
+                "ajax": {
+                    "url": "/Menegar/ManagerMenegarTeacher",
+                    "type": "GET",
+                    "dataSrc": function (json) {
+                        if (json.error) {
+                            if(!json.status){
+                                alert(json.error);
+                            window.location.href = "/Account/Login";
+                            }
+                            alert(json.error);
+                            window.location.href = "/Menegar/Index";
+                            return [];
+                        }
+                        return json.data;
+                    }
                 },
                 columns: [
                     {

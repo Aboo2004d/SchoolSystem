@@ -49,8 +49,12 @@
                     "type": "GET",
                     "dataSrc": function (json) {
                         if (json.error) {
-                            alert(json.error);
+                            if(!json.status){
+                                alert(json.error);
                             window.location.href = "/Account/Login";
+                            }
+                            alert(json.error);
+                            window.location.href = "/Menegar/Index";
                             return [];
                         }
                         return json.data;

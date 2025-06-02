@@ -52,7 +52,7 @@
     <script>
         $(document).ready(function () {
             $('#studentsTable').DataTable({
-                responsive: true,
+                "responsive": true,
                 "deferRender": true,
                 "processing": true,
                 "serverSide": true,
@@ -61,13 +61,12 @@
                     "type": "GET",
                     "dataSrc": function (json) {
                         if (json.error) {
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'حدث خطأ',
-                                text: json.error
-                            }).then(() => {
-                                window.location.href = "/Account/Login";
-                            });
+                            if(!json.status){
+                                alert(json.error);
+                            window.location.href = "/Account/Login";
+                            }
+                            alert(json.error);
+                            window.location.href = "/Menegar/Index";
                             return [];
                         }
                         return json.data;

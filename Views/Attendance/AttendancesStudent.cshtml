@@ -42,13 +42,24 @@
                     "url": "/Attendance/AttendancesStudentData?studentid=" + idStudent,
                     "type": "GET",
                     "dataSrc": function (json) {
-                        if (json.error) {
-                            alert(json.error);
-                            window.location.href = "/Account/Login";
-                            return [];
+                            if (json.error) {
+                                alert(json.error);
+
+                                if (!json.status) {
+                                    window.location.href = "/Account/Login";
+                                } else {
+                                    if (role === "Menegar") {
+                                        window.location.href = "/Menegar/Index";
+                                    } else {
+                                        window.location.href = "/Student/Index";
+                                    }
+                                }
+
+                                return []; // توقف تحميل البيانات
+                            }
+
+                            return json.data; // في حال عدم وجود خطأ، أرجع البيانات للجدول
                         }
-                        return json.data;
-                    }
                 },
                 "columns": [
                     { "data": "lectuerName" },

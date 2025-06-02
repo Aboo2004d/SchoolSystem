@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace SchoolSystem.Data;
 
-public partial class Student 
+public partial class Student
 {
     public int Id { get; set; }
 
@@ -35,6 +35,7 @@ public partial class Student
 
     public virtual School? IdSchoolNavigation { get; set; }
 
+    public virtual ICollection<StudentAverage> StudentAverages { get; set; } = new List<StudentAverage>();
 
     public virtual ICollection<StudentLectuerTeacher> StudentLectuerTeachers { get; set; } = new List<StudentLectuerTeacher>();
 }

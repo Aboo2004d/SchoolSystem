@@ -21,41 +21,35 @@ namespace SchoolSystem.Controllers
 
         private readonly INotyfService _notyf;
         private readonly IErrorLoggerService _logger;
+        private readonly ISessionValidatorService _sessionValidatorService;
         
 
-        public StudentController(SystemSchoolDbContext context, INotyfService notyf,IErrorLoggerService logger)
+        public StudentController(SystemSchoolDbContext context, ISessionValidatorService sessionValidatorService, INotyfService notyf,IErrorLoggerService logger)
         {
             _logger = logger;
             _context = context;
             _notyf = notyf;
+            _sessionValidatorService = sessionValidatorService;
         }
 
         // GET: Student
         [AuthorizeRoles("Student")]
         public async Task<IActionResult> Index()
         {
-            string Role = HttpContext.Session.GetString("Role") ?? "null";
-            if(Role == "Student"){
-                int StudentId = HttpContext.Session.GetInt32("Id")??0;
-                if(StudentId == 0){
-                    _notyf.Error("Student Not Found");
-                    return RedirectToAction("Index","Home");
-                }
-                var avg = _context.Grades
-                .Where(g => g.IdStudent == StudentId && g.Total != null)
-                .Select(g => g.Total.Value)
-                .ToList()  // تحويل النتيجة لقائمة في الذاكرة
-                .DefaultIfEmpty(0)
-                .Average(); // حساب المتوسط
-                ViewBag.Avg = avg;
-                return View(await _context.Students.Where(s => s.Id == StudentId).FirstOrDefaultAsync());
-
+            // التحقق من صلاحية المستخدم و التلاعب بالبيانات
+            var (IsValid, IdTeacher, IdSchool,status) = await _sessionValidatorService
+            .ValidateStudentSessionAsync(HttpContext, HttpContext.Session.GetInt32("Id")??-1, "Attendance/DataAttendance");
+            if (!IsValid)
+            {
+                _notyf.Error("انتهت الجلسة");
+                return RedirectToAction("Logout", "Account");
             }
-            _notyf.Error("Unauthorized entry!");
-            return RedirectToAction("Index","Home");
+
+            return View();
         }
 
         // GET: Student/Details/5
+        [AuthorizeRoles("admin")]
         public async Task<IActionResult> Details(int? id)
         {
             if (id == null)
@@ -76,6 +70,7 @@ namespace SchoolSystem.Controllers
         }
 
         // GET: Student/Create
+        [AuthorizeRoles("admin")]
         public IActionResult Create()
         {
             ViewBag.Class = new SelectList(_context.TheClasses.Where(c => c.IdSchool == HttpContext.Session.GetInt32("School")), "Id", "Name");
@@ -87,13 +82,14 @@ namespace SchoolSystem.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [AuthorizeRoles("admin")]
         public async Task<IActionResult> Create([Bind("Name,Phone,Email,TheDate,IdClass,IdNumber,City,Area")] Student student)
         {
             Exception ex = new Exception();
             if (ModelState.IsValid)
             {
                 if (student.Name != null && student.Phone != null && student.Email != null
-                && student.TheDate != null && student.IdClass != null && student.IdNumber != null &&student.City != null && student.Area != null)
+                && student.TheDate != null && student.IdClass != null && student.IdNumber != null && student.City != null && student.Area != null)
                 {
                     string Role = HttpContext.Session.GetString("Role") ?? "Null";
                     var school = HttpContext.Session.GetInt32("School") ?? 0;
@@ -110,6 +106,12 @@ namespace SchoolSystem.Controllers
                             if (student.TheDate >= new DateOnly(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day))
                             {
                                 _notyf.Error("تاريخ الميلاد غير صالح");
+                                ViewBag.Class = new SelectList(_context.TheClasses, "Id", "Name");
+                                return View(student);
+                            }
+                            if (_context.Students.Any(s => s.Name == student.Name))
+                            {
+                                _notyf.Error("الاسم موجود مسبقا");
                                 ViewBag.Class = new SelectList(_context.TheClasses, "Id", "Name");
                                 return View(student);
                             }
@@ -138,7 +140,7 @@ namespace SchoolSystem.Controllers
                                         IdTeacher = item.IdTeacher,
                                         IdLectuer = item.IdLectuer,
                                         IdSchool = std.IdSchool
-                                        
+
                                     };
                                     _context.StudentLectuerTeachers.Add(studentLectuer);
 
@@ -161,8 +163,9 @@ namespace SchoolSystem.Controllers
             ViewBag.Class = new SelectList(_context.TheClasses, "Id", "Name");
             return View(student);
         }
-        
+
         // GET: Student/Edit/5
+        [AuthorizeRoles("admin")]
         public async Task<IActionResult> Edit(int? id)
         {
             Exception e = new Exception();
@@ -191,16 +194,18 @@ namespace SchoolSystem.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [AuthorizeRoles("admin")]
         public async Task<IActionResult> Edit(int id, [Bind("Id,Name,Phone,Email,TheDate,IdClass,City,Area")] Student student)
         {
             if (id != student.Id)
             {
-                return NotFound();
+                _notyf.Error($"لا يمكن التلاعب بالبيانات الطالب المرسلة");
+                await _logger.LogAsync(new Exception("التلاعب بالبيانات الطالب المرسلة"), "Student/Details");
+                return RedirectToAction("Details", "Student");
             }
 
             if (ModelState.IsValid)
             {
-                Exception ex = new Exception();
                 try
                 {
                     string Role = HttpContext.Session.GetString("Role") ?? "Null";
@@ -213,18 +218,21 @@ namespace SchoolSystem.Controllers
                             if (std == null)
                             {
                                 _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة");
-                                ex = new Exception("التلاعب بالبيانات المرسلة");
-                                await _logger.LogAsync(ex, "Student/Edit");
+                                await _logger.LogAsync(new Exception("التلاعب بالبيانات المرسلة"), "Student/Edit");
                                 ViewBag.Class = new SelectList(_context.TheClasses.Where(c => c.IdSchool == school), "Id", "Name");
                                 return View(student);
                             }
 
-                            if (student.TheDate >= new DateOnly(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day))
-                                {
-                                    _notyf.Error("تاريخ الميلاد غير صالح");
-                                    ViewBag.Class = new SelectList(_context.TheClasses, "Id", "Name");
-                                    return View(student);
-                                }
+                            var today = DateOnly.FromDateTime(DateTime.Today);
+                            int age = std.TheDate.HasValue 
+                                ? today.Year - std.TheDate.Value.Year 
+                                : 0;
+                            if (std.TheDate == null || std.TheDate == default || std.TheDate > today || std.TheDate.Value.AddYears(age) > today || age < 5)
+                            {
+                                _notyf.Error("تاريخ الميلاد غير صالح");
+                                ViewBag.Class = new SelectList(_context.TheClasses, "Id", "Name");
+                                return View(student);
+                            }
                             std.Name = student.Name;
                             std.Phone = student.Phone;
                             std.Email = student.Email;
@@ -239,8 +247,7 @@ namespace SchoolSystem.Controllers
                             _notyf.Success("تمت عملية الاضافة بنجاح");
                             return RedirectToAction("ManagerMenegarStudentView", "Menegar");
                         }
-                        ex = new Exception("Bypass verification system");
-                        await _logger.LogAsync(ex, "Student/Create");
+                        await _logger.LogAsync(new Exception("دخول غير مصرح به"), "Student/Create");
                         _notyf.Error("دخول غير مصرح به");
                         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
                         return RedirectToAction("Login", "Account");
@@ -263,6 +270,7 @@ namespace SchoolSystem.Controllers
         }
 
         // GET: Student/Delete/5
+        [AuthorizeRoles("admin")]
         public async Task<IActionResult> Delete(int? id)
         {
             if (id == null)
@@ -283,68 +291,23 @@ namespace SchoolSystem.Controllers
         // POST: Student/Delete/5
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
+        [AuthorizeRoles("admin")]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
             var student = await _context.Students.FindAsync(id);
             if (student != null)
             {
                 student.IsDeleted = true;
+                Acount? acount = await _context.Acounts.SingleOrDefaultAsync(s => s.IdUser == student.Id && s.Role == "Student");
+                if (acount != null)
+                    acount.IsActive = false;
                 _notyf.Success("تم حذف الطالب بنجاح");
             }
             await _context.SaveChangesAsync();
-            return RedirectToAction("ManagerMenegarStudentView","Menegar");
+            return RedirectToAction("ManagerMenegarStudentView", "Menegar");
         }
         
-        public async Task<IActionResult> ManagerStudentLectuer([FromQuery]int idstudent)
-        {
-            try{
-                Console.WriteLine($"idStudent: {idstudent}");
-                var students = await _context.StudentLectuerTeachers
-                .Where(ts => ts.IdStudent ==idstudent )
-                .Include(ts => ts.IdStudentNavigation)
-                .Include(sl => sl.IdLectuerNavigation)
-                .Select(ts => new StudentLectuerViewModel{
-                    Id= ts.Id,
-                    TeacherName = ts.IdTeacherNavigation.Name??"Null",
-                    StudentName = ts.IdStudentNavigation.Name??"Null",
-                    IdStudent = ts.IdStudentNavigation.Id,
-                    ClassroomName = ts.IdClassNavigation.Name??"Null",
-                    LectureName = ts.IdLectuerNavigation.Name??"Null"
-                    })
-                    .ToListAsync(); 
-                return View(students);
-                    
-            }catch(Exception e){
-                Console.WriteLine($"Error: {e.Message}");
-                return RedirectToAction(nameof(Index));
-            }
-        }
-
-        public async Task<IActionResult> StudentLectuerReturn([FromQuery]int idstudent)
-        {
-            try{
-                Console.WriteLine($"idStudent: {idstudent}");
-                var students = await _context.StudentLectuerTeachers
-                .Where(ts => ts.IdStudent ==idstudent )
-                .Include(ts => ts.IdStudentNavigation)
-                .Include(sl => sl.IdLectuerNavigation)
-                .Select(ts => new StudentLectuerReturnViewModel{
-                    Id= ts.Id,
-                    TeacherName = ts.IdTeacherNavigation.Name??"Null",
-                    StudentName = ts.IdStudentNavigation.Name??"Null",
-                    IdStudent = ts.IdStudentNavigation.Id,
-                    ClassroomName = ts.IdClassNavigation.Name??"Null",
-                    LectureName = ts.IdLectuerNavigation.Name??"Null"
-                    })
-                    .ToListAsync(); 
-                return View(students);
-                    
-            }catch(Exception e){
-                Console.WriteLine($"Error: {e.Message}");
-                return RedirectToAction(nameof(Index));
-            }
-        }
-        
+        [AuthorizeRoles("admin")]
         public JsonResult GetStudentCountPerGrades(int? idStudent)
         {
             var schoolId = HttpContext.Session.GetInt32("School");
@@ -365,6 +328,7 @@ namespace SchoolSystem.Controllers
             return Json(data);
         }
 
+        [AuthorizeRoles("admin")]
         public JsonResult GetStudentCountPerAttendance(int? idStudent)
         {
             var schoolId = HttpContext.Session.GetInt32("School");

@@ -208,8 +208,6 @@ namespace SchoolSystem.Controllers
             return true;
         }
 
-
-
         // GET: /Account/Register
         [HttpGet]
         public IActionResult Register()

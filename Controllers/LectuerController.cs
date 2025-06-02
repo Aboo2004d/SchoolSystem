@@ -120,6 +120,7 @@ namespace SchoolSystem.Controllers
                     recordsFiltered = filteredCount,
                     data = lectuers
                 };
+                Console.WriteLine($"Count: {totalRecords}");
 
                 return Json(result);
             }
