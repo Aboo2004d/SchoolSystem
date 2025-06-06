@@ -43,6 +43,7 @@ namespace SchoolSystem.Controllers
         {
             try
             {
+                Console.WriteLine($"Id TTTeacher: {teacherId}");
                 // التحقق من صلاحية المستخدم و التلاعب بالبيانات
                 var (IsValid, IdTeacher, IdSchool,status) = await _sessionValidatorService.ValidateTeacherSessionAsync(HttpContext, teacherId, "Attendance/DataAttendance");
 
@@ -107,10 +108,6 @@ namespace SchoolSystem.Controllers
                     ("1", "desc") => query.OrderByDescending(s => s.ClassroomName),
                     ("2", "asc") => query.OrderBy(s => s.LectuerName),
                     ("2", "desc") => query.OrderByDescending(s => s.LectuerName),
-                    ("3", "asc") => query.OrderBy(s => s.excuse),
-                    ("3", "desc") => query.OrderByDescending(s => s.excuse),
-                    ("4", "asc") => query.OrderBy(s => s.Date),
-                    ("4", "desc") => query.OrderByDescending(s => s.Date),
                     _ => query.OrderBy(s => s.StudentName)
                 };
 
@@ -159,114 +156,93 @@ namespace SchoolSystem.Controllers
         public async Task<IActionResult> ViewAttendance(int teacherId)
         {
             // التحقق من صلاحية المستخدم و التلاعب بالبيانات
-            var (IsValid, IdTeacher, IdSchool,status) = await _sessionValidatorService.ValidateTeacherSessionAsync(HttpContext, teacherId, "Attendance/ViewAttendance");
+            var (IsValid, IdTeacher, IdSchool,status) = await _sessionValidatorService.ValidateTeacherSessionAsync(HttpContext, teacherId, "Grades/DataGrades");
             if (!IsValid)
             {
-                return Json(new { success = false, status = status, error = "Unauthorized access. Session expired." });
+                if (!status)
+                    return RedirectToAction("Login", "Account");
+                return RedirectToAction("Index", "Teacher");
             }
             var name =await _context.Teachers.SingleOrDefaultAsync(c => c.Id == teacherId);
             ViewBag.name = name?.Name??"Null";
-            ViewBag.IdTeacher = Request.Query["teacherId"];
+            ViewBag.IdTeacher = IdTeacher;
             return View();
-        }
-
-        // GET: Attendance/Details/5
-        [AuthorizeRoles("Teacher")]
-        public async Task<IActionResult> Details(int? id){
-
-            if (id == null)
-            {
-                _notyf.Error("You cannot go to this page without an ID.");
-                return View(nameof(Index));
-            }
-
-            var attendance = await _context.Attendances
-                .Include(a => a.IdLectuerNavigation)
-                .Include(a => a.IdStudentNavigation)
-                .Include(a => a.IdTeacherNavigation)
-                .FirstOrDefaultAsync(m => m.Id == id);
-            if (attendance == null)
-            {
-                _notyf.Error("Invalid routing ID");
-                return View(nameof(Index));
-            }
-
-            return View(attendance);
         }
 
         // GET: Attendance/Create
         [HttpGet]
         [AuthorizeRoles("Teacher")]
-        public async Task<IActionResult> Create(int idLectuer, int idTeacher, int idClass)
+        public async Task<IActionResult> Create(int? idLectuer, int? idTeacher, int? idClass)
         {
+            idTeacher = HttpContext.Session.GetInt32("Id") ?? 0;
             try{
-
-                Teacher tech =await _context.Teachers.FindAsync(idTeacher);
-                Lectuer lec =await _context.Lectuers.FindAsync(idLectuer);
-                TheClass cla  =await _context.TheClasses.FindAsync(idClass);
-                if(tech == null || lec == null || cla == null){
-                    int TeacherId = HttpContext.Session.GetInt32("Id")??0;
-                    if(TeacherId != 0){
-                        _notyf.Error("Data is not Found.");
-                        return View(nameof(Index),new{idTeacher = TeacherId});
-                    }
-                    await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                    _notyf.Error("Unauthenticated user.");
-                    return RedirectToAction("Index","Home");
-                }
-                var lectuer = _context.TeacherLectuerClasses
-                    .Where(tl => tl.IdTeacher == idTeacher && tl.IdLectuer == idLectuer)
-                    .FirstOrDefault();
-                if (lectuer != null )
+                if (idClass == null || idLectuer == null)
                 {
-                    var teacher = _context.TeacherLectuerClasses
-                        .Where(tc => tc.IdTeacher == idTeacher && tc.IdClass == idClass)
-                        .FirstOrDefault();
-                    if (teacher != null){
-                        ViewData["DateAndTime"] = DateOnly.FromDateTime(DateTime.Now);
-                        ViewData["Status"] = new SelectList(new List<SelectListItem> {
-                            new SelectListItem { Text = "Present", Value = "1" },
-                            new SelectListItem { Text = "Absent", Value = "0" },
-                            new SelectListItem { Text = "Excused", Value = "m" }
-                        }, "Value", "Text");
-                        ViewData["IdLectuer"] = idLectuer;
-                        ViewData["IdStudent"] = new SelectList(_context.Students, "Id", "Name");
-                        ViewData["IdTeacher"] = idTeacher;
-                        ViewData["IdClass"] = idClass;
-                        var student = await _context.StudentLectuerTeachers
-                            .Where(t => t.IdTeacher == lectuer.IdTeacher && t.IdTeacher == teacher.IdTeacher)
-                            .Include(st => st.IdStudentNavigation) 
-                            .ToListAsync();
-                        
-                        if (student == null)
-                        {
-                            _notyf.Error("Student not found.");
-                            return View(nameof(Index));
-                        }
-                        ViewData["Students"] = student;
-                        
-                        return View();
-
-                    }else{
-                        _notyf.Error("Teacher not found.");
-                        return View(nameof(Index));
-                    }
                     
-                }else {
-                    _notyf.Error("Lectuer not found.");
-                    return View(nameof(Index));
+                    var (IsValid, IdTeacher, IdSchool, status) = await _sessionValidatorService.ValidateTeacherSessionAsync(HttpContext, idTeacher ?? 0, "Attendance/Create");
+                    if (!status)
+                    {
+                        return RedirectToAction("Login", "Account");
                     }
+
+                    _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة");
+                    await _logger.LogAsync(new Exception("التلاعب بالبيانات المرسلة"), "Attendance/Create");
+                    return View(nameof(Index), new { idTeacher = idTeacher });
+                }
+
+                Lectuer? lec =await _context.Lectuers.FindAsync(idLectuer);
+                TheClass? cla  =await _context.TheClasses.FindAsync(idClass);
+                
+                if (lec == null || cla == null)
+                {
+                    _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة");
+                    await _logger.LogAsync(new Exception("التلاعب بالبيانات المرسلة"), "Attendance/Create");
+                    return View(nameof(Index), new { idTeacher = idTeacher });
+                }
+
+                TeacherLectuerClass? lectuer =await _context.TeacherLectuerClasses
+                    .Where(tl => tl.IdTeacher == idTeacher && tl.IdLectuer == idLectuer && tl.IdClass == idClass)
+                    .FirstOrDefaultAsync();
+                    
+                if (lectuer != null)
+                {
+                    ViewData["DateAndTime"] = DateOnly.FromDateTime(DateTime.Now);
+
+                    ViewData["IdLectuer"] = idLectuer;
+                    ViewData["IdTeacher"] = idTeacher;
+                    ViewData["IdClass"] = idClass;
+
+                    List<StudentLectuerTeacher>? student = await _context.StudentLectuerTeachers
+                        .Where(t => t.IdTeacher == lectuer.IdTeacher && t.IdClass == lectuer.IdClass)
+                        .Include(st => st.IdStudentNavigation)
+                        .ToListAsync();
+
+                    if (student == null)
+                    {
+                        _notyf.Error("لا يوجد طلاب بعد.");
+                        return View(nameof(Index), new { idTeacher = idTeacher });
+                    }
+                    ViewData["Students"] = student;
+
+                    return View();
+
+                }
+                else
+                {
+                    _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة");
+                    await _logger.LogAsync(new Exception("التلاعب بالبيانات المرسلة"), "Attendance/Create");
+                    return View(nameof(Index), new { idTeacher = idTeacher });
+                }
             }catch(Exception ex){
-                int TeacherId = HttpContext.Session.GetInt32("Id")??0;
-                if(TeacherId != 0){
+                if(idTeacher != 0){
                     await _logger.LogAsync(ex,"Attendance/Create");
                     _notyf.Error("Data is not Found.");
-                    return View(nameof(Index),new{idTeacher = TeacherId});
+                    return View(nameof(Index),new{idTeacher = idTeacher});
                 }
                 await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
 
                 await _logger.LogAsync(ex,"Attendance/Create");
-                _notyf.Error("Unauthenticated user.");
+                _notyf.Error("انتهت الجلسة.");
                 return RedirectToAction("Index","Home");
             }
                 
@@ -292,37 +268,36 @@ namespace SchoolSystem.Controllers
                     _notyf.Success("تم تسجيل الحضور و الغياب بنجاح");
                     return RedirectToAction("ViewAttendance", new { teacherId = Attendances[0].IdTeacher });
                 }
-                ViewData["IdLectuer"] = new SelectList(_context.Lectuers, "Id", "Name");
-                ViewData["IdStudent"] = new SelectList(_context.Students, "Id", "Name");
-                ViewData["IdTeacher"] = new SelectList(_context.Teachers, "Id", "Name");
-                ViewData["DateAndTime"] = DateOnly.FromDateTime(DateTime.Now);
-                ViewData["Status"] = new SelectList(new List<SelectListItem> {  
-                        new SelectListItem { Text = "Present", Value = "1" },
-                        new SelectListItem { Text = "Absent", Value = "0" },
-                        new SelectListItem { Text = "Excused", Value = "m" }
-                    }, "Value", "Text");
-                _notyf.Error("The entered data is invalid.");
-                return View(Attendances);
+                
+                _notyf.Error("البيانات المدخلة غير صالحة.");
             }catch(Exception ex){
-                ViewData["IdLectuer"] = new SelectList(_context.Lectuers, "Id", "Name");
-                ViewData["IdStudent"] = new SelectList(_context.Students, "Id", "Name");
-                ViewData["IdTeacher"] = new SelectList(_context.Teachers, "Id", "Name");
-                ViewData["DateAndTime"] = DateOnly.FromDateTime(DateTime.Now);
-                ViewData["Status"] = new SelectList(new List<SelectListItem> {
-                        new SelectListItem { Text = "Present", Value = "1" },
-                        new SelectListItem { Text = "Absent", Value = "0" },
-                        new SelectListItem { Text = "Excused", Value = "m" }
-                    }, "Value", "Text");
-                _notyf.Error("Unexpected error.");
+                _notyf.Error("حدث خطأ غير متوقع\nحاول مرة اخرى.");
                 await _logger.LogAsync(ex,"Attendance/Create");
-                return View(Attendances);
             }
+            ViewData["DateAndTime"] = DateOnly.FromDateTime(DateTime.Now);
 
+            ViewData["IdLectuer"] = Attendances[0].IdLectuer;
+            ViewData["IdTeacher"] = Attendances[0].IdTeacher;
+            ViewData["IdClass"] = Attendances[0].IdClass;
+
+            List<StudentLectuerTeacher>? student = await _context.StudentLectuerTeachers
+                .Where(t => t.IdTeacher == Attendances[0].IdTeacher && t.IdClass == Attendances[0].IdClass)
+                .Include(st => st.IdStudentNavigation)
+                .ToListAsync();
+
+            ViewData["Students"] = student;
+            return View(Attendances);
         }
 
         [AuthorizeRoles("Teacher")]
         public async Task<IActionResult> GetLectuerForTeacher(int teacherId)
         {
+            if(teacherId != HttpContext.Session.GetInt32("Id"))
+            {
+                _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة");
+                await _logger.LogAsync(new Exception("التلاعب بالبيانات المرسلة"), "Attendance/GetLectuerForTeacher");
+                return View(nameof(Index), new { idTeacher = teacherId });
+            }
             var lectuer =_context.Attendances
                 .Where(att=> att.DateAndTime == DateOnly.FromDateTime(DateTime.Now))
                 .Select(att => att.IdLectuer)
@@ -331,8 +306,8 @@ namespace SchoolSystem.Controllers
                 .Where(ts => ts.IdTeacher == teacherId && ts.IdLectuer != lectuer.Result)
                 .Include(ts => ts.IdLectuerNavigation)
                 .Select(ts => new {
-                    id = ts.IdLectuerNavigation.Id,
-                    name = ts.IdLectuerNavigation.Name
+                    id = ts.IdLectuerNavigation!=null? ts.IdLectuerNavigation.Id:0,
+                    name = ts.IdLectuerNavigation!=null? ts.IdLectuerNavigation.Name:"غير معرف"
                 }).ToListAsync();
 
             return Json(subjects);
@@ -340,6 +315,13 @@ namespace SchoolSystem.Controllers
 
         public async Task<IActionResult> GetClassForSubject(int teacherId, int subjectId)
         {
+            if(teacherId != HttpContext.Session.GetInt32("Id"))
+            {
+                _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة");
+                await _logger.LogAsync(new Exception("التلاعب بالبيانات المرسلة"), "Attendance/GetClassForSubject");
+                return View(nameof(Index), new { idTeacher = teacherId });
+            }
+
             var TheClass =_context.Attendances
                 .Where(att=> att.DateAndTime == DateOnly.FromDateTime(DateTime.Now))
                 .Select(att => att.IdClass)
@@ -348,12 +330,17 @@ namespace SchoolSystem.Controllers
                 .Where(tg => tg.IdTeacher == teacherId && tg.IdClass != TheClass.Result)
                 .Include(tg => tg.IdClassNavigation)
                 .Select(tg => new {
-                    id = tg.IdClass,
-                    name = tg.IdClassNavigation.Name
+                    id = tg.IdClassNavigation!=null? tg.IdClassNavigation.Id:0,
+                    name = tg.IdClassNavigation!=null? tg.IdClassNavigation.Name:"غير معرف"
                 }).ToListAsync();
-                foreach(var i in grades){
-                    Console.WriteLine($"Lectuer: {i.name}");
-                }
+
+            if(grades == null)
+            {
+                _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة");
+                await _logger.LogAsync(new Exception("التلاعب بالبيانات المرسلة"), "Attendance/GetClassForSubject");
+                return View(nameof(Index), new { idTeacher = teacherId });
+            }
+                
             return Json(grades);
         }
 
@@ -518,21 +505,21 @@ namespace SchoolSystem.Controllers
         [AuthorizeRoles("Teacher")]
         public async Task<IActionResult> Edit(int? id)
         {
-            if (id == null)
-            {
-                _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة");
-                return View(nameof(ViewAttendance));
-            }
-
-            var attendance = await _context.Attendances.FindAsync(id);
-            if (attendance == null)
-            {
-                Exception ex = new Exception("التلاعب بالبيانات المرسلة");
-                await _logger.LogAsync(ex,"Index/SetCredentials");
-                _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة");
-                return View(nameof(ViewAttendance));
-            }
             try{
+                if (id == null)
+                {
+                    _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة");
+                    return View(nameof(ViewAttendance));
+                }
+
+                var attendance = await _context.Attendances.FindAsync(id);
+                if (attendance == null)
+                {
+                    await _logger.LogAsync(new Exception("التلاعب بالبيانات المرسلة"),"Attendance/Edit");
+                    _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة");
+                    return View(nameof(ViewAttendance));
+                }
+            
                 if (attendance.IdStudent != null)
                 {
                     var student = await _context.Students.FindAsync(attendance.IdStudent);
@@ -600,7 +587,7 @@ namespace SchoolSystem.Controllers
                         _context.Update(attendance);
                         await _context.SaveChangesAsync();
                         _notyf.Success("تمت عملية التعديل بنجاح");
-                        return RedirectToAction("ViewAttendance", new { idTeacher = attendance.IdTeacher });
+                        return RedirectToAction("ViewAttendance", new { teacherId = attendance.IdTeacher });
                     }
                     else if (attendance.AttendanceStatus == "m")
                     {
@@ -608,7 +595,7 @@ namespace SchoolSystem.Controllers
                         _context.Update(attendance);
                         await _context.SaveChangesAsync();
                         _notyf.Success("تمت عملية التعديل بنجاح");
-                        return RedirectToAction("ViewAttendance", new { idTeacher = attendance.IdTeacher });
+                        return RedirectToAction("ViewAttendance", new { teacherId = attendance.IdTeacher });
                     }
                     else
                     {

@@ -34,6 +34,7 @@ public class SessionValidatorService : ISessionValidatorService
             var teacher = await _context.Teachers.FindAsync(idTeacher);
             if (teacherId != idTeacher || teacher == null)
             {
+                Console.WriteLine($"TeacherId: {teacherId}, IdTeacher session: {idTeacher}");
                 _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة");
                 await _logger.LogAsync(new Exception("التلاعب بالبيانات المرسلة."), sours);
                 return (false, 0, 0, true);

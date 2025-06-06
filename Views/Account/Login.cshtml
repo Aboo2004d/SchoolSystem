@@ -83,18 +83,15 @@
     <div class="login-card">
         <h2 class="text-center">تسجيل الدخول</h2>
         <form asp-action="Login" method="post">
-            <div asp-validation-summary="All" class="text-danger mb-3 text-start"></div>
 
             <div class="mb-3 text-start">
                 <label asp-for="UserName" dir="rtl" class="form-label">اسم المستخدم</label>
                 <input asp-for="UserName" dir="ltr" class="form-control" dir="ltr" />
-                <span asp-validation-for="UserName" class="text-danger small"></span>
             </div>
 
             <div class="mb-3 text-start">
                 <label asp-for="Password" dir="rtl" class="form-label">كلمة المرور</label>
                 <input asp-for="Password" dir="ltr" type="password" class="form-control" dir="ltr" autocomplete="off" />
-                <span asp-validation-for="Password" class="text-danger small"></span>
             </div>
 
             <button type="submit" class="btn btn-custom w-100 mt-2">

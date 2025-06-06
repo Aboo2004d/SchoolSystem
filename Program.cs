@@ -11,8 +11,18 @@ using AspNetCoreHero.ToastNotification.Extensions;
 using SchoolSystem.Data;
 using SchoolSystem.Migrations;
 using SchoolSystem.Controllers;
+using QuestPDF;
+using NuGet.Packaging;
+using QuestPDF.Drawing;
 
 var builder = WebApplication.CreateBuilder(args);
+
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+FontManager.RegisterFont(File.OpenRead("wwwroot/Amiri/Amiri-Bold.ttf"));
+FontManager.RegisterFont(File.OpenRead("wwwroot/Amiri/Amiri-BoldItalic.ttf"));
+FontManager.RegisterFont(File.OpenRead("wwwroot/Amiri/Amiri-Italic.ttf"));
+FontManager.RegisterFont(File.OpenRead("wwwroot/Amiri/Amiri-Regular.ttf"));
+
 
 // 📁 تحميل المتغيرات البيئية من ملف .env
 Env.Load("E:\\Uni\\Files\\Training\\aspdotnet_core\\SchoolSystem\\appsetting.env");

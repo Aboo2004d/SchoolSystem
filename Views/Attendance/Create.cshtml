@@ -29,28 +29,29 @@
                 var student = ViewBag.Students[i];
                 if (student.Id != null)  // تحقق أولا
                 {
-                <tr>
-                    <input type="hidden" name="Attendances[@i].IdLectuer" value="@IdLectuer" />
-                    <input type="hidden" name="Attendances[@i].IdTeacher" value="@IdTeacher" />
-                    <input type="hidden" name="Attendances[@i].DateAndTime" value="@DateAndTime" />
-                    <input type="hidden" name="Attendances[@i].IdClass" value="@IdClass" />
-                    <td>
-                        @student.IdStudentNavigation.Name
-                        <input type="hidden" name="Attendances[@i].IdStudent" value="@student.IdStudent" />
-                    </td>
-                    <td>
-                        <select name="Attendances[@i].AttendanceStatus" class="form-control attendance-status">
-                            <option value="1">حضور</option>
-                            <option value="0">غياب</option>
-                            <option value="m">غياب بعذر</option>
-                        </select>
-                    </td>
-                    <td> 
-                        <input type="text" name="Attendances[@i].Excuse" class="form-control excuse-input" disabled />
-                    </td>
-                </tr>
-            }}
+                    <tr>
+                        <input type="hidden" name="Attendances[@i].IdLectuer" value="@IdLectuer" />
+                        <input type="hidden" name="Attendances[@i].IdTeacher" value="@IdTeacher" />
+                        <input type="hidden" name="Attendances[@i].DateAndTime" value="@DateAndTime" />
+                        <input type="hidden" name="Attendances[@i].IdClass" value="@IdClass" />
+                        <td>
+                            @student.IdStudentNavigation.Name
+                            <input type="hidden" name="Attendances[@i].IdStudent" value="@student.IdStudent" />
+                        </td>
+                        <td>
+                            <select name="Attendances[@i].AttendanceStatus" class="form-control attendance-status">
+                                <option value="1">حضور</option>
+                                <option value="0">غياب</option>
+                                <option value="m">غياب بعذر</option>
+                            </select>
+                        </td>
+                        <td> 
+                            <input type="text" name="Attendances[@i].Excuse" class="form-control excuse-input" disabled />
+                        </td>
+                    </tr>
+                }
             }
+        }
             
             
         </tbody>

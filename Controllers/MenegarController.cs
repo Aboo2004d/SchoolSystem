@@ -292,6 +292,7 @@ namespace SchoolSystem.Controllers
         {
             return View();
         }
+
         [AuthorizeRoles("admin")]
         public async Task<IActionResult> ManagerMenegarTeacher(
             [FromQuery] int draw,

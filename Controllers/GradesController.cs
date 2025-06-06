@@ -22,10 +22,10 @@ namespace SchoolSystem.Controllers
         private readonly INotyfService _notyf;
         private readonly IErrorLoggerService _logger;
         private readonly SystemSchoolDbContext _context;
-        private readonly SessionValidatorService _sessionValidatorService;
+        private readonly ISessionValidatorService _sessionValidatorService;
 
 
-        public GradesController(SystemSchoolDbContext context, INotyfService notyf, IErrorLoggerService logger, SessionValidatorService sessionValidatorService)
+        public GradesController(SystemSchoolDbContext context, INotyfService notyf, IErrorLoggerService logger, ISessionValidatorService sessionValidatorService)
         {
             _logger = logger;
             _context = context;
@@ -171,7 +171,7 @@ namespace SchoolSystem.Controllers
                     return RedirectToAction("Login", "Account");
                 return RedirectToAction("Index", "Teacher");
             }
-            ViewBag.IdTeacher = Request.Query["IdTeacher"];
+            ViewBag.IdTeacher = IdTeacher;
             return View();
         }
 
@@ -199,56 +199,42 @@ namespace SchoolSystem.Controllers
         [HttpGet]
         // GET: Grades/Create
         [AuthorizeRoles("Teacher")]
-        public async Task<IActionResult> Create(int teacherId, int subjectId, int gradeId)
+        public async Task<IActionResult> Create(int? teacherId, int? subjectId, int? gradeId)
         {
-            bool teacher = _context.Teachers.Any(t => t.Id ==teacherId);
-            if(!teacher){
-                Exception ex = new Exception();
-                int Id = HttpContext.Session.GetInt32("Id")??0;
-                    if(Id != 0){
-                        _notyf.Error("The transmitted data cannot be tampered with.");
-                        ex = new Exception("Manipulation of transmitted data");
-                        await _logger.LogAsync(ex,"Grades/Create");
-                        return RedirectToAction("Index",new{teacherId =Id });
-                    }
-                    await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                    _notyf.Error("Unauthenticated user.");
-                    ex = new Exception("Unauthenticated user.");
-                    await _logger.LogAsync(ex, "Grades/Create");
-                    return RedirectToAction("Index","Home");
+            teacherId = HttpContext.Session.GetInt32("Id") ?? 0;
+            if (gradeId == null || subjectId == null)
+            {
+                
+                var (IsValid, IdTeacher, IdSchool, status) = await _sessionValidatorService.ValidateTeacherSessionAsync(HttpContext, teacherId ?? 0, "Attendance/Create");
+                if (!status)
+                {
+                    return RedirectToAction("Login", "Account");
+                }
+
+                _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة");
+                await _logger.LogAsync(new Exception("التلاعب بالبيانات المرسلة"), "Attendance/Create");
+                return View(nameof(Index), new { idTeacher = teacherId });
             }
-            bool Lectuer = _context.Lectuers.Any(t => t.Id ==subjectId);
-            if(!Lectuer){
-                Exception ex = new Exception();
-                int Id = HttpContext.Session.GetInt32("Id")??0;
-                    if(Id != 0){
-                        _notyf.Error("The transmitted data cannot be tampered with.");
-                        ex = new Exception("Manipulation of transmitted data");
-                        await _logger.LogAsync(ex,"Grades/Create");
-                        return RedirectToAction("Index",new{teacherId =Id });
-                    }
-                    await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                    _notyf.Error("Unauthenticated user.");
-                    ex = new Exception("Unauthenticated user.");
-                    await _logger.LogAsync(ex, "Grades/Create");
-                    return RedirectToAction("Index","Home");
+
+            bool isFind = _context.Teachers.Any(t => t.Id == teacherId)
+            && _context.Lectuers.Any(t => t.Id == subjectId)
+            && _context.Genders.Any(t => t.Id == gradeId);
+            
+            if (!isFind)
+            {
+                int Id = HttpContext.Session.GetInt32("Id") ?? 0;
+                if (Id != 0)
+                {
+                    _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة.");
+                    await _logger.LogAsync(new Exception("التلاعب بالبيانات المرسلة"), "Grades/Create");
+                    return View(nameof(ViewGrades), new { teacherId = Id });
+                }
+
+                _notyf.Error("انتهت الجلسة.");
+                await _logger.LogAsync(new Exception("دخول غير مصرح"), "Grades/Create");
+                return RedirectToAction("Logout", "Account");
             }
-            bool grade = _context.Genders.Any(t => t.Id ==gradeId);
-            if(!Lectuer){
-                Exception ex = new Exception();
-                int Id = HttpContext.Session.GetInt32("Id")??0;
-                    if(Id != 0){
-                        _notyf.Error("The transmitted data cannot be tampered with.");
-                        ex = new Exception("Manipulation of transmitted data");
-                        await _logger.LogAsync(ex,"Grades/Create");
-                        return RedirectToAction("Index",new{teacherId =Id });
-                    }
-                    await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                    _notyf.Error("Unauthenticated user.");
-                    ex = new Exception("Unauthenticated user.");
-                    await _logger.LogAsync(ex, "Grades/Create");
-                    return RedirectToAction("Index","Home");
-            }
+            
             var students = _context.Students
                 .Where(student =>
                 _context.StudentLectuerTeachers.Any(stl => stl.IdClass == gradeId
@@ -522,38 +508,30 @@ namespace SchoolSystem.Controllers
         [AuthorizeRoles("Teacher")]
         public async Task<IActionResult> Edit(int? id)
         {
-            Exception ex = new Exception();
+            int Id = HttpContext.Session.GetInt32("Id")??0;
             if (id == null)
             {
-                int Id = HttpContext.Session.GetInt32("Id")??0;
                 if(Id != 0){
-                    _notyf.Error("The transmitted data cannot be tampered with.");
-                    ex = new Exception("Manipulation of transmitted data");
-                    await _logger.LogAsync(ex,"Grades/Edit");
-                    return RedirectToAction("Index",new{teacherId =Id });
+                    _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة.");
+                    await _logger.LogAsync(new Exception("التلاعب بالبيانات المرسلة"),"Grades/Edit");
+                    return View(nameof(ViewGrades),new{teacherId =Id });
                 }
-                await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                _notyf.Error("Unauthenticated user.");
-                ex = new Exception("Unauthenticated user.");
-                await _logger.LogAsync(ex, "Grades/Edit");
-                return RedirectToAction("Index","Home");
+                _notyf.Error("انتهت الجلسة.");
+                await _logger.LogAsync(new Exception("دخول غير مصرح."), "Grades/Edit");
+                return RedirectToAction("Logout","Account");
             }
 
             var grade = await _context.Grades.FindAsync(id);
             if (grade == null)
             {
-                int Id = HttpContext.Session.GetInt32("Id")??0;
                 if(Id != 0){
-                    _notyf.Error("The transmitted data cannot be tampered with.");
-                    ex = new Exception("Manipulation of transmitted data");
-                    await _logger.LogAsync(ex,"Grades/Edit");
-                    return RedirectToAction("Index",new{teacherId =Id });
+                    _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة.");
+                    await _logger.LogAsync(new Exception("التلاعب بالبيانات المرسلة"),"Grades/Edit");
+                    return View(nameof(ViewGrades),new{teacherId =Id });
                 }
-                await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                _notyf.Error("Unauthenticated user.");
-                ex = new Exception("Unauthenticated user.");
-                await _logger.LogAsync(ex, "Grades/Edit");
-                return RedirectToAction("Index","Home");
+                _notyf.Error("انتهت الجلسة.");
+                await _logger.LogAsync(new Exception("دخول غير مصرح."), "Grades/Edit");
+                return RedirectToAction("Logout","Account");
             }
             return View(grade);
         }
@@ -566,38 +544,34 @@ namespace SchoolSystem.Controllers
         [AuthorizeRoles("Teacher")]
         public async Task<IActionResult> Edit(int id, [Bind("GradesId,FirstMonth,Mid,SecondMonth,Activity,Final")] Grade grade)
         {
-            Exception ex = new Exception();
-            if (id != grade.GradesId)
+            int Id = HttpContext.Session.GetInt32("Id")??0;
+            if  (id != grade.GradesId)
             {
-                int Id = HttpContext.Session.GetInt32("Id")??0;
-                if(Id != 0){
-                    _notyf.Error("The transmitted data cannot be tampered with.");
-                    ex = new Exception("Manipulation of transmitted data");
-                    await _logger.LogAsync(ex,"Grades/Edit");
-                    return RedirectToAction("Index",new{teacherId =Id });
+                if(Id != 0)
+                {
+                    _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة.");
+                    await _logger.LogAsync(new Exception("التلاعب بالبيانات المرسلة"),"Grades/Edit");
+                    return View(nameof(ViewGrades),new{teacherId =Id });
                 }
-                await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                _notyf.Error("Unauthenticated user.");
-                ex = new Exception("Unauthenticated user.");
-                await _logger.LogAsync(ex, "Grades/Edit");
-                return RedirectToAction("Index","Home");
+                _notyf.Error("انتهت الجلسة.");
+                await _logger.LogAsync(new Exception("دخول غير مصرح."), "Grades/Edit");
+                return RedirectToAction("Logout","Account");
             }
-            var grades =await _context.Grades.FirstOrDefaultAsync(g => g.GradesId == grade.GradesId);
+
+            var grades = await _context.Grades.FindAsync(id);
             if (grades == null)
             {
-                int Id = HttpContext.Session.GetInt32("Id")??0;
-                if(Id != 0){
-                    _notyf.Error("The data sent is incorrect.");
-                    ex = new Exception("The data sent is incorrect");
-                    await _logger.LogAsync(ex,"Grades/Edit");
-                    return RedirectToAction("Index",new{teacherId =Id });
+                if(Id != 0)
+                {
+                    _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة.");
+                    await _logger.LogAsync(new Exception("التلاعب بالبيانات المرسلة"),"Grades/Edit");
+                    return View(nameof(ViewGrades),new{teacherId =Id });
                 }
-                await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                _notyf.Error("Unauthenticated user.");
-                ex = new Exception("Unauthenticated user.");
-                await _logger.LogAsync(ex, "Grades/Edit");
-                return RedirectToAction("Index","Home");
+                _notyf.Error("انتهت الجلسة.");
+                await _logger.LogAsync(new Exception("دخول غير مصرح."), "Grades/Edit");
+                return RedirectToAction("Logout","Account");
             }
+
             if (ModelState.IsValid)
             {
                 try
@@ -611,34 +585,33 @@ namespace SchoolSystem.Controllers
                 }
                 catch (Exception exc)
                 {
-                    if(_context.Grades.Any(g => g.GradesId == id)){
-                        int Idte = HttpContext.Session.GetInt32("Id")??0;
-                        if(Idte != 0){
-                            _notyf.Error("The transmitted data cannot be tampered with.");
-                            ex = new Exception("Manipulation of transmitted data");
-                            await _logger.LogAsync(exc,"Grades/Edit");
-                            return RedirectToAction("Index",new{teacherId =Idte });
+                    if (_context.Grades.Any(g => g.GradesId == id))
+                    {
+                        if (Id != 0)
+                        {
+                            if (Id != 0)
+                            {
+                                _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة.");
+                                await _logger.LogAsync(new Exception("التلاعب بالبيانات المرسلة"), "Grades/Edit");
+                                return View(nameof(ViewGrades), new { teacherId = Id });
+                            }
+                        }
+                        _notyf.Error("انتهت الجلسة.");
+                        await _logger.LogAsync(new Exception("دخول غير مصرح."), "Grades/Edit");
+                        return RedirectToAction("Logout","Account");
                     }
-                    await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                    _notyf.Error("Unauthenticated user.");
-                    ex = new Exception("Unauthenticated user.");
-                    await _logger.LogAsync(exc, "Grades/Edit");
-                    return RedirectToAction("Index","Home");
-                    }
-                    int Id = HttpContext.Session.GetInt32("Id")??0;
-                    if(Id != 0){
+                    if (Id != 0)
+                    {
                         _notyf.Error("The transmitted data cannot be tampered with.");
-                        ex = new Exception("Manipulation of transmitted data");
-                        await _logger.LogAsync(exc,"Grades/Edit");
-                        return RedirectToAction("Index",new{teacherId =Id });
+                        await _logger.LogAsync(new Exception("Manipulation of transmitted data"), "Grades/Edit");
+                        return RedirectToAction("Index", new { teacherId = Id });
                     }
                     await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
                     _notyf.Error("Unauthenticated user.");
-                    ex = new Exception("Unauthenticated user.");
-                    await _logger.LogAsync(exc, "Grades/Edit");
-                    return RedirectToAction("Index","Home");
+                    await _logger.LogAsync(new Exception("Unauthenticated user."), "Grades/Edit");
+                    return RedirectToAction("Index", "Home");
                 }
-                return RedirectToAction(nameof(Index),new{teacherId = grades.IdTeacher});
+                return RedirectToAction(nameof(Index), new { teacherId = grades.IdTeacher });
             }
             return View(grade);
         }

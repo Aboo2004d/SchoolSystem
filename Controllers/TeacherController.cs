@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using NuGet.Packaging.Signing;
+using QuestPDF.Fluent;
 using SchoolSystem.Data;
 using SchoolSystem.Filters;
 using SchoolSystem.Models;
@@ -47,7 +48,7 @@ namespace SchoolSystem.Controllers
                         Teacher? teacher = await _context.Teachers.Where(t => t.Id == Id && t.IdSchool == IdSchool).FirstOrDefaultAsync();
                         if (teacher != null)
                         {
-                            Console.WriteLine($"Id Teacher: {teacher.Id}");
+                            Console.WriteLine($"Id Teacher123: {teacher.Id}");
                             return View(teacher);
                         }
                     }
@@ -236,7 +237,7 @@ namespace SchoolSystem.Controllers
         {
             try
             {
-                
+                Console.WriteLine($"Id Teach: {teacherId}");
                 // التحقق من صلاحية المستخدم و التلاعب بالبيانات
                 var (IsValid, IdTeacher, IdSchool,status) = await _sessionValidatorService.ValidateTeacherSessionAsync(HttpContext, teacherId, "Attendance/DataAttendance");
                 if (!IsValid)
@@ -352,7 +353,8 @@ namespace SchoolSystem.Controllers
             }
             var name = _context.Teachers.FirstOrDefault(c => c.Id == IdTeacher);
             ViewBag.name = name?.Name??"Null";
-            ViewBag.IdTeacher = Request.Query["teacherId"];
+            Console.WriteLine($"std Teacher Id: {IdTeacher}");
+            ViewBag.IdTeacher = IdTeacher;
             return View();
         }
 
@@ -418,7 +420,45 @@ namespace SchoolSystem.Controllers
             return Json(data);
         }
 
+        // شهادة قيد لطالب
+        [AuthorizeRoles("Teacher")]
+        public IActionResult DownloadTeacherCertificate(int? idTeacher)
+        {
+            Console.WriteLine($"Id Teacher: {idTeacher}");
+            try
+            {
+                Teacher? teacher = _context.Teachers
+                .Where(s => s.Id == idTeacher && s.IsDeleted == false && s.IdSchool == HttpContext.Session.GetInt32("School"))
+                .Include(s => s.IdSchoolNavigation).SingleOrDefault();
+                if (teacher == null)
+                {
+                    _logger.LogAsync(new Exception("انتهت صلاحية الجلسة"), "Teacher/DownloadTeacherCertificate");
+                    _notyf.Error("انتهت الجلسة.");
+                    return RedirectToAction("Logout", "Account");
+                }
+                Menegar? menegar = _context.Menegars.SingleOrDefault(m => m.IdSchool == teacher.IdSchool);
 
+                var document = new TeacherEnrollmentCertificate(
+                    teacher?.Name ?? "غير معرف",
+                    teacher?.IdNumber ?? 0,
+                    teacher?.IdSchoolNavigation?.Name ?? "غير معرف",
+                    menegar?.Name ?? "لم يتم اعتماده بعد.",
+                    _context.TeacherLectuerClasses.Where(tl => tl.IdTeacher == teacher.Id && teacher.IdSchool == teacher.IdSchool).Select(name => name.IdLectuerNavigation.Name).ToList());
+                var stream = new MemoryStream();
+                document.GeneratePdf(stream);
+                stream.Position = 0;
+
+                return File(stream, "application/pdf", $"شهادة_قيد_{teacher?.Name ?? "غير معرف"}.pdf");
+
+            }
+            catch (Exception ex)
+            {
+                _logger.LogAsync(ex, "Student/DownloadStudentCertificate");
+                _notyf.Error("حدث خطا اثناء انشاء شهادة قيد.\nيرجى المحاولة لاحقا");
+                return View(nameof(Index));
+            }
+        }
+        
         private bool TeacherExists(int id)
         {
             return _context.Teachers.Any(e => e.Id == id);

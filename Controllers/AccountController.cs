@@ -113,22 +113,37 @@ namespace SchoolSystem.Controllers
                             switch (account.Role)
                             {
                                 case "admin":
-                                    Menegar? menegar = await _context.Menegars.FirstOrDefaultAsync(s => s.Id == account.IdUser);
-                                    if (await Cookies(account.UsersName, account.Role, menegar?.Email, menegar?.Id, menegar?.IdSchool, menegar?.Name))
+                                    Menegar? menegar = await _context.Menegars.FirstOrDefaultAsync(s => s.Id == account.IdUser && s.IsDeleted == false);
+                                    if (menegar == null)
+                                    {
+                                        _notyf.Error("الحساب غير متوفر");
+                                        return View(model);
+                                    }
+                                    if (await Cookies(account.UsersName, account.Role, menegar.Email, menegar.Id, menegar.IdSchool, menegar.Name))
                                     {
                                         return RedirectToAction("Index", "Home");
                                     }
                                     break;
                                 case "Student":
                                     Student? student = await _context.Students.FirstOrDefaultAsync(s => s.Id == account.IdUser);
-                                    if (await Cookies(account.UsersName, account.Role, student?.Email, student?.Id, student?.IdSchool, student?.Name))
+                                    if (student == null)
+                                    {
+                                        _notyf.Error("الحساب غير متوفر");
+                                        return View(model);
+                                    }
+                                    if (await Cookies(account?.UsersName, account?.Role, student?.Email, student?.Id, student?.IdSchool, student?.Name))
                                     {
                                         return RedirectToAction("Index", "Home");
                                     }
                                     break;
                                 case "Teacher":
                                     Teacher? teacher = await _context.Teachers.FirstOrDefaultAsync(s => s.Id == account.IdUser);
-                                    if (await Cookies(account.UsersName, account.Role, teacher?.Email, teacher?.Id, teacher?.IdSchool, teacher?.Name))
+                                    if (teacher == null)
+                                    {
+                                        _notyf.Error("الحساب غير متوفر");
+                                        return View(model);
+                                    }
+                                    if (await Cookies(account?.UsersName, account?.Role, teacher?.Email, teacher?.Id, teacher?.IdSchool, teacher?.Name))
                                     {
                                         return RedirectToAction("Index", "Home");
                                     }
@@ -163,12 +178,12 @@ namespace SchoolSystem.Controllers
         protected async Task<bool> Cookies(string? username, string? role, string? email, int? id, int? school, string? name)
         {
             // تحقق من القيم المدخلة
-            if (string.IsNullOrWhiteSpace(username) || 
-                string.IsNullOrWhiteSpace(role) || 
-                string.IsNullOrWhiteSpace(email) || 
+            if (string.IsNullOrEmpty(username) || 
+                string.IsNullOrEmpty(role) || 
+                string.IsNullOrEmpty(email) || 
                 id == null || 
                 school == null || 
-                string.IsNullOrWhiteSpace(name))
+                string.IsNullOrEmpty(name))
             {
                 _notyf.Error("فشل تسجيل الدخول. يرجى المحاولة مرة أخرى.");
                 return false;
@@ -177,15 +192,15 @@ namespace SchoolSystem.Controllers
             // ✅ تخزين القيم الأساسية فقط في الجلسة
             HttpContext.Session.SetInt32("Id", id??0);
             HttpContext.Session.SetInt32("School", school??0);
-            HttpContext.Session.SetString("UserName", username);
-            HttpContext.Session.SetString("Role", role);
+            HttpContext.Session.SetString("UserName", username??"null");
+            HttpContext.Session.SetString("Role", role??"null");
             
             // ✅ إعداد قائمة Claims
             var claims = new List<Claim>
             {
-                new Claim(ClaimTypes.Name, username),
-                new Claim(ClaimTypes.Role, role),
-                new Claim(ClaimTypes.Email, email)
+                new Claim(ClaimTypes.Name, username??"null"),
+                new Claim(ClaimTypes.Role, role??"null"),
+                new Claim(ClaimTypes.Email, email??"null")
             };
 
             // ✅ إنشاء الهوية والمستخدم

@@ -11,6 +11,9 @@
     <a class="btn btn-outline-success" asp-controller="Teacher" asp-action="Create">
         <i class="bi bi-person-plus-fill"></i> إضافة معلم
     </a>
+
+    <button id="exportBtn" class="btn btn-outline-success"><i class="bi bi-file-earmark-arrow-up"></i> تصدير المعلمين</button>
+    
     <a class="btn btn-outline-secondary" asp-action="Index">
         <i class="bi bi-arrow-left-circle"></i> عودة
     </a>
@@ -39,6 +42,9 @@
 @section Scripts {
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
 
     <script>
         $(document).ready(function () {
@@ -150,6 +156,24 @@
                     }
                 });
             });
+        });
+    </script>
+    
+    <script>
+        document.getElementById('exportBtn').addEventListener('click', function () {
+            // عرض إشعار (من خلال Toastify أو Notyf أو SweetAlert)
+            Toastify({
+                text: "جارٍ تصدير الملف...",
+                duration: 3000,
+                gravity: "top",
+                position: "center",
+                backgroundColor: "#28a745"
+            }).showToast();
+
+            // بدء التحميل بعد لحظات
+            setTimeout(function () {
+                window.location.href = '@Url.Action("ExportAllTeacherInSchoolToExcel", "ExportData")';
+            }, 1000); // تأخير بسيط لعرض الإشعار
         });
     </script>
 

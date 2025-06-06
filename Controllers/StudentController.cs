@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using NuGet.Protocol;
+using QuestPDF.Fluent;
 using SchoolSystem.Data;
 using SchoolSystem.Filters;
 using SchoolSystem.Models;
@@ -37,7 +38,7 @@ namespace SchoolSystem.Controllers
         public async Task<IActionResult> Index()
         {
             // التحقق من صلاحية المستخدم و التلاعب بالبيانات
-            var (IsValid, IdTeacher, IdSchool,status) = await _sessionValidatorService
+            var (IsValid, IdStudent, IdSchool,status) = await _sessionValidatorService
             .ValidateStudentSessionAsync(HttpContext, HttpContext.Session.GetInt32("Id")??-1, "Attendance/DataAttendance");
             if (!IsValid)
             {
@@ -45,7 +46,9 @@ namespace SchoolSystem.Controllers
                 return RedirectToAction("Logout", "Account");
             }
 
-            return View();
+            Student? student = await _context.Students.SingleOrDefaultAsync(s => s.Id == IdStudent && s.IdSchool == IdSchool);
+
+            return View(student);
         }
 
         // GET: Student/Details/5
@@ -369,6 +372,44 @@ namespace SchoolSystem.Controllers
             return Json(result);
         }
 
+        // شهادة قيد لطالب
+        [AuthorizeRoles("admin","Student")]
+        public IActionResult DownloadStudentCertificate(int? idStudent)
+        {
+            try
+            {
+                Student? student = _context.Students
+                .Where(s => s.Id == idStudent && s.IsDeleted == false && s.IdSchool == HttpContext.Session.GetInt32("School"))
+                .Include(s => s.IdClassNavigation).Include(s => s.IdSchoolNavigation).SingleOrDefault();
+                if (student == null)
+                {
+                    _logger.LogAsync(new Exception("انتهت صلاحية الجلسة"), "Student/DownloadStudentCertificate");
+                    _notyf.Error("انتهت الجلسة.");
+                    return RedirectToAction("Logout", "Account");
+                }
+                Menegar? menegar = _context.Menegars.SingleOrDefault(m => m.IdSchool == student.IdSchool);
+
+                var document = new StudentEnrollmentCertificate(
+                    student?.Name??"غير معرف", student?.IdNumber??0,
+                    student?.IdClassNavigation?.Name??"غير معرف",
+                    student?.IdSchoolNavigation?.Name??"غير معرف",
+                    menegar?.Name??"لم يتم اعتماده بعد.");
+                var stream = new MemoryStream();
+                document.GeneratePdf(stream);
+                stream.Position = 0;
+
+                return File(stream, "application/pdf", $"شهادة_قيد_{student?.Name??"غير معرف"}.pdf");
+
+            }
+            catch (Exception ex)
+            {
+                _logger.LogAsync(ex, "Student/DownloadStudentCertificate");
+                _notyf.Error("حدث خطا اثناء انشاء شهادة قيد.\nيرجى المحاولة لاحقا");
+                if (HttpContext.Session.GetString("Role") == "Student")
+                    return View(nameof(Index));
+                return View(nameof(Details));
+            }
+        }
 
         private bool StudentExists(int id)
         {

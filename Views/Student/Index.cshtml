@@ -14,6 +14,9 @@
                     <a class="btn btn-lg btn-outline-primary w-100" asp-controller="Profile" asp-action="IndexProfile">
                         <i class="bi bi-person-circle"></i> معلوماتي الشخصية
                     </a>
+                    <a class="btn btn-lg btn-outline-success w-100" asp-action="DownloadStudentCertificate" asp-route-idStudent="@Model.Id" >
+                        <i class="bi bi-file-earmark-arrow-up"></i>  شهادة قيد
+                    </a>
                 </div>
             </div>
         </div>

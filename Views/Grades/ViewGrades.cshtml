@@ -6,8 +6,8 @@
 
 <h1>علامات الطلاب</h1>
 <div class="dropdown">
-    <button class="btn btn-success dropdown-toggle" type="button" id="dropdownNewMark" data-bs-toggle="dropdown" aria-expanded="false">
-        اضافة العلامات
+    <button class="btn btn-outline-success dropdown-toggle" type="button" id="dropdownNewMark" data-bs-toggle="dropdown" aria-expanded="false">
+       <i class="bi bi-plus-circle"></i> اضافة العلامات
     </button>
     <ul class="dropdown-menu p-3" aria-labelledby="dropdownNewMark" style="min-width: 250px;">
         <li class="form-group mb-2">
@@ -25,8 +25,9 @@
             </select>
         </li>
     </ul>
+<button id="exportBtn" class="btn btn-outline-success" ><i class="bi bi-file-earmark-arrow-up"></i> تصدير علامات الطلاب</button>
+<a class="btn btn-outline-dark" asp-controller="Teacher" asp-action="Index"> <i class="bi bi-arrow-left"></i>  عودة</a>
 </div>
-<a class="btn btn-dark" asp-controller="Teacher" asp-action="Index"> عودة</a>
 
 <hr>
 <table id="studentsTable" class="display" style="width:100%">
@@ -63,15 +64,18 @@
 
 @section Scripts {
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
     
     <script>
+        var idTeacher = @Html.Raw(ViewBag.IdTeacher);
         $(document).ready(function () {
             $('#studentsTable').DataTable({
                 "deferRender": true,
                 "processing": true,
                 "serverSide": true,
                 "ajax": {
-                    "url": "/Grades/DataGrades",
+                    "url": "/Grades/DataGrades?teacherId="+idTeacher,
                     "type": "GET",
                     "dataSrc": function (json) {
                             if (json.error) {
@@ -106,7 +110,7 @@
                     {
                          "data": null,
                         "render": function (data, type, row) {
-                                return`<a class="btn btn-warning" href="/TheClass/Edit/${row.id}">تعديل</a>`;
+                                return`<a class="btn btn-outline-warning" href="/TheClass/Edit/${row.id}">تعديل</a>`;
                             
                         }
                     }
@@ -122,6 +126,26 @@
                     "zeroRecords": "لم يتم العثور على سجلات"
                 }
             });
+        });
+    </script>
+
+    <script>
+        // إرسال رقم المعلم مع الرابط
+        var idTeacher = @Html.Raw(ViewBag.IdTeacher);
+        document.getElementById('exportBtn').addEventListener('click', function () {
+            // عرض إشعار (من خلال Toastify أو Notyf أو SweetAlert)
+            Toastify({
+                text: "جارٍ تصدير الملف...",
+                duration: 3000,
+                gravity: "top",
+                position: "center",
+                backgroundColor: "#28a745"
+            }).showToast();
+
+            // بدء التحميل بعد لحظات
+            setTimeout(function () {
+                window.location.href = '@Url.Action("ExportGradesStudentsToExcel", "ExportData", new { idTeacher = "__idTeacher__" })'.replace("__idTeacher__", idTeacher);
+            }, 1000); // تأخير بسيط لعرض الإشعار
         });
     </script>
     
@@ -170,6 +194,7 @@
             });
         });
     </script>
+    
     <style>
         .dropdown-menu select {
             width: 100%;

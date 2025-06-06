@@ -85,6 +85,9 @@
             <a class="btn btn-outline-warning" asp-action="Edit" asp-route-id="@Model?.Id">
                 <i class="bi bi-pencil-fill"></i> تعديل
             </a>
+            <a class="btn btn-lg btn-outline-primary w-100" asp-action="DownloadStudentCertificate" asp-route-idStudent="@Model?.Id" ></a>
+                <i class="bi bi-file-earmark-arrow-up"></i>  شهادة قيد
+            </a>
             <a class="btn btn-outline-secondary" asp-controller="Menegar" asp-action="ManagerMenegarStudentView">
                 <i class="bi bi-arrow-return-left"></i> عودة
             </a>

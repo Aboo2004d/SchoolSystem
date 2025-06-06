@@ -4,7 +4,11 @@
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css" />
 
 <h2>الطلاب</h2>
-<a class="btn btn-dark" asp-controller="Teacher" asp-action="Index">عودة</a>
+
+<button id="exportBtn" class="btn btn-outline-success"><i class="bi bi-file-earmark-arrow-up"></i> تصدير الطلاب</button>
+
+<a class="btn btn-outline-dark" asp-controller="Teacher" asp-action="Index">
+    <i class="bi bi-arrow-left-circle"></i> عودة</a>
 <hr>
 <table id="studentsTable" class="display" style="width:100%">
     <thead>
@@ -20,6 +24,8 @@
 </form>
 @section Scripts {
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
     <script>
         $(document).ready(function () {
             var idTeacher = @Html.Raw(ViewBag.IdTeacher);
@@ -28,7 +34,7 @@
                 "processing": true,
                 "serverSide": true,
                 "ajax": {
-                    "url": "/Teacher/ManagerStudentToTeacher?idTeacher="+idTeacher,
+                    "url": "/Teacher/ManagerStudentToTeacher?teacherId="+idTeacher,
                     "type": "GET",
                     "dataSrc": function (json) {
                         if (json.error) {
@@ -64,6 +70,26 @@
                     "zeroRecords": "لم يتم العثور على سجلات"
                 }
             });
+        });
+    </script>
+    
+    <script>
+        // إرسال رقم المعلم مع الرابط
+        var idTeacher = @Html.Raw(ViewBag.IdTeacher);
+        document.getElementById('exportBtn').addEventListener('click', function () {
+            // عرض إشعار (من خلال Toastify أو Notyf أو SweetAlert)
+            Toastify({
+                text: "جارٍ تصدير الملف...",
+                duration: 3000,
+                gravity: "top",
+                position: "center",
+                backgroundColor: "#28a745"
+            }).showToast();
+
+            // بدء التحميل بعد لحظات
+            setTimeout(function () {
+                window.location.href = '@Url.Action("ExportAllStudentInTeacherToExcel", "ExportData", new { idTeacher = "__idTeacher__" })'.replace("__idTeacher__", idTeacher);
+            }, 1000); // تأخير بسيط لعرض الإشعار
         });
     </script>
     <script>
