@@ -13,13 +13,14 @@ public class ProfileController : Controller
 
     private readonly INotyfService _notyf;
     private readonly IErrorLoggerService _logger;
+    private readonly EncryptionHelper _encryptionHelper;
 
-
-    public ProfileController(SystemSchoolDbContext context, INotyfService notyf, IErrorLoggerService logger)
+    public ProfileController(SystemSchoolDbContext context, INotyfService notyf, IErrorLoggerService logger, EncryptionHelper encryptionHelper)
     {
         _logger = logger;
         _context = context;
         _notyf = notyf;
+        _encryptionHelper = encryptionHelper;
     }
 
     [AuthorizeRoles("admin", "Student", "Teacher")] // ضمان أن المستخدم مصادق عليه للوصول إلى هذه الصفحة
@@ -65,16 +66,34 @@ public class ProfileController : Controller
     // GET: Menegar/Edit/5
     
     [AuthorizeRoles("admin", "Student", "Teacher")]
-    public async Task<IActionResult> Edit(int? id){
-        if (id == null)
+    public async Task<IActionResult> Edit(string id){
+       int Id;
+
+        try
         {
-            
+            Id = _encryptionHelper.DecryptInt(id);
+
         }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error decoding ID: {ex.Message}");
+            _notyf.Error("معرف غير صالح أو تم التلاعب به.");
+            return View(nameof(IndexProfile));
+        }
+
+        Console.WriteLine($"IdSend: {Id}");
+        if (Id <= 0)
+        {
+            _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة");
+            await _logger.LogAsync(new Exception("لا يمكن التلاعب بالبيانات المرسلة"), "Profile/Edit");
+            return View(nameof(IndexProfile));
+        }
+        Console.WriteLine(12);
         string role = HttpContext.Session.GetString("Role")??"null";
         switch (role)
         {
             case "admin":
-                var (menegar, status) =await EditGetAdmin(id ?? 0, role);
+                var (menegar, status) =await EditGetAdmin(Id, role);
                 if(!status)
                 {
                     return View(nameof(IndexProfile));
@@ -82,14 +101,19 @@ public class ProfileController : Controller
                 return View(menegar);
                 
             case "Teacher":
-                var (teacher, status1) =await EditGetTeacher(id ?? 0, role);
-                if(!status1)
+                Console.WriteLine(1234);
+                var (teacher, status1) =await EditGetTeacher(Id, role);
+                Console.WriteLine(12345678);
+                Console.WriteLine($"status1: {status1}");
+                Console.WriteLine($"teacher: {teacher.Name}");
+                if (!status1)
                 {
                     return View(nameof(IndexProfile));
                 }
+                Console.WriteLine(123456);
                 return View(teacher);
             case "Student":
-                var (student, status2) =await EditGetStudent(id ?? 0, role);
+                var (student, status2) =await EditGetStudent(Id, role);
                 if(!status2)
                 {
                     return View(nameof(IndexProfile));
@@ -108,37 +132,69 @@ public class ProfileController : Controller
     [HttpPost]
     [AuthorizeRoles("admin", "Student", "Teacher")]
 
-    public async Task<IActionResult> Edit(int id, EditProfileViewModel model)
+    public async Task<IActionResult> Edit(EditProfileViewModel model)
     {
-        if (id != model.Id)
+        Console.WriteLine($"IdSend1: {model.Id}");
+        
+        if (model.Id == null)
         {
             _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة");
             await _logger.LogAsync(new Exception("لا يمكن التلاعب بالبيانات المرسلة"), "Profile/Edit");
             return View(nameof(IndexProfile));
         }
+
+        int realId;
+
+        try
+        {
+            realId = _encryptionHelper.DecryptInt(model.Id);
+            Console.WriteLine($"Decrypted ID: {realId}");
+
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error decoding ID: {ex.Message}");
+            _notyf.Error("معرف غير صالح أو تم التلاعب به.");
+            return View(nameof(IndexProfile));
+        }
+
         if (!ModelState.IsValid)
         {
+            /*foreach (var key in ModelState.Keys)
+            {
+                var value = ModelState[key].AttemptedValue;  // القيمة التي حاول المستخدم إرسالها
+                var errors = ModelState[key].Errors;        // أخطاء التحقق إن وجدت
+
+                Console.WriteLine($"Key: {key}, Value: {value}");
+                foreach (var error in errors)
+                {
+                    Console.WriteLine($"Error: {error.ErrorMessage}");
+                }
+            }
+            Console.WriteLine($"IdSend: {model.Id}");
+*/
             _notyf.Error("خطأ بالبيانات المرسلة");
             return View(model);
         }
         try
         {
+            Console.WriteLine(123);
             string role = HttpContext.Session.GetString("Role") ?? "Null";
             
             if (role == "admin")
             {
-                if (await EditAdmin(id, model))
+                if (await EditAdmin(realId, model))
                     return RedirectToAction("IndexProfile");
 
             }
             else if (role == "Teacher")
             {
-                if (await EditTeacher(id, model))
+                if (await EditTeacher(realId, model))
                     return RedirectToAction("IndexProfile");
             }
             else if (role == "Student")
             {
-                if (await EditStudent(id, model))
+                if (await EditStudent(realId, model))
                     return RedirectToAction("IndexProfile");
             }
             else
@@ -184,7 +240,7 @@ public class ProfileController : Controller
 
         var model = new EditProfileViewModel
         {
-            Id = menegar.Id,
+            Id = menegar.Id.ToString(),
             UserName = user.UsersName,
             Email = user.Email ?? "Null",
             Name = menegar.Name ?? "Null",
@@ -201,8 +257,10 @@ public class ProfileController : Controller
     
     private async Task<(EditProfileViewModel model, bool status)> EditGetTeacher(int id, string role)
     {
-        
-        Teacher? teacher = await _context.Teachers.Include(t => t.IdSchoolNavigation).FirstOrDefaultAsync(m => m.Id == id);
+        Console.WriteLine($"IdSend: {id}");
+        Console.WriteLine($"Role: {role}");
+        Teacher? teacher = await _context.Teachers.Where(m => m.Id == id).Include(t => t.IdSchoolNavigation).FirstOrDefaultAsync();
+        Console.WriteLine($"Teacher: {teacher.Name}");
         if (teacher == null)
         {
             _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة");
@@ -226,7 +284,7 @@ public class ProfileController : Controller
 
         var model = new EditProfileViewModel
         {
-            Id = teacher.Id,
+            Id = teacher.Id.ToString(),
             UserName = user.UsersName,
             Email = user.Email ?? "Null",
             Name = teacher.Name ?? "Null",
@@ -267,7 +325,7 @@ public class ProfileController : Controller
 
         var model = new EditProfileViewModel
         {
-            Id = student.Id,
+            Id = student.Id.ToString(),
             UserName = user.UsersName,
             Email = user.Email ?? "Null",
             Name = student.Name ?? "Null",
@@ -488,7 +546,7 @@ public class ProfileController : Controller
         Menegar? user = await _context.Menegars.Where(t => t.Id == account.IdUser).Include(t => t.IdSchoolNavigation).SingleOrDefaultAsync();
         var model = new ProfileViewModel
         {
-            Id = account.Id, 
+            Id = user.Id, 
             UserName = account.UsersName,
             Email = user?.Email??"Null",
             Name = user?.Name??"Null",
@@ -519,7 +577,7 @@ public class ProfileController : Controller
         .Include(t => t.IdSchoolNavigation).Include(t => t.IdClassNavigation).SingleOrDefaultAsync();
         var model = new ProfileViewModel
         {
-            Id = account.Id, 
+            Id = user.Id, 
             UserName = account.UsersName,
             Email = user?.Email??"Null",
             Name = user?.Name??"Null",
@@ -548,7 +606,7 @@ public class ProfileController : Controller
         Teacher? user = await _context.Teachers.Where(t => t.Id == account.IdUser).Include(t => t.IdSchoolNavigation).SingleOrDefaultAsync();
         var model = new ProfileViewModel
         {
-            Id = account.Id, 
+            Id = user.Id, 
             UserName = account.UsersName,
             Email = user?.Email??"Null",
             Name = user?.Name??"Null",
@@ -563,6 +621,7 @@ public class ProfileController : Controller
             PhotoPath = path?.ProfileImagePath??"Null"
             
         };
+        
         return model;
     }
 

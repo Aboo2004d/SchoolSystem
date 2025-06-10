@@ -310,7 +310,7 @@ namespace SchoolSystem.Controllers
             return RedirectToAction("ManagerMenegarStudentView", "Menegar");
         }
         
-        [AuthorizeRoles("admin")]
+        [AuthorizeRoles("Student")]
         public JsonResult GetStudentCountPerGrades(int? idStudent)
         {
             var schoolId = HttpContext.Session.GetInt32("School");
@@ -331,7 +331,7 @@ namespace SchoolSystem.Controllers
             return Json(data);
         }
 
-        [AuthorizeRoles("admin")]
+        [AuthorizeRoles("Student")]
         public JsonResult GetStudentCountPerAttendance(int? idStudent)
         {
             var schoolId = HttpContext.Session.GetInt32("School");

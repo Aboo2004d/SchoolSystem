@@ -30,6 +30,7 @@ Env.Load("E:\\Uni\\Files\\Training\\aspdotnet_core\\SchoolSystem\\appsetting.env
 // 📦 تسجيل الخدمات
 builder.Services.AddControllersWithViews();
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddSingleton<EncryptionHelper>();
 
 // 🧠 كاش الجلسة لتوزيعها (مستقبلاً يمكن استبدالها بـ Redis)
 builder.Services.AddDistributedMemoryCache();

@@ -1,5 +1,5 @@
 @model SchoolSystem.Models.ProfileViewModel
-
+@inject EncryptionHelper EncryptionHelper
 @{
     ViewData["Title"] = "معلوماتي";
 }
@@ -43,7 +43,7 @@
                 <!-- تفاصيل الملف الشخصي -->
                 <div class="col-12 col-sm-8">
                     <dl class="row">
-                        <dt class="col-sm-4"><i class="bi bi-person-fill me-2"></i> الاسم:</dt>
+                        <dt class="col-sm-4"><i class="bi bi-person-fill me-2"></i>@Model.Id الاسم:</dt>
                         <dd class="col-sm-8">@Model.Name</dd>
 
                         <dt class="col-sm-4"><i class="bi bi-credit-card-2-front me-2"></i> رقم الهوية:</dt>
@@ -80,7 +80,7 @@
             </div>
         </div>
         <div class="card-footer d-flex justify-content-center gap-3 flex-wrap">
-            <a asp-action="Edit" class="btn btn-outline-primary" asp-route-id="@Model.Id">تعديل المعلومات الشخصية</a>
+            <a asp-action="Edit" class="btn btn-outline-primary" asp-route-id="@EncryptionHelper.EncryptInt(Model.Id)">تعديل المعلومات الشخصية</a>
             <a asp-controller="Account" asp-action="NewPassword" class="btn btn-outline-warning">تغيير كلمة المرور</a>
         </div>
 
