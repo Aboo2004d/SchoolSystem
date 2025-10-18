@@ -23,7 +23,9 @@ public partial class Menegar
 
     public int? IdNumber { get; set; }
 
-    public bool? IsDeleted { get; set; }
+    public bool IsDeleted { get; set; }
+
+    public bool IsDeletedSchool { get; set; }
 
     public virtual School? IdSchoolNavigation { get; set; }
 }

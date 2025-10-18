@@ -1,36 +1,88 @@
-@model SchoolSystem.Data.Teacher
-
 @{
-    ViewData["Title"] = "Details";
+    ViewData["Title"] = "تفاصيل المعلم";
+    string IdTeacher = ViewBag.Id;
 }
 
-<h1>Details Teacher</h1>
+<div class="container mt-5">
+    <div class="card shadow rounded-4">
+        <div class="card-header bg-primary text-white rounded-top-4 d-flex justify-content-between align-items-center">
+            <h3 class="mb-0">
+                <i class="bi bi-person-badge-fill me-2"></i> تفاصيل المعلم 
+            </h3>
+        </div>
 
-<div>
-  
-    <hr />
-    <dl class="row">
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.Name)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.Name)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.Phone)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.Phone)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.Email)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.Email)
-        </dd>
-    </dl>
+        <div class="card-body">
+            <div class="row mb-3">
+                <label class="col-sm-3 fw-bold text-secondary">الاسم:</label>
+                <div class="col-sm-9" id="name"></div>
+            </div>
+
+            <div class="row mb-3">
+                <label class="col-sm-3 fw-bold text-secondary">رقم الهوية:</label>
+                <div class="col-sm-9" id="idNumber"></div>
+            </div>
+
+            <div class="row mb-3">
+                <label class="col-sm-3 fw-bold text-secondary">رقم الجوال:</label>
+                <div class="col-sm-9" id="phone"></div>
+            </div>
+
+            <div class="row mb-3">
+                <label class="col-sm-3 fw-bold text-secondary">البريد الإلكتروني:</label>
+                <div class="col-sm-9" id="email"></div>
+            </div>
+
+            <div class="row mb-3">
+                <label class="col-sm-3 fw-bold text-secondary">تاريخ الميلاد:</label>
+                <div class="col-sm-9" id="theDate"></div>
+            </div>
+
+            <div class="row mb-3">
+                <label class="col-sm-3 fw-bold text-secondary">المدرسة:</label>
+                <div class="col-sm-9" id="schoolName"></div>
+            </div>
+
+            <div class="row mb-3">
+                <label class="col-sm-3 fw-bold text-secondary">العنوان:</label>
+                <div class="col-sm-9" id="address"></div>
+            </div>
+        </div>
+
+        <div class="card-footer d-flex justify-content-center gap-2">
+            <a class="btn btn-outline-warning" asp-action="Edit" asp-route-id="@IdTeacher">
+                <i class="bi bi-pencil-fill"></i> تعديل
+            </a>
+            <a class="btn btn-lg btn-outline-success" asp-action="DownloadTeacherCertificate" asp-route-idTeacher="@IdTeacher">
+                <i class="bi bi-file-earmark-arrow-up"></i> شهادة قيد
+            </a>
+            <a class="btn btn-outline-secondary" asp-action="ManagerMenegarTeacherView" asp-controller="Menegar">
+                <i class="bi bi-arrow-return-left"></i> عودة
+            </a>
+        </div>
+    </div>
 </div>
-<div>
-    <a class="btn btn-warning" asp-action="Edit" asp-route-id="@Model?.Id">Edit</a> 
-    <a class="btn btn-dark" asp-action="Index">Back to List</a>
-</div>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            const id = "@IdTeacher";
+
+            $.get(`/api/teacher/Details?id=${id}`)
+                .done(function (res) {
+                    $("#name").text(res.nameTeacher);
+                    $("#idNumber").text(res.idNumber);
+                    $("#phone").text(res.phone);
+                    $("#email").text(res.emailAddressTeacher);
+                    $("#theDate").text(res.theDate);
+                    $("#schoolName").text(res.nameSchool);
+                    $("#address").text(res.address);
+                })
+                .fail(function (xhr) {
+                    const msg = xhr.responseJSON?.message || "فشل في تحميل البيانات";
+                    notifyError(msg); 
+                });
+        });
+    </script>
+}

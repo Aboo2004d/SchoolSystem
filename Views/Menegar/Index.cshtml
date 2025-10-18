@@ -16,48 +16,64 @@
             </div>
         </div>
     </div>
+    
 
-    <div class="row g-4">
-        <!-- الطلاب والصفوف -->
-        <div class="col-md-6">
-            <div class="card shadow-sm rounded-4 h-100">
-                <div class="card-header bg-primary text-white text-center rounded-top-4">
-                    <h5><i class="bi bi-mortarboard-fill"></i> الطلاب والصفوف</h5>
+<div class="row g-4">
+    <!-- الطلاب والصفوف -->
+    <div class="col-md-6">
+        <div class="card shadow-sm rounded-4 h-100">
+            <div class="card-header bg-primary text-white text-center rounded-top-4">
+                <h5><i class="bi bi-mortarboard-fill"></i> الطلاب والصفوف</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2 mb-3">
+                    <a class="btn btn-outline-primary" asp-action="ManagerMenegarStudentView">
+                        <i class="bi bi-people-fill"></i> إدارة الطلاب
+                    </a>
+                    <a class="btn btn-outline-warning" asp-action="ManagerMenegarClassView">
+                        <i class="bi bi-columns-gap"></i> إدارة الصفوف
+                    </a>
                 </div>
-                <div class="card-body">
-                    <div class="d-grid gap-2 mb-3">
-                        <a class="btn btn-outline-primary" asp-action="ManagerMenegarStudentView">
-                            <i class="bi bi-people-fill"></i> إدارة الطلاب
-                        </a>
-                        <a class="btn btn-outline-warning" asp-action="ManagerMenegarClassView">
-                            <i class="bi bi-columns-gap"></i> إدارة الصفوف
-                        </a>
+                <div class="chart-container" style="max-height: 300px; position: relative;">
+                    <div class="chart-toggle-buttons mb-2">
+                        <button class="btn btn-sm btn-outline-primary active" data-chart-type="pie" data-target="studentChart">
+                            <i class="bi bi-pie-chart-fill"></i> عرض دائري
+                        </button>
+                        <button class="btn btn-sm btn-outline-primary" data-chart-type="bar" data-target="studentChart">
+                            <i class="bi bi-bar-chart-fill"></i> عرض عمودي
+                        </button>
                     </div>
-                    <div class="chart-container" style="max-height: 300px;">
-                        <canvas id="studentChart"></canvas>
-                    </div>
+                    <canvas id="studentChart"></canvas>
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- المعلمون والمواد -->
-        <div class="col-md-6">
-            <div class="card shadow-sm rounded-4 h-100">
-                <div class="card-header bg-success text-white text-center rounded-top-4">
-                    <h5><i class="bi bi-journal-text"></i> المعلمون والمواد</h5>
+    <!-- المعلمون والمواد -->
+    <div class="col-md-6">
+        <div class="card shadow-sm rounded-4 h-100">
+            <div class="card-header bg-success text-white text-center rounded-top-4">
+                <h5><i class="bi bi-journal-text"></i> المعلمون والمواد</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2 mb-3">
+                    <a class="btn btn-outline-success" asp-action="ManagerMenegarTeacherView">
+                        <i class="bi bi-person-badge"></i> إدارة المعلمين
+                    </a>
+                    <a class="btn btn-outline-info" asp-controller="Lectuer" asp-action="LectuerView">
+                        <i class="bi bi-journal-bookmark-fill"></i> إدارة المواد
+                    </a>
                 </div>
-                <div class="card-body">
-                    <div class="d-grid gap-2 mb-3">
-                        <a class="btn btn-outline-success" asp-action="ManagerMenegarTeacherView">
-                            <i class="bi bi-person-badge"></i> إدارة المعلمين
-                        </a>
-                        <a class="btn btn-outline-info" asp-controller="Lectuer" asp-action="LectuerView">
-                            <i class="bi bi-journal-bookmark-fill"></i> إدارة المواد
-                        </a>
+                <div class="chart-container" style="max-height: 300px; position: relative;">
+                    <div class="chart-toggle-buttons mb-2">
+                        <button class="btn btn-sm btn-outline-primary active" data-chart-type="pie" data-target="teacherChart">
+                            <i class="bi bi-pie-chart-fill"></i> عرض دائري
+                        </button>
+                        <button class="btn btn-sm btn-outline-primary" data-chart-type="bar" data-target="teacherChart">
+                            <i class="bi bi-bar-chart-fill"></i> عرض عمودي
+                        </button>
                     </div>
-                    <div class="chart-container" style="max-height: 300px;">
-                        <canvas id="teacherChart"></canvas>
-                    </div>
+                    <canvas id="teacherChart"></canvas>
                 </div>
             </div>
         </div>
@@ -68,131 +84,223 @@
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    <!-- رسم الطلاب -->
     <script>
+        // كائن لحفظ مثيلات الرسوم البيانية
+        const chartInstances = {};
+        // كائن لحفظ نوع الرسم البياني لكل مخطط
+        const chartTypes = {
+            studentChart: 'pie',
+            teacherChart: 'pie'
+        };
+
         document.addEventListener("DOMContentLoaded", function () {
+            // تهيئة جميع أزرار التبديل
+            document.querySelectorAll('.chart-toggle-buttons button').forEach(button => {
+                button.addEventListener('click', function() {
+                    const chartType = this.getAttribute('data-chart-type');
+                    const targetChart = this.getAttribute('data-target');
+                    
+                    // تحديث حالة الأزرار النشطة لهذا المخطط فقط
+                    document.querySelectorAll(`.chart-toggle-buttons button[data-target="${targetChart}"]`)
+                        .forEach(btn => btn.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // حفظ نوع الرسم المختار لهذا المخطط
+                    chartTypes[targetChart] = chartType;
+                    
+                    // تغيير نوع الرسم البياني لهذا المخطط فقط
+                    changeChartType(targetChart, chartType);
+                });
+            });
+
+            // تحميل البيانات الأولية
+            loadStudentData();
+            loadTeacherData();
+        });
+
+        // دالة تغيير نوع الرسم البياني
+        function changeChartType(chartId, newType) {
+            if (chartInstances[chartId]) {
+                chartInstances[chartId].destroy();
+                chartInstances[chartId] = null;
+            }
+            
+            if (chartId === 'studentChart') {
+                loadStudentData(newType);
+            } else {
+                loadTeacherData(newType);
+            }
+        }
+
+        // دالة تحميل بيانات الطلاب
+        function loadStudentData(chartType = chartTypes.studentChart) {
             fetch('@Url.Action("GetStudentCountPerClass", "Menegar")')
                 .then(response => response.json())
                 .then(data => {
-                    const labels = data.map(item => item.className);
-                    const counts = data.map(item => item.studentCount);
-
-                    const ctx = document.getElementById('studentChart').getContext('2d');
-
-                    new Chart(ctx, {
-                        type: 'bar',
-                        data: {
-                            labels: labels,
-                            datasets: [{
-                                label: 'عدد الطلاب في الصف',
-                                data: counts,
-                                backgroundColor: 'rgba(54, 162, 235, 0.6)',
-                                borderColor: 'rgba(54, 162, 235, 1)',
-                                borderWidth: 1
-                            }]
-                        },
-                        options: {
-                            indexAxis: 'y',
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            scales: {
-                                x: {
-                                    beginAtZero: true,
-                                    ticks: { stepSize: 2, precision: 0 }
-                                },
-                                y: {
-                                    ticks: {
-                                        autoSkip: true,
-                                        maxTicksLimit: 10
-                                    }
-                                }
-                            },
-                            plugins: {
-                                legend: { display: false },
-                                title: {
-                                    display: true,
-                                    text: 'عدد الطلاب حسب الصف'
-                                }
-                            }
-                        }
-                    });
+                    renderChart(
+                        'studentChart', 
+                        data.map(item => item.className), 
+                        data.map(item => item.studentCount),
+                        'توزيع الطلاب على الصفوف',
+                        chartType,
+                        'طالب'
+                    );
                 })
                 .catch(error => console.error('خطأ في جلب البيانات:', error));
-        });
-    </script>
+        }
 
-<!-- رسم المعلمين -->
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            fetch('@Url.Action("GetTeacherCountPerSubject", "Menegar")')
+        // دالة تحميل بيانات المعلمين
+        function loadTeacherData(chartType = chartTypes.teacherChart) {
+            fetch('/api/menegar/CountTeacherPerSubject')
                 .then(response => response.json())
                 .then(data => {
-                    const labels = data.map(item => item.subject);
-                    const counts = data.map(item => item.teacherCount);
+                    renderChart(
+                        'teacherChart', 
+                        data.map(item => item.subject), 
+                        data.map(item => item.teacherCount),
+                        'توزيع المعلمين على المواد',
+                        chartType,
+                        'معلم'
+                    );
+                })
+                .catch(error => console.error('خطأ في جلب بيانات المعلمين:', error));
+        }
+        
+        // دالة عامة لعرض الرسم البياني
+        function renderChart(chartId, labels, data, title, chartType, unitName) {
+            const ctx = document.getElementById(chartId).getContext('2d');
+            const total = data.reduce((sum, count) => sum + count, 0);
+            const backgroundColors = generateColors(data.length);
 
-                    const ctx = document.getElementById('teacherChart').getContext('2d');
-
-                    new Chart(ctx, {
-                        type: 'bar',
-                        data: {
-                            labels: labels,
-                            datasets: [{
-                                label: 'عدد المعلمين في المادة',
-                                data: counts,
-                                backgroundColor: 'rgba(255, 159, 64, 0.6)',
-                                borderColor: 'rgba(255, 159, 64, 1)',
-                                borderWidth: 1
-                            }]
-                        },
-                        options: {
-                            indexAxis: 'y',
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            scales: {
-                                x: {
-                                    beginAtZero: true,
-                                    ticks: { stepSize: 1 }
-                                },
-                                y: {
-                                    ticks: {
-                                        autoSkip: true,
-                                        maxTicksLimit: 10
-                                    }
-                                }
+            const commonOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        rtl: true,
+                        labels: {
+                            font: {
+                                family: "'Tahoma', 'Arial', sans-serif",
+                                size: 12
                             },
-                            plugins: {
-                                legend: { display: false },
-                                title: {
-                                    display: true,
-                                    text: 'عدد المعلمين حسب المادة'
+                            generateLabels: function(chart) {
+                                const data = chart.data;
+                                if (data.labels.length && data.datasets.length) {
+                                    return data.labels.map((label, i) => ({
+                                        text: label,
+                                        fillStyle: data.datasets[0].backgroundColor[i],
+                                        strokeStyle: data.datasets[0].borderColor[i],
+                                        lineWidth: data.datasets[0].borderWidth[i],
+                                        hidden: !chart.getDataVisibility(i),
+                                        index: i
+                                    }));
+                                }
+                                return [];
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw || 0;
+                                const percentage = ((value / total) * 100).toFixed(1);
+                                return `${label}: ${value} ${unitName} (${percentage}%)`;
+                            }
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: title,
+                        font: {
+                            size: 14
+                        }
+                    }
+                }
+            };
+
+            const chartOptions = chartType === 'pie' ? {
+                ...commonOptions
+            } : {
+                ...commonOptions,
+                indexAxis: 'y',
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: { 
+                            stepSize: 1,
+                            callback: function(value) {
+                                if (value % 1 === 0) {
+                                    return value;
                                 }
                             }
                         }
-                    });
-                })
-                .catch(error => console.error('خطأ في جلب بيانات المعلمين:', error));
-        });
+                    },
+                    y: {
+                        ticks: {
+                            callback: function(value, index) {
+                                return labels[index];
+                            }
+                        }
+                    }
+                }
+            };
+
+            chartInstances[chartId] = new Chart(ctx, {
+                type: chartType === 'pie' ? 'pie' : 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: title,
+                        data: data,
+                        backgroundColor: backgroundColors,
+                        borderColor: backgroundColors.map(color => color.replace('0.6', '1')),
+                        borderWidth: 1
+                    }]
+                },
+                options: chartOptions
+            });
+        }
+
+        // توليد ألوان تلقائياً
+        function generateColors(count) {
+            const colors = [];
+            const hueStep = 360 / count;
+            
+            for(let i = 0; i < count; i++) {
+                const hue = i * hueStep;
+                colors.push(`hsl(${hue}, 70%, 60%)`);
+            }
+            return colors;
+        }
     </script>
 
-<style>
-    .chart-container {
-        overflow-y: auto;
-    }
-
-    canvas {
-        width: 100% !important;
-        height: auto !important;
-    }
-
-    @@media (max-width: 768px) {
-        .btn {
-            font-size: 0.9rem;
-            padding: 0.5rem;
+    <style>
+        .chart-container {
+            height: 350px;
+            position: relative;
         }
 
-        h5 {
-            font-size: 1.1rem;
+        .chart-toggle-buttons {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 10;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 5px;
+            border-radius: 5px;
         }
-    }
-</style>
+
+        .chart-toggle-buttons .btn {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.8rem;
+            margin: 2px;
+        }
+
+        .chart-toggle-buttons .btn.active {
+            font-weight: bold;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+        }
+    </style>
 }

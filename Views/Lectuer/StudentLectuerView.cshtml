@@ -20,9 +20,10 @@
     <table id="studentlectuerTable" class="table table-bordered table-hover display nowrap" style="width:100%">
         <thead class="table-light">
             <tr>
-                <th>اسم الطالب</th>
+                <th>الطالب</th>
                 <th>الصف</th>
                 <th>المعلم</th>
+                <th>العلامة</th>
             </tr>
         </thead>
     </table>
@@ -36,22 +37,19 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <script>
-        var idLectuer = @Html.Raw(ViewBag.idLectuer);
+        var idLectuer = "@Html.Raw(ViewBag.idLectuer)";
         $(document).ready(function () {
             $('#studentlectuerTable').DataTable({
                 "responsive": true,
                 "processing": true,
                 "serverSide": true,
                 "deferRender": true,
+                "autoWidth": true,
                 "ajax": {
-                    "url": "/Lectuer/StudentLectuer?idLectuer=" + idLectuer,
+                    "url": "/api/lectuer/StudentLectuer?idLectuer=" + idLectuer,
                     "type": "GET",
                     "dataSrc": function (json) {
                         if (json.error) {
-                            if(!json.status){
-                                alert(json.error);
-                                window.location.href = "/Account/Login";
-                            }
                             alert(json.error);
                             window.location.href = "/Lectuer/LectuerView";
                             return [];
@@ -60,10 +58,14 @@
                     }
                 },
                 columns: [
-                    { data: "studentName" },
-                    { data: "classroomName" },
-                    { data: "teacherName" }
+                    { data: "nameStudent" },
+                    { data: "nameClass" },
+                    { data: "nameTeacher" },
+                    { data: "grade" },
                 ],
+                drawCallback: function () {
+                    this.api().columns.adjust();
+                },
                 language: {
                     search: "بحث: 🔍",
                     lengthMenu: "عرض _MENU_ طلاب",

@@ -63,7 +63,7 @@ namespace SchoolSystem.Controllers
             }
         }
 
-        public bool VerifyPassword(string password, string storedHash)
+        public bool VerifyPassword(string password, string? storedHash)
         {
             // فصل الملح والهاش المخزن
             var parts = storedHash.Split('$');
@@ -263,7 +263,7 @@ namespace SchoolSystem.Controllers
         }
         // GET: /Account/SetCredentials
         [HttpGet]
-        public async Task<IActionResult> SetCredentials()
+        public IActionResult SetCredentials()
         {
             if (CheckUser())
             {

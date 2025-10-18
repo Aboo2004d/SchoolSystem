@@ -22,6 +22,7 @@
             <tr>
                 <th>اسم الطالب</th>
                 <th>الصف</th>
+                <th>المعدل</th>
             </tr>
         </thead>
     </table>
@@ -35,7 +36,7 @@
     <script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
 
     <script>
-        var idClass = @Html.Raw(ViewBag.IdClass);
+        var idClass = "@Html.Raw(ViewBag.IdClass)";
         $(document).ready(function () {
             $('#studentsTable').DataTable({
                 "responsive": true,
@@ -43,27 +44,28 @@
                 "serverSide": true,
                 "deferRender": true,
                 "ajax": {
-                    "url": "/Menegar/ManagerMenegarStudentInClass?idClass=" + idClass,
+                    "url": "/api/menegar/MenegarStudentInClass?idClass=" + idClass,
                     "type": "GET",
                     "dataSrc": function (json) {
                         if (json.error) {
                             if(!json.status){
                                 alert(json.error);
-                            window.location.href = "/Account/Login";
+                                window.location.href = "/Account/Login";
                             }
                             alert(json.error);
-                            window.location.href = "/Menegar/Index";
+                            window.location.href = "/api/menegar/ManagerMenegarClassView";
                             return [];
                         }
                         return json.data;
                     }
                 },
                 columns: [
-                    { data: "studentName" },
-                    { data: "classroomName",
+                    { data: "nameStudent" },
+                    { data: "nameClass",
                         render: function (data, type, row) {
-                            return `<a class="btn btn-outline-secondary btn-sm" href="/StudentClass/Edit?id=${row.id}">${data}</a>`;
-                        } }
+                            return `<a class="btn btn-outline-secondary btn-sm" href="/Student/ChangeClass?idStudent=${row.idStudent}">${data}</a>`;
+                        } },
+                    { data: "avg" }
                     
                 ],
                 language: {

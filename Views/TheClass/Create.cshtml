@@ -1,7 +1,5 @@
-@model SchoolSystem.Data.TheClass
-
 @{
-    ViewData["Title"] = "Create";
+    ViewData["Title"] = "إضافة صف";
 }
 
 <div class="container mt-5 mb-5">
@@ -12,22 +10,45 @@
                     <h4 class="mb-0">إنشاء صف جديد</h4>
                 </div>
                 <div class="card-body">
-                    <form asp-action="Edit">
+                    <form id="createClassForm">
                         <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
-                        <input type="hidden" asp-for="Id" />
-                        
+
+                        <!-- رقم الصف -->
                         <div class="mb-3">
-                            <label asp-for="Name" class="control-label">اسم الصف</label>
-                            <input asp-for="Name" class="form-control" dir="rtl" />
-                            <span asp-validation-for="Name" class="text-danger"></span>
+                            <label for="NumberClass" class="control-label">رقم الصف</label>
+                            <input id="NumberClass" name="NumberClass" class="form-control" dir="rtl" placeholder="أدخل رقم الصف" type="number" min="1" max="12"/>
+                            <span id="NumberClassError" class="text-danger"></span>
                         </div>
-                        
-                        <div class="d-flex justify-content-center gap-3 mt-4">
-                            <button type="submit" class="btn btn-outline-success">
-                                <i class="bi bi-plus"></i> انشاء
+
+                        <!-- الفرع (يظهر فقط عند الحاجة) -->
+                        <div class="mb-3" id="branchContainer" style="display:none;">
+                            <label for="Branch" class="control-label">الفرع</label>
+                            <select id="Branch" name="Branch" class="form-control select2" dir="rtl"></select>
+                            <span id="BranchError" class="text-danger"></span>
+                        </div>
+
+                        <!-- الشعبة -->
+                        <div class="mb-3">
+                            <label for="Section" class="control-label">الشعبة</label>
+                            <input id="Section" name="Section" class="form-control" dir="rtl" placeholder="أدخل الشعبة" />
+                            <span id="SectionError" class="text-danger"></span>
+                        </div>
+
+                        <!-- اسم الصف -->
+                        <div class="mb-3">
+                            <label for="Name" class="control-label">اسم الصف</label>
+                            <input id="Name" name="Name" class="form-control" dir="rtl" placeholder="أدخل اسم الصف" />
+                            <span id="NameError" class="text-danger"></span>
+                        </div>
+
+                        <!-- الأزرار -->
+                        <div class="d-flex justify-content-between mt-4">
+                            <button id="submitBtn" type="submit" class="btn btn-outline-success w-50 me-2">
+                                <i class="bi bi-plus"></i> حفظ
                             </button>
-                            <a class="btn btn-outline-dark" asp-controller="Menegar" asp-action="ManagerMenegarClassView">
-                                <i class="bi bi-arrow-left-circle"></i> عودة</a>
+                            <a class="btn btn-outline-secondary w-50" asp-controller="Menegar" asp-action="ManagerMenegarClassView">
+                                <i class="bi bi-arrow-left-circle"></i> عودة
+                            </a>
                         </div>
                     </form>
                 </div>
@@ -35,6 +56,84 @@
         </div>
     </div>
 </div>
+
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        $(document).ready(function () {
+
+            // تهيئة select2
+            $('.select2').select2({
+                placeholder: "اختر الفرع...",
+                allowClear: true,
+                width: '100%'
+            });
+
+            // عند تحميل الصفحة استدعاء API GetCreateClass
+            $.ajax({
+                url: "/api/theClass/Create",
+                method: "GET",
+                success: function (res) {
+                    if (res.isBranche) {
+                        $("#branchContainer").show();
+                        $("#Stage").empty();
+
+                        res.branches.forEach(function (b) {
+                            $("#Branch").append(new Option(b.nameBranch, b.idBranch));
+                        });
+
+                        $("#Branch").trigger('change'); // تحديث select2 بعد الإضافة
+                    } else {
+                        $("#branchContainer").hide();
+                    }
+                },
+                error: function () {
+                    notifyError("تعذر جلب بيانات إنشاء الصف");
+                }
+            });
+
+            // عند الحفظ
+            $("#createClassForm").submit(function (e) {
+                e.preventDefault();
+                $("#submitBtn").prop("disabled", true);
+
+                // التحقق المبدئي (Validation)
+                if ($("#Name").val().trim() === "") {
+                    notifyError("الرجاء إدخال اسم الصف");
+                    $("#submitBtn").prop("disabled", false);
+                    return;
+                }
+                if ($("#NumberClass").val().trim() === "") {
+                    notifyError("الرجاء إدخال رقم الصف");
+                    $("#submitBtn").prop("disabled", false);
+                    return;
+                }
+
+                const data = {
+                    nameClass: $("#Name").val(),
+                    numberClass: $("#NumberClass").val(),
+                    section: $("#Section").val(),
+                    idBranch: $("#Branch").val()
+                };
+
+                $.ajax({
+                    url: "/api/theClass/Create",
+                    method: "POST",
+                    contentType: "application/json",
+                    data: JSON.stringify(data),
+                    success: function () {
+                        notifySuccess("تم الحفظ بنجاح");
+                        setTimeout(() => {
+                            window.location.href = "/Menegar/ManagerMenegarClassView";
+                        }, 1500);
+                    },
+                    error: function (xhr) {
+                        const errorMsg = xhr.responseJSON?.message || "حدث خطأ غير متوقع";
+                        notifyError(errorMsg);
+                        $("#submitBtn").prop("disabled", false);
+                    }
+                });
+            });
+        });
+    </script>
 }

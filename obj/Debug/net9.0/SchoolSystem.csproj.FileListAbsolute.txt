@@ -316,7 +316,6 @@ E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\obj\Debug\net9.0\compressed\qw
 E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\obj\Debug\net9.0\compressed\27khesh1fq-lzl9nlhx6b.gz
 E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\obj\Debug\net9.0\compressed\xaepycqthw-ag7o75518u.gz
 E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\obj\Debug\net9.0\compressed\ik3ze4k44d-x0q3zqp4vz.gz
-E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\obj\Debug\net9.0\compressed\sji4f2tvhr-0i3buxo5is.gz
 E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\obj\Debug\net9.0\compressed\hdck2prz7b-o1o13a6vjx.gz
 E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\obj\Debug\net9.0\compressed\m1f4spahlm-ttgo8qnofa.gz
 E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\obj\Debug\net9.0\compressed\g6517upg3x-2z0ns9nrw6.gz
@@ -387,3 +386,8 @@ E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\bin\Debug\net9.0\runtimes\any\
 E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\bin\Debug\net9.0\runtimes\any\native\LatoFont\Lato-Thin.ttf
 E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\bin\Debug\net9.0\runtimes\any\native\LatoFont\Lato-ThinItalic.ttf
 E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\bin\Debug\net9.0\runtimes\any\native\LatoFont\OFL.txt
+E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\bin\Debug\net9.0\Microsoft.Extensions.Caching.StackExchangeRedis.dll
+E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\bin\Debug\net9.0\Pipelines.Sockets.Unofficial.dll
+E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\bin\Debug\net9.0\StackExchange.Redis.dll
+E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\obj\Debug\net9.0\compressed\sji4f2tvhr-zpw9nf9nn7.gz
+E:\Uni\Files\Training\aspdotnet_core\SchoolSystem\obj\Debug\net9.0\compressed\vkcb9xtmu6-m5yua759sj.gz

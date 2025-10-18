@@ -1,9 +1,11 @@
+using SchoolSystem.Data;
+
 namespace SchoolSystem.Model
 {
 
     public partial class GradesViewModel
     {
-        public int Id { get; set; }
+        public string Id { get; set; }
 
         public int? FirstMonth { get; set; }
 
@@ -17,17 +19,18 @@ namespace SchoolSystem.Model
         
         public int? Total { get; set; }
 
-        public int? IdStudent { get; set; }
+        public string? IdStudent { get; set; }
         public string? StudentName { get; set; }
 
-        public int? IdTeacher { get; set; }
+        public string? IdTeacher { get; set; }
         public string? TeacherName { get; set; }
 
-        public int? IdLectuer { get; set; }
+        public string? IdLectuer { get; set; }
 
         public string? LectuerName { get; set; }
 
-        public int? IdClass { get; set; }
+        public string? IdClass { get; set; }
         public string? ClassroomName { get; set; }
+        public Student? IdStudentNavigation { get; set; }
     }
 }

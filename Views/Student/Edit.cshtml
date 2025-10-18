@@ -1,80 +1,206 @@
-@model SchoolSystem.Data.Student
-
 @{
-    ViewData["Title"] = "تعديل الطالب";
+    ViewData["Title"] = "تعديل طالب";
+    var id = ViewBag.Id;
 }
 
-<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
+<h1 class="text-center mb-4">تعديل بيانات الطالب</h1>
 
-<div class="container mt-5">
-    <div class="card shadow rounded-4">
-        <div class="card-header bg-warning text-dark rounded-top-4 d-flex justify-content-between align-items-center">
-            <h3 class="mb-0"><i class="bi bi-pencil-square me-2"></i> تعديل بيانات الطالب</h3>
-        </div>
+<div class="row justify-content-center">
+    <div class="col-md-10 col-lg-8">
+        <div class="card shadow-lg border-0 rounded-4">
+            <div class="card-body p-4">
+                <form id="EditStudentForm">
+                    <div class="text-danger mb-3" id="validationSummary"></div>
 
-        <div class="card-body">
-            <form asp-action="Edit" method="post" novalidate>
-                <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
-                <input type="hidden" asp-for="Id" />
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label asp-for="Name" class="form-label fw-bold">الاسم:</label>
-                        <input asp-for="Name" class="form-control" type="text" />
-                        <span asp-validation-for="Name" class="text-danger small"></span>
+                    <input type="hidden" id="idStudent" />
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="Name" class="form-label">اسم الطالب</label>
+                            <input id="Name" name="Name" class="form-control" />
+                            <span class="text-danger" id="NameError"></span>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="IdNumber" class="form-label">رقم الهوية</label>
+                            <input id="IdNumber" name="IdNumber" class="form-control" type="number" autocomplete="off" />
+                            <span class="text-danger" id="IdNumberError"></span>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="Phone" class="form-label">رقم الجوال</label>
+                            <input id="Phone" name="Phone" class="form-control" type="tel" autocomplete="off" />
+                            <span class="text-danger" id="PhoneError"></span>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="Email" class="form-label">الإيميل</label>
+                            <input id="Email" name="Email" class="form-control" type="email" />
+                            <span class="text-danger" id="EmailError"></span>
+                        </div>
+
+
+                        <div class="col-md-6 mb-3">
+                            <label for="IdClass" class="form-label">الصف</label>
+                            <select id="IdClass" name="IdClass" class="form-control select2"></select>
+                            <span class="text-danger" id="IdClassError"></span>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="nameSchool" class="form-label">المدرسة</label>
+                            <input id="nameSchool" name="nameSchool" class="form-control" readonly/>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="City" class="form-label">المدينة</label>
+                            <input id="City" name="City" class="form-control" />
+                            <span class="text-danger" id="CityError"></span>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="Area" class="form-label">الحي</label>
+                            <input id="Area" name="Area" class="form-control" />
+                            <span class="text-danger" id="AreaError"></span>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="TheDate" class="form-label">تاريخ الميلاد</label>
+                            <input id="TheDate" name="TheDate" class="form-control" type="date" />
+                            <span class="text-danger" id="TheDateError"></span>
+                        </div>
                     </div>
 
-                    <div class="col-md-6 mb-3">
-                        <label asp-for="IdNumber" class="form-label fw-bold">رقم الهوية:</label>
-                        <input asp-for="IdNumber" class="form-control" type="number" />
-                        <span asp-validation-for="IdNumber" class="text-danger small"></span>
+                    <div class="text-center mt-4">
+                        <button id="submitBtn" type="submit" class="btn btn-outline-primary px-5">
+                            <i class="bi bi-save-fill"></i> حفظ
+                        </button>
+                        <a href="/Student/Details?id=@id" class="btn btn-outline-secondary px-4">
+                            <i class="bi bi-arrow-left-circle"></i> عودة
+                        </a>
                     </div>
-                </div>
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label asp-for="Phone" class="form-label fw-bold">رقم الجوال:</label>
-                        <input asp-for="Phone" class="form-control" type="text" />
-                        <span asp-validation-for="Phone" class="text-danger small"></span>
-                    </div>
-
-                    <div class="col-md-6 mb-3">
-                        <label asp-for="Email" class="form-label fw-bold">البريد الإلكتروني:</label>
-                        <input asp-for="Email" class="form-control" type="email" />
-                        <span asp-validation-for="Email" class="text-danger small"></span>
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label asp-for="TheDate" class="form-label fw-bold">تاريخ الميلاد:</label>
-                        <input asp-for="TheDate" class="form-control" type="date" />
-                        <span asp-validation-for="TheDate" class="text-danger small"></span>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label asp-for="IdClass" class="form-label fw-bold">الصف:</label>
-                        <select asp-for="IdClass" class="form-control select2" asp-items="@ViewBag.Class"></select>
-                        <span asp-validation-for="IdClass" class="text-danger small"></span>
-                    </div>
-                </div>
-                <div class="card-footer d-flex justify-content-center gap-2">
-                    <button type="submit" class="btn btn-outline-success">
-                        <i class="bi bi-save-fill me-1"></i> حفظ
-                    </button>
-                    <a class="btn btn-outline-secondary" asp-action="Details" asp-route-id="@Model.Id">
-                        <i class="bi bi-arrow-return-left me-1"></i> عودة
-                    </a>
-                </div>
-            </form>
+                </form>
+            </div>
         </div>
     </div>
 </div>
 
 @section Scripts {
-    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
-
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script>
         $(document).ready(function () {
             $('.select2').select2({
-                placeholder: "Search for a student...",
-                allowClear: true
+                placeholder: "اختر الصف...",
+                allowClear: true,
+                width: '100%'
+            });
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const studentId = "@id"
+
+            if (!studentId) {
+                $("#validationSummary").text("لم يتم تحديد الطالب.");
+                $("#submitBtn").prop("disabled", false);
+                return;
+            }
+
+
+            function loadStudentData() {
+                $.when(
+                    $.getJSON(`/api/student/Edit?id=${studentId}`),
+                    $.getJSON(`/api/theClass/GetClasses`)
+                ).done(function (studentData, classesData) {
+                    const student = studentData[0];
+                    const classes = classesData[0].data;
+                    
+            
+
+                    $('#idStudent').val(student.idStudent);
+                    $('#Name').val(student.nameStudent);
+                    $('#IdNumber').val(student.idNumber);
+                    $('#Phone').val(student.phone);
+                    $('#Email').val(student.emailAddressStudent);
+                    $('#City').val(student.city);
+                    $('#Area').val(student.area);
+                    $('#nameSchool').val(student.nameSchool);
+
+                    $('#TheDate').val(student.theDate ? student.theDate.split('T')[0] : '');
+
+                    // امسح كل الخيارات القديمة
+                    $('#IdClass').empty();
+
+                    // أضف الصف الحالي أولاً
+                    const currentClass = classes.find(c => c.id === student.idClass);
+                    if (currentClass) {
+                        $('#IdClass').append(new Option(currentClass.name, currentClass.id, true, true));
+                    }
+
+                    // أضف باقي الصفوف مع تجاهل الصف الحالي
+                    classes.forEach(c => {
+                        if (c.id !== student.idClass) {
+                            $('#IdClass').append(new Option(c.name, c.id));
+                        }
+                    });
+
+                    // حدث select2
+                    $('#IdClass').trigger('change');
+
+                }).fail(function () {
+                    $("#submitBtn").prop("disabled", false);
+                    $("#validationSummary").text("فشل في تحميل بيانات الطالب أو الصفوف.");
+                });
+            }
+
+            loadStudentData();
+
+            function clearErrors() {
+                $("#validationSummary").text("");
+                $("#NameError").text("");
+                $("#IdNumberError").text("");
+                $("#PhoneError").text("");
+                $("#EmailError").text("");
+                $("#TheDateError").text("");
+                $("#IdClassError").text("");
+                $("#CityError").text("");
+                $("#AreaError").text("");
+            }
+
+            // ارسال التعديل
+            $("#EditStudentForm").submit(function (e) {
+                e.preventDefault();
+                clearErrors();
+                $("#submitBtn").prop("disabled", true);
+
+                const data = {
+                    idStudent: $('#idStudent').val(),
+                    nameStudent: $("#Name").val(),
+                    idNumber: $("#IdNumber").val(),
+                    phone: $("#Phone").val(),
+                    emailAddressStudent: $("#Email").val(),
+                    theDate: $("#TheDate").val(),
+                    idClass: parseInt($("#IdClass").val()),
+                    city: $("#City").val(),
+                    area: $("#Area").val()
+                };
+
+                $.ajax({
+                    url: "/api/student/Edit",
+                    method: "Put",
+                    contentType: "application/json",
+                    data: JSON.stringify(data),
+                    success: function (res) {
+                        notifySuccess("تم الحفظ بنجاح");
+                        setTimeout(() => {
+                            window.location.href = "/Student/Details?id=" + studentId;
+                        }, 1500);
+                    }
+                    ,
+                    error: function (xhr) {
+                        const errorMsg = xhr.responseJSON?.message || "حدث خطأ غير متوقع";
+                        notifyError(errorMsg);
+                        $("#submitBtn").prop("disabled", false);
+                    }
+                });
             });
         });
     </script>

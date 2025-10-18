@@ -13,7 +13,13 @@ public partial class School
 
     public int? IdGender { get; set; }
 
-    public bool? IsDeleted { get; set; }
+    public bool IsDeleted { get; set; }
+
+    public int? MinClass { get; set; }
+
+    public int? MaxClass { get; set; }
+
+    public int? IdStage { get; set; }
 
     public virtual ICollection<Attendance> Attendances { get; set; } = new List<Attendance>();
 
@@ -21,13 +27,13 @@ public partial class School
 
     public virtual Gender? IdGenderNavigation { get; set; }
 
+    public virtual StageClass? IdStageNavigation { get; set; }
+
     public virtual StatusSchool? IdStatusSchoolNavigation { get; set; }
 
     public virtual ICollection<Lectuer> Lectuers { get; set; } = new List<Lectuer>();
 
     public virtual ICollection<Menegar> Menegars { get; set; } = new List<Menegar>();
-
-    public virtual ICollection<StudentAverage> StudentAverages { get; set; } = new List<StudentAverage>();
 
     public virtual ICollection<StudentLectuerTeacher> StudentLectuerTeachers { get; set; } = new List<StudentLectuerTeacher>();
 

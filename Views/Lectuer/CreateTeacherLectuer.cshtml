@@ -1,7 +1,6 @@
-@model SchoolSystem.Models.LectuerTeacherViewModel
-
 @{
-    ViewData["Title"] = "اضافة معلم للمادة";
+    ViewData["Title"] = "إضافة معلم للمادة";
+    string id = ViewBag.IdLectuer; // المعرف المشفر القادم من الـ Controller
 }
 
 <div class="container mt-5">
@@ -9,28 +8,31 @@
         <div class="col-md-6">
             <div class="card shadow rounded-4">
                 <div class="card-header text-center bg-primary text-white">
-                    <h4 class="mb-0"><i class="bi bi-person-plus"></i> إضافة معلم للمادة: @ViewBag.NameLectuer</h4>
+                    <h4 id="NameLectuer" class="mb-0"><i class="bi bi-person-plus"></i> </h4>
                 </div>
                 <div class="card-body">
-                    <form asp-action="CreateTeacherInLectuer" asp-route-idLectuer="@ViewBag.IdLectuer">
-                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                    <form id="CreateTeacherToLectuerForm">
+                        <div id="ModelOnly" class="text-danger mb-3"></div>
 
-                        <input type="hidden" value="@ViewBag.IdLectuer" asp-for="IdLectuer" />
+                        <input type="hidden" id="IdLectuer" name="IdLectuer" value="" />
 
                         <div class="mb-3">
-                            <label asp-for="IdTeacher" class="form-label fw-bold">اسم المعلم</label>
-                            <select asp-for="IdTeacher" class="form-control select2" asp-items="ViewBag.IdTeacher"></select>
-                            <span asp-validation-for="IdTeacher" class="text-danger small"></span>
+                            <label for="IdTeacher" class="form-label fw-bold">اسم المعلم</label>
+                            <select id="IdTeacher" name="IdTeacher" class="form-control select2"></select>
+                            <span id="IdTeacherError" class="text-danger small"></span>
                         </div>
 
                         <div class="d-flex justify-content-center gap-3 mt-4">
                             <button type="submit" class="btn btn-outline-success">
                                 <i class="bi bi-check-circle"></i> حفظ
                             </button>
-                            <a class="btn btn-outline-dark" asp-action="LectuerView">
-                                <i class="bi bi-arrow-left-circle"></i> عودة</a>
+                            <a class="btn btn-outline-dark" asp-action="TeacherLectuerView" asp-route-idLectuer="@id">
+                                <i class="bi bi-arrow-left-circle"></i> عودة
+                            </a>
                         </div>
                     </form>
+
+                    <div id="responseMessage" class="mt-3"></div>
                 </div>
             </div>
         </div>
@@ -44,6 +46,59 @@
             $('.select2').select2({
                 placeholder: "ابحث عن معلم...",
                 allowClear: true
+            });
+
+            var idLectuer = "@id";
+
+            // جلب بيانات المادة والمعلمين
+            $.ajax({
+                url: `/api/lectuer/CreateTeacherLectuer?idLectuer=${idLectuer}`,
+                type: "GET",
+                success: function (response) {
+                    $("#NameLectuer").text(response.nameLectuer);
+                    $("#IdLectuer").val(idLectuer);
+
+                    var teacherSelect = $("#IdTeacher");
+                    teacherSelect.empty();
+                    $.each(response.teacher, function (index, teacher) {
+                        teacherSelect.append(`<option value="${teacher.id}">${teacher.name}</option>`);
+                    });
+                },
+                error: function (xhr) {
+                    $("#NameLectuer").text("خطأ في تحميل البيانات: "+xhr.message);
+                    $("#ModelOnly").text("خطأ في تحميل البيانات");
+                }
+            });
+
+            // إرسال البيانات لحفظ المعلم
+            $("#CreateTeacherToLectuerForm").submit(function (e) {
+                e.preventDefault();
+
+                var formData = {
+                    IdLectuer: idLectuer,
+                    IdTeacher: $("#IdTeacher").val(),
+                    IdClass:"1"
+                };
+                console.log("بيانات النموذج:", formData);
+
+                $.ajax({
+                    url: "/api/lectuer/CreateTeacherLectuer",
+                    type: "POST",
+                    contentType: "application/json",
+                    data: JSON.stringify(formData),
+                    success: function () {
+                        notifySuccess("تم الحفظ بنجاح");
+                        setTimeout(() => {
+                            window.location.href = `/Menegar/ManagerMenegarTeacherInClassView?idClass=${idLectuer}`;
+                        }, 1500);
+                    },
+                    error: function (xhr) {
+                        console.log("خطأ بالرد:", xhr);
+                        const error = xhr.responseJSON?.message || "112233حدث خطأ غير متوقع";
+                        notifyError(error);
+                        $("#submitBtn").prop("disabled", false);
+                    }
+                });
             });
         });
     </script>

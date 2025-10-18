@@ -13,5 +13,5 @@ public partial class ProfileImage
 
     public string? ProfileImagePath { get; set; }
 
-    public bool? IsDeleted { get; set; }
+    public bool IsDeleted { get; set; }
 }

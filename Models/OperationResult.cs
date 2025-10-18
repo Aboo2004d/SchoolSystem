@@ -1,5 +1,8 @@
-public class OperationResult
+namespace SchoolSystem.Models
 {
-    public bool IsSuccess { get; set; }
-    public string Message { get; set; }
+    public class OperationResult
+    {
+        public bool IsSuccess { get; set; }
+        public string Message { get; set; }
+    }
 }

@@ -23,32 +23,49 @@ namespace SchoolSystem.Controllers
         private readonly IErrorLoggerService _logger;
         private readonly SystemSchoolDbContext _context;
         private readonly ISessionValidatorService _sessionValidatorService;
+        private readonly EncryptionHelper _encryptionHelper;
 
 
-        public GradesController(SystemSchoolDbContext context, INotyfService notyf, IErrorLoggerService logger, ISessionValidatorService sessionValidatorService)
+        public GradesController(SystemSchoolDbContext context, INotyfService notyf, EncryptionHelper encryptionHelper, IErrorLoggerService logger, ISessionValidatorService sessionValidatorService)
         {
             _logger = logger;
             _context = context;
             _notyf = notyf;
             _sessionValidatorService = sessionValidatorService;
+            _encryptionHelper = encryptionHelper;
         }
         // GET: Grades
         [HttpGet]
         [AuthorizeRoles("Teacher")]
         public async Task<IActionResult> DataGrades(
-            int teacherId,
+            string? teacherId,
             [FromQuery] int draw,
             [FromQuery] int start,
             [FromQuery] int length = 10,
             [FromQuery(Name = "search[value]")] string searchValue = "")
         {
+
+            int Id;
+
+            try
+            {
+                Id = _encryptionHelper.DecryptInt(teacherId??"0");
+
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogAsync(ex, "Teacher/Details");
+                _notyf.Error("حدث خطأ غير متوقع.");
+                return RedirectToAction("ManagerMenegarTeacherView","Menegar");
+            }
+            
             try
             {
                 // التحقق من صلاحية المستخدم و التلاعب بالبيانات
-                var (IsValid, IdTeacher, IdSchool,status) = await _sessionValidatorService.ValidateTeacherSessionAsync(HttpContext, teacherId, "Grades/DataGrades");
+                var (IsValid, IdTeacher, IdSchool, status) = await _sessionValidatorService.ValidateTeacherSessionAsync(HttpContext, Id, "Grades/DataGrades");
                 if (!IsValid)
                 {
-                    return Json(new { success = false, status = status, error = "Unauthorized access. Session expired." });
+                    return Json(new { success = false, error = "Unauthorized access. Session expired." });
                 }
 
                 // تعيين قيمة افتراضية اذا لم يتم ارسال القيمة
@@ -75,9 +92,21 @@ namespace SchoolSystem.Controllers
                         Id = s.GradesId,
                         TeacherName = s.IdTeacherNavigation != null ? s.IdTeacherNavigation.Name : "Unknown",
                         idStudent = s.IdStudent,
-                        StudentName = s.IdStudentNavigation != null ? s.IdStudentNavigation.Name : "Unknown",
-                        ClassroomName = s.IdClassNavigation != null ? s.IdClassNavigation.Name : "Unknown",
-                        LectuerName = s.IdLectuerNavigation != null ? s.IdLectuerNavigation.Name : "Unknown",
+                        StudentName = s.IdStudentNavigation == null 
+                        ? "فارغ" 
+                        : s.IdStudentNavigation.IsDeletedStudent == true
+                            ? s.IdStudentNavigation.Name + " (طالب محذوف)" 
+                            : s.IdStudentNavigation.Name,
+                        ClassroomName = s.IdClassNavigation == null 
+                        ? "فارغ" 
+                        : s.IdClassNavigation.IsDeleted == true
+                            ? s.IdClassNavigation.Name + " (صف محذوف)" 
+                            : s.IdClassNavigation.Name,
+                        LectuerName = s.IdLectuerNavigation == null 
+                        ? "فارغ" 
+                        : s.IdLectuerNavigation.IsDeleted == true
+                            ? s.IdLectuerNavigation.Name + " (مادة محذوفة)" 
+                            : s.IdLectuerNavigation.Name,
                         idClass = s.IdClass,
                         idTeacher = s.IdTeacher,
                         f_m = s.FirstMonth,
@@ -86,7 +115,7 @@ namespace SchoolSystem.Controllers
                         Act = s.Activity,
                         final = s.Final,
                         total = s.Total
-                        
+
                     });
 
                 // البحث
@@ -124,20 +153,20 @@ namespace SchoolSystem.Controllers
                 var students = data.
                 Select(s => new GradesViewModel
                 {
-                    Id = s.Id,
+                    Id = _encryptionHelper.EncryptInt(s.Id),
                     ClassroomName = s.ClassroomName,
                     StudentName = s.StudentName,
-                    IdClass = s.idClass,
-                    IdStudent = s.idStudent,
+                    IdClass = _encryptionHelper.EncryptInt(s.idClass??0),
+                    IdStudent = _encryptionHelper.EncryptInt(s.idStudent??0),
                     LectuerName = s.LectuerName,
-                    IdTeacher = s.idTeacher,
+                    IdTeacher = _encryptionHelper.EncryptInt(s.idTeacher??0),
                     FirstMonth = s.f_m,
                     SecondMonth = s.s_m,
                     Mid = s.mid,
                     Activity = s.Act,
                     Final = s.final,
                     Total = s.total
-                    })
+                })
                     .ToList();
 
                 var result = new
@@ -147,7 +176,7 @@ namespace SchoolSystem.Controllers
                     recordsFiltered = filteredCount,
                     data = students
                 };
-                
+
                 return Json(result);
             }
             catch (Exception e)
@@ -161,17 +190,31 @@ namespace SchoolSystem.Controllers
 
         [HttpGet]
         [AuthorizeRoles("Teacher")]
-        public async Task<IActionResult> ViewGrades(int teacherId)
+        public async Task<IActionResult> ViewGrades(string? teacherId)
         {
+            int Id;
+
+            try
+            {
+                Id = _encryptionHelper.DecryptInt(teacherId??"0");
+
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogAsync(ex, "Teacher/Details");
+                _notyf.Error("حدث خطأ غير متوقع.");
+                return RedirectToAction("ManagerMenegarTeacherView","Menegar");
+            }
             // التحقق من صلاحية المستخدم و التلاعب بالبيانات
-            var (IsValid, IdTeacher, IdSchool,status) = await _sessionValidatorService.ValidateTeacherSessionAsync(HttpContext, teacherId, "Grades/DataGrades");
+            var (IsValid, IdTeacher, IdSchool,status) = await _sessionValidatorService.ValidateTeacherSessionAsync(HttpContext, Id, "Grades/DataGrades");
             if (!IsValid)
             {
-                if (!status)
-                    return RedirectToAction("Login", "Account");
+                
                 return RedirectToAction("Index", "Teacher");
             }
-            ViewBag.IdTeacher = IdTeacher;
+            ViewBag.IdTeacher = teacherId;
+            ViewBag.NameTeacher = _context.Teachers.FirstOrDefault(t => t.Id == Id)?.Name??"مجهول";
+
             return View();
         }
 
@@ -199,55 +242,65 @@ namespace SchoolSystem.Controllers
         [HttpGet]
         // GET: Grades/Create
         [AuthorizeRoles("Teacher")]
-        public async Task<IActionResult> Create(int? teacherId, int? subjectId, int? gradeId)
+        public async Task<IActionResult> Create(string? teacherId, string? subjectId, string? gradeId)
         {
-            teacherId = HttpContext.Session.GetInt32("Id") ?? 0;
+            
+            int Id;
+            int IdLectuer;
+            int IdGrade;
+            try
+            {
+                Id = _encryptionHelper.DecryptInt(teacherId ?? "0");
+                IdLectuer = _encryptionHelper.DecryptInt(subjectId ?? "0");
+                IdGrade = _encryptionHelper.DecryptInt(gradeId ?? "0");
+                
+
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogAsync(ex, "Teacher/Details");
+                _notyf.Error("حدث خطأ غير متوقع.");
+                return RedirectToAction("ManagerMenegarTeacherView", "Menegar");
+            }
+            
             if (gradeId == null || subjectId == null)
             {
-                
-                var (IsValid, IdTeacher, IdSchool, status) = await _sessionValidatorService.ValidateTeacherSessionAsync(HttpContext, teacherId ?? 0, "Attendance/Create");
+
+                var (IsValid, IdTeacher, IdSchool, status) = await _sessionValidatorService.ValidateTeacherSessionAsync(HttpContext, Id, "Attendance/Create");
                 if (!status)
                 {
                     return RedirectToAction("Login", "Account");
                 }
 
                 _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة");
-                await _logger.LogAsync(new Exception("التلاعب بالبيانات المرسلة"), "Attendance/Create");
-                return View(nameof(Index), new { idTeacher = teacherId });
+                await _logger.LogAsync(new Exception("التلاعب بالبيانات المرسلة"), "Grades/Create");
+                return View(nameof(ViewGrades), new { idTeacher = teacherId });
             }
 
-            bool isFind = _context.Teachers.Any(t => t.Id == teacherId)
-            && _context.Lectuers.Any(t => t.Id == subjectId)
-            && _context.Genders.Any(t => t.Id == gradeId);
-            
+            bool isFind =   _context.Lectuers.Any(t => t.Id == IdLectuer)
+                           && _context.TheClasses.Any(t => t.Id == IdGrade);
+                           
             if (!isFind)
             {
-                int Id = HttpContext.Session.GetInt32("Id") ?? 0;
-                if (Id != 0)
-                {
-                    _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة.");
-                    await _logger.LogAsync(new Exception("التلاعب بالبيانات المرسلة"), "Grades/Create");
-                    return View(nameof(ViewGrades), new { teacherId = Id });
-                }
-
-                _notyf.Error("انتهت الجلسة.");
-                await _logger.LogAsync(new Exception("دخول غير مصرح"), "Grades/Create");
-                return RedirectToAction("Logout", "Account");
+                _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة.");
+                await _logger.LogAsync(new Exception("التلاعب بالبيانات المرسلة"), "Grades/Create");
+                return View(nameof(ViewGrades), new { teacherId = Id });
+                
             }
             
             var students = _context.Students
                 .Where(student =>
-                _context.StudentLectuerTeachers.Any(stl => stl.IdClass == gradeId
-                && stl.IdLectuer == subjectId && stl.IdTeacher == teacherId)
-                && _context.TeacherLectuerClasses.Any(tlc => tlc.IdClass == gradeId && tlc.IdTeacher == teacherId)
-                && student.IdClass == gradeId
+                _context.StudentLectuerTeachers.Any(stl => stl.IdClass == IdGrade
+                && stl.IdLectuer == IdLectuer && stl.IdTeacher == Id)
+                && _context.TeacherLectuerClasses.Any(tlc => tlc.IdClass == IdGrade && tlc.IdTeacher == Id)
+                && student.IdClass == IdGrade
                 )
                 .ToList();
 
             var studentIds = students.Select(s=>(int?)s.Id).ToList();
 
             var existingGrades = _context.Grades
-                .Where(g => g.IdTeacher == teacherId && g.IdLectuer == subjectId && studentIds.Contains(g.IdStudent))
+                .Where(g => g.IdTeacher == Id && g.IdLectuer == IdLectuer && studentIds.Contains(g.IdStudent))
                 .Include(g => g.IdStudentNavigation)
                 .ToList();
 
@@ -256,37 +309,50 @@ namespace SchoolSystem.Controllers
                 var grade = existingGrades.FirstOrDefault(g => g.IdStudent == student.Id);
 
                 // إذا لم تكن هناك درجة، أنشئ واحدة جديدة بالقيم صفرية
+                GradesViewModel gradesViewModel = new GradesViewModel();
                 if (grade == null)
                 {
-                    grade = new Grade
+                    gradesViewModel = new GradesViewModel
                     {
-                        IdStudent = student.Id,
+                        IdStudent = _encryptionHelper.EncryptInt(student.Id),
                         IdTeacher = teacherId,
                         IdLectuer = subjectId,
+                        IdClass = gradeId,
+                        FirstMonth = 0,
+                        Mid = 0,
+                        SecondMonth = 0,
+                        Activity = 0,
+                        Final = 0,
                         IdStudentNavigation = student
                     };
                 }
                 else
                 {
-                    // ضمان أن القيم الفارغة = 0
-                    grade.FirstMonth ??= 0;
-                    grade.Mid ??= 0;
-                    grade.SecondMonth ??= 0;
-                    grade.Activity ??= 0;
-                    grade.Final ??= 0;
-                    grade.Total ??= 0;
+                    gradesViewModel = new GradesViewModel
+                    {
+                        IdStudent = _encryptionHelper.EncryptInt(grade.IdStudent??0),
+                        IdTeacher = teacherId,
+                        IdLectuer = subjectId,
+                        IdClass = gradeId,
+                        FirstMonth = grade.FirstMonth,
+                        Mid = grade.Mid,
+                        SecondMonth = grade.SecondMonth,
+                        Activity = grade.Activity,
+                        Final = grade.Final,
+                        IdStudentNavigation = student
+                    };
                 }
 
-                return new { Student = student, Grade = grade };
-                }).ToList();
-                string lectuer = _context.Lectuers.SingleOrDefault(l => l.Id == subjectId)?.Name??"غير معرف";
-                string Classes = _context.TheClasses.SingleOrDefault(c => c.Id == gradeId)?.Name??"غير معرف";
-                ViewBag.StudentsWithGrades = studentsWithGrades;
-                ViewBag.SubjectId = subjectId;
-                ViewBag.SubjectName = lectuer;
-                ViewBag.GradeName = Classes;
-                ViewBag.GradeId = gradeId;
-                ViewBag.TeacherId = teacherId;
+                return new { Student = student, Grade = gradesViewModel };
+            }).ToList();
+            string lectuer = _context.Lectuers.SingleOrDefault(l => l.Id == IdLectuer)?.Name??"غير معرف";
+            string Classes = _context.TheClasses.SingleOrDefault(c => c.Id == IdGrade)?.Name??"غير معرف";
+            ViewBag.StudentsWithGrades = studentsWithGrades;
+            ViewBag.SubjectId = subjectId;
+            ViewBag.SubjectName = lectuer;
+            ViewBag.GradeName = Classes;
+            ViewBag.ClassId = gradeId;
+            ViewBag.TeacherId = teacherId;
 
             return View();
         }
@@ -294,53 +360,91 @@ namespace SchoolSystem.Controllers
         
         [HttpPost]
         [AuthorizeRoles("Teacher")]
-        public IActionResult SaveAll(List<GradeInputViewModel> Grades, int teacherId, int subjectId)
+        public async Task<IActionResult> SaveAll(List<GradeInputViewModel> Grades)
         {
+
             try
             {
                 foreach (var item in Grades)
                 {
-                    Grade? grade = _context.Grades
-                        .FirstOrDefault(g => g.IdStudent == item.StudentId && g.IdTeacher == teacherId && g.IdLectuer == subjectId);
+                    int IdTeacher;
+                    int IdLectuer;
+                    int IdClass;
+                    int IdStudent;
+                    try
+                    {
 
-                    var std = _context.Students.FirstOrDefault(s => s.Id == item.StudentId);
-                    if (std == null)
-                    {
-                        return NotFound("Student Not Found"); // Skip if student not found
+                        IdTeacher = _encryptionHelper.DecryptInt(item.TeacherId);
+                        IdLectuer = _encryptionHelper.DecryptInt(item.LectuerId);
+                        IdClass = _encryptionHelper.DecryptInt(item.ClassId);
+                        IdStudent = _encryptionHelper.DecryptInt(item.StudentId);
+                        
                     }
-                    if (grade == null)
+                    catch (Exception ex)
                     {
-                        grade = new Grade
+                        await _logger.LogAsync(ex, "Grades/ViewGrades");
+                        _notyf.Error("حدث خطأ غير متوقع.");
+                        return RedirectToAction("ViewGrades", "Grades", new { teacherId = item.TeacherId });
+                    }
+
+                    Student? std =await _context.Students.FirstOrDefaultAsync(s => s.Id == IdStudent);
+                    bool lect =await _context.Lectuers.AnyAsync(s => s.Id == IdLectuer);
+                    bool teach =await _context.Teachers.AnyAsync(s => s.Id == IdTeacher);
+                    bool classes =await _context.TheClasses.AnyAsync(s => s.Id == IdClass);
+                    if (std != null && lect && teach && classes)
+                    {
+
+                        Grade? grade =await _context.Grades
+                            .FirstOrDefaultAsync(g => g.IdStudent == IdStudent && g.IdTeacher == IdTeacher && g.IdLectuer == IdLectuer && g.IdClass == IdClass);
+
+                        if (grade == null)
                         {
-                            IdStudent = item.StudentId,
-                            IdTeacher = teacherId,
-                            IdLectuer = subjectId,
-                            IdSchool = std.IdSchool,
-                            IdClass = std.IdClass
-                        };
-                        _context.Grades.Add(grade);
+                            grade = new Grade
+                            {
+                                IdStudent = IdStudent,
+                                IdTeacher = IdTeacher,
+                                IdLectuer = IdLectuer,
+                                IdSchool = std.IdSchool,
+                                IdClass = std.IdClass,
+                                FirstMonth = item.FirstMonth,
+                                Mid = item.Mid,
+                                SecondMonth = item.SecondMonth,
+                                Activity = item.Activity,
+                                Final = item.Final
+
+                            };
+                            _context.Grades.Add(grade);
+                        }
+                        else
+                        {
+                            grade.FirstMonth = item.FirstMonth;
+                            grade.Mid = item.Mid;
+                            grade.SecondMonth = item.SecondMonth;
+                            grade.Activity = item.Activity;
+                            grade.Final = item.Final;
+                            grade.IdClass = std.IdClass;
+                            grade.IdSchool = std.IdSchool;
+
+                        }
                     }
+                    else
+                    {
+                        _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة!");
+                    }
+                    
 
-                    grade.FirstMonth = item.FirstMonth;
-                    grade.Mid = item.Mid;
-                    grade.SecondMonth = item.SecondMonth;
-                    grade.Activity = item.Activity;
-                    grade.Final = item.Final;
-                    grade.IdClass = std.IdClass;
-                    grade.IdSchool = std.IdSchool;
-
-                    // Total يُحسب تلقائيًا
+                    
                 }
                 _context.SaveChanges();
                 _notyf.Success("تم اضافة العلامات للطلاب بنجاح");
-                return RedirectToAction("ViewGrades", new { teacherId });
+                return RedirectToAction("ViewGrades", new { teacherId = Grades.FirstOrDefault()?.TeacherId ?? "0" });
 
             }
             catch (Exception ex)
             {
                 _notyf.Error("فشل تسجيل العلامات للطلاب\nحاول مرة اخرى لاحقا");
-                _logger.LogAsync(ex, "Grades/SaveAll");
-                return RedirectToAction("ViewGrades", new { teacherId });
+                await _logger.LogAsync(ex, "Grades/SaveAll");
+                return RedirectToAction("ViewGrades", new { teacherId = Grades.FirstOrDefault()?.TeacherId ?? "0" });
             }
         }
         
@@ -434,13 +538,13 @@ namespace SchoolSystem.Controllers
                 var students = data.
                 Select(s => new GradesViewModel
                 {
-                    Id = s.Id,
+                    Id = _encryptionHelper.EncryptInt(s.Id),
                     ClassroomName = s.ClassroomName,
                     StudentName = s.StudentName,
-                    IdClass = s.idClass,
-                    IdStudent = s.idStudent,
+                    IdClass = _encryptionHelper.EncryptInt(s.idClass??0),
+                    IdStudent = _encryptionHelper.EncryptInt(s.idStudent??0),
                     LectuerName = s.LectuerName,
-                    IdTeacher = s.idTeacher,
+                    IdTeacher = _encryptionHelper.EncryptInt(s.idTeacher??0),
                     FirstMonth = s.f_m,
                     SecondMonth = s.s_m,
                     Mid = s.mid,
@@ -506,22 +610,32 @@ namespace SchoolSystem.Controllers
         // GET: Grades/Edit/5
         [HttpGet]
         [AuthorizeRoles("Teacher")]
-        public async Task<IActionResult> Edit(int? id)
+        public async Task<IActionResult> Edit(string? id)
         {
             int Id = HttpContext.Session.GetInt32("Id")??0;
             if (id == null)
             {
-                if(Id != 0){
-                    _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة.");
-                    await _logger.LogAsync(new Exception("التلاعب بالبيانات المرسلة"),"Grades/Edit");
-                    return View(nameof(ViewGrades),new{teacherId =Id });
-                }
-                _notyf.Error("انتهت الجلسة.");
-                await _logger.LogAsync(new Exception("دخول غير مصرح."), "Grades/Edit");
-                return RedirectToAction("Logout","Account");
+                _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة.");
+                await _logger.LogAsync(new Exception("التلاعب بالبيانات المرسلة"),"Grades/Edit");
+                return RedirectToAction("Index","Teacher");
+                
             }
 
-            var grade = await _context.Grades.FindAsync(id);
+            int IdGrade;
+            try
+            {
+
+                IdGrade = _encryptionHelper.DecryptInt(id);
+                
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogAsync(ex, "Grades/Edit");
+                _notyf.Error("حدث خطأ غير متوقع.");
+                return RedirectToAction("ViewGrades", "Grades", new { teacherId = id });
+            }
+
+            var grade = await _context.Grades.FindAsync(IdGrade);
             if (grade == null)
             {
                 if(Id != 0){
@@ -682,16 +796,33 @@ namespace SchoolSystem.Controllers
 
         }
 
+        
+
         [HttpGet]
         [AuthorizeRoles("Teacher")]
-        public async Task<IActionResult> GetSubjectsForTeacher(int teacherId)
+        public async Task<IActionResult> GetSubjectsForTeacher(string? teacherId)
         {
-            Console.WriteLine($"Id Teacher: {teacherId}");
+            int Id;
+            try
+            {
+                Id = _encryptionHelper.DecryptInt(teacherId ?? "0");
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogAsync(ex, "Teacher/GetSubjectsForTeacher");
+                _notyf.Error("حدث خطأ غير متوقع.");
+                return RedirectToAction("ManagerMenegarTeacherView", "Menegar");
+            }
+
+            Console.WriteLine($"Id Teacher Hyber: {teacherId}");
+
+            Console.WriteLine($"Id Teacher: {Id}");
+
             var subjects = await _context.TeacherLectuerClasses
-                .Where(ts => ts.IdTeacher == teacherId)
+                .Where(ts => ts.IdTeacher == Id)
                 .Include(l => l.IdLectuerNavigation)
                 .Select(ts => new {
-                    id = ts.IdLectuer,
+                    id = _encryptionHelper.EncryptInt(ts.IdLectuer??0),
                     name = ts.IdLectuerNavigation!=null? ts.IdLectuerNavigation.Name:"Null"
                 }).ToListAsync();
             Console.WriteLine($"Count Lectuer: {subjects.Count()}");
@@ -704,13 +835,30 @@ namespace SchoolSystem.Controllers
 
         [HttpGet]
         [AuthorizeRoles("Teacher")]
-        public async Task<IActionResult> GetGradesForSubject(int teacherId, int subjectId)
+        public async Task<IActionResult> GetGradesForSubject(string? teacherId, string subjectId)
         {
+
+            int Id;
+            try
+            {
+                Id = _encryptionHelper.DecryptInt(teacherId ?? "0");
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogAsync(ex, "Teacher/Details");
+                _notyf.Error("حدث خطأ غير متوقع.");
+                return RedirectToAction("ManagerMenegarTeacherView", "Menegar");
+            }
+
+
+            Console.WriteLine($"Id Teacher Hyber1: {teacherId}");
+            Console.WriteLine($"Id Teacher: {Id}");
+
             var grades = await _context.TeacherLectuerClasses
-                .Where(tg => tg.IdTeacher == teacherId)
+                .Where(tg => tg.IdTeacher == Id)
                 .Include(tg => tg.IdClassNavigation)
                 .Select(tg => new {
-                    id = tg.IdClass,
+                    id = _encryptionHelper.EncryptInt(tg.IdClass??0),
                     name = tg.IdClassNavigation!= null ? tg.IdClassNavigation.Name:"غير معرف"
                 }).Distinct().ToListAsync();
             if(grades.Count()<=0){

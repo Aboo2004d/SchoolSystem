@@ -9619,7 +9619,7 @@ jQuery.extend( {
 			}
 
 			// Set data for the fake xhr object
-			jqXHR.status = status;
+			jqXHR.message = Message;
 			jqXHR.statusText = ( nativeStatusText || statusText ) + "";
 
 			// Success/Error

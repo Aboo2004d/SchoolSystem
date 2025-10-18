@@ -1,4 +1,7 @@
 using AspNetCoreHero.ToastNotification.Abstractions;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OfficeOpenXml;
@@ -9,25 +12,37 @@ public class ExportDataController : Controller
     private readonly SystemSchoolDbContext _context;
     private readonly INotyfService _notyf;
     private readonly IErrorLoggerService _logger;
+    private readonly EncryptionHelper _encryptionHelper;
 
-    public ExportDataController(SystemSchoolDbContext context, INotyfService notyf, IErrorLoggerService logger)
+    public ExportDataController(SystemSchoolDbContext context, INotyfService notyf, IErrorLoggerService logger, EncryptionHelper encryptionHelper)
     {
         _context = context;
         _notyf = notyf;
         _logger = logger;
+        _encryptionHelper = encryptionHelper;
     }
 
-    public IActionResult ExportAllStudentInSchoolToExcel()
+    [Authorize(Roles = "admin")]
+    public async Task<IActionResult> ExportAllStudentInSchoolToExcel()
     {
+        var school = HttpContext.Session.GetInt32("School") ?? 0;
+        if (school == 0)
+        {
+            await _logger.LogAsync(new Exception("انتهت صلاحية الدخول"), "StudentApi/Create");
+            HttpContext.Session.Clear(); // مسح الجلسة
+            // تسجيل الخروج باستخدام ملفات تعريف الارتباط
+            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            return NotFound();
+        }
         try
         {
             ExcelPackage.License.SetNonCommercialOrganization("وزارة التربية والتعليم العالي فلسطين");
-            var students = _context.Students.Where(s => s.IdSchool == HttpContext.Session.GetInt32("School"))
+            var students = _context.Students.Where(s => s.IdSchool == school && s.IsDeletedStudent == false)
             .Include(s => s.IdClassNavigation).Include(s => s.Grades)
             .Include(s => s.Attendances).Include(s => s.IdSchoolNavigation).ToList(); // جلب بيانات الطلاب من قاعدة البيانات
 
             using var package = new ExcelPackage();
-            var worksheet = package.Workbook.Worksheets.Add("الطلاب في المدرسة");
+            var worksheet = package.Workbook.Worksheets.Add("الطلاب");
 
             // إضافة رؤوس الأعمدة
             worksheet.Cells[1, 1].Value = "#";
@@ -57,8 +72,8 @@ public class ExportDataController : Controller
 
                 worksheet.Cells[row, 7].Value = student.City + "/" + student.Area;
                 worksheet.Cells[row, 8].Value = student.IdClassNavigation?.Name ?? "غير معرف";
-                worksheet.Cells[row, 9].Value = student.Grades.Select(g => g.Total).Average() ?? 0; // حساب المعدل
-                worksheet.Cells[row, 10].Value = student.Attendances.Count(att => att.AttendanceStatus == "1") + "/" + student.Attendances.Count; // حساب الحضور
+                worksheet.Cells[row, 9].Value = $"{student.Grades.Select(g => g.Total).Average() ?? 0} %"; // حساب المعدل
+                worksheet.Cells[row, 10].Value = $"{student.Attendances.Count(att => att.AttendanceStatus == "1" || att.AttendanceStatus == "m")} / {student.Attendances.Count}"; // حساب الحضور
                 worksheet.Cells[row, 11].Value = student.IdSchoolNavigation?.Name ?? "غير معرف";
                 row++;
             }
@@ -66,7 +81,7 @@ public class ExportDataController : Controller
             // إعدادات العرض
             worksheet.Cells[worksheet.Dimension.Address].AutoFitColumns();
 
-            var fileName = "الطلاب.xlsx";
+            var fileName = $" الطلاب في مدرسة {students[0].IdSchoolNavigation?.Name??"غير معرفة"}.xlsx";
             var fileContent = package.GetAsByteArray();
 
 
@@ -77,7 +92,7 @@ public class ExportDataController : Controller
         catch (Exception ex)
         {
             _notyf.Error("حدث خطأ أثناء تصدير البيانات. يرجى المحاولة مرة أخرى.");
-            _logger.LogAsync(ex, "ExportData/ExportAllStudentInSchoolToExcel");
+            await _logger.LogAsync(ex, "ExportData/ExportAllStudentInSchoolToExcel");
             return RedirectToAction("ManagerMenegarStudentView", "Menegar");
         }
     }
@@ -140,13 +155,27 @@ public class ExportDataController : Controller
         }
     }
     
-    public IActionResult ExportAllStudentInTeacherToExcel(int idTeacher)
+    public async Task<IActionResult> ExportAllStudentInTeacherToExcel(string? idTeacher)
     {
+        int Id;
+
+            try
+            {
+                Id = _encryptionHelper.DecryptInt(idTeacher??"0");
+
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogAsync(ex, "Teacher/Details");
+                _notyf.Error("حدث خطأ غير متوقع.");
+                return RedirectToAction("ManagerMenegarTeacherView","Menegar");
+            }
+            
         try
         {
             ExcelPackage.License.SetNonCommercialOrganization("وزارة التربية والتعليم العالي فلسطين");
             var studentsInTeacher = _context.StudentLectuerTeachers
-            .Where(s => s.IdSchool == HttpContext.Session.GetInt32("School") && s.IdTeacher == idTeacher)
+            .Where(s => s.IdSchool == HttpContext.Session.GetInt32("School") && s.IdTeacher == Id)
             .Include(s => s.IdLectuerNavigation)
             .Include(s => s.IdStudentNavigation).Include(s => s.IdTeacherNavigation).ToList(); // جلب بيانات المعلمين من قاعدة البيانات
 
@@ -165,15 +194,15 @@ public class ExportDataController : Controller
             foreach (var student in studentsInTeacher)
             {
                 worksheet.Cells[row, 1].Value = row - 1; // الرقم التسلسلي
-                worksheet.Cells[row, 2].Value = student.IdStudentNavigation?.Name??"غير معرف";
-                worksheet.Cells[row, 3].Value = student.IdLectuerNavigation?.Name??"غير معرف";
+                worksheet.Cells[row, 2].Value = student.IdStudentNavigation?.Name ?? "غير معرف";
+                worksheet.Cells[row, 3].Value = student.IdLectuerNavigation?.Name ?? "غير معرف";
                 worksheet.Cells[row, 4].Value = _context.Attendances.Where(
-                    sa => sa.IdTeacher == idTeacher && sa.IdLectuer == student.IdLectuer &&  sa.IdStudent == student.IdStudent
+                    sa => sa.IdTeacher == Id && sa.IdLectuer == student.IdLectuer && sa.IdStudent == student.IdStudent
                 ).Count(a => a.AttendanceStatus == "1") + "/" + _context.Attendances.Where(
-                    sa => sa.IdTeacher == idTeacher && sa.IdLectuer == student.IdLectuer &&  sa.IdStudent == student.IdStudent
+                    sa => sa.IdTeacher == Id && sa.IdLectuer == student.IdLectuer && sa.IdStudent == student.IdStudent
                 ).Count();
-                worksheet.Cells[row, 5].Value =  _context.Grades.Where(
-                    sa => sa.IdTeacher == idTeacher && sa.IdLectuer == student.IdLectuer &&  sa.IdStudent == student.IdStudent
+                worksheet.Cells[row, 5].Value = _context.Grades.Where(
+                    sa => sa.IdTeacher == Id && sa.IdLectuer == student.IdLectuer && sa.IdStudent == student.IdStudent
                 ).Select(g => g.Total).SingleOrDefault() + "/100";
                 row++;
             }
@@ -181,7 +210,7 @@ public class ExportDataController : Controller
             // إعدادات العرض
             worksheet.Cells[worksheet.Dimension.Address].AutoFitColumns();
 
-            var fileName = $"الطلاب لدى المعلم {studentsInTeacher[0].IdTeacherNavigation?.Name??"غير معرف"}.xlsx";
+            var fileName = $"الطلاب لدى المعلم {studentsInTeacher[0].IdTeacherNavigation?.Name ?? "غير معرف"}.xlsx";
             var fileContent = package.GetAsByteArray();
 
 
@@ -191,7 +220,7 @@ public class ExportDataController : Controller
         }
         catch (Exception ex)
         {
-            _logger.LogAsync(ex, "ExportData/ExportAllStudentInTeacherToExcel");
+            await _logger.LogAsync(ex, "ExportData/ExportAllStudentInTeacherToExcel");
             _notyf.Error("حدث خطأ أثناء تصدير البيانات. يرجى المحاولة مرة أخرى.");
             return RedirectToAction("Students", "Teacher");
         }

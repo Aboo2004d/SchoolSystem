@@ -1,5 +1,3 @@
-@model SchoolSystem.Data.Lectuer
-
 @{
     ViewData["Title"] = "إنشاء مادة";
 }
@@ -12,18 +10,18 @@
                     <h4 class="mb-0"><i class="bi bi-book"></i> إضافة مادة جديدة</h4>
                 </div>
                 <div class="card-body">
-                    <form asp-action="Create">
+                    <form id="createLectuerForm">
                         <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
                         <div class="mb-3">
-                            <label asp-for="Name" class="form-label fw-bold">اسم المادة</label>
-                            <input asp-for="Name" class="form-control" placeholder="أدخل اسم المادة" />
-                            <span asp-validation-for="Name" class="text-danger small"></span>
+                            <label for="Name" class="form-label fw-bold">اسم المادة</label>
+                            <input name="Name" id="Name" class="form-control" placeholder="أدخل اسم المادة" />
+                            <span name="NameError" id="NameError" class="text-danger small"></span>
                         </div>
 
                         
-                        <div class="d-flex justify-content-center gap-3 mt-4">
-                            <button type="submit" class="btn btn-outline-success">
+                        <div  class="d-flex justify-content-center gap-3 mt-4">
+                            <button id="submitBtn" type="submit" class="btn btn-outline-success">
                                 <i class="bi bi-plus"></i> انشاء
                             </button>
                             <a class="btn btn-outline-dark" asp-action="LectuerView">
@@ -38,4 +36,33 @@
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        $("#createLectuerForm").submit(function (e) {
+            e.preventDefault(); 
+            $("#submitBtn").prop("disabled", true);
+
+            const data = {
+                name: $("#Name").val()
+            };
+
+            $.ajax({
+                url: "/api/lectuer/Create",
+                method: "POST",
+                contentType: "application/json",
+                data: JSON.stringify(data),
+                success: function (res) {
+                    notifySuccess("تم الحفظ بنجاح");
+
+                    setTimeout(() => {
+                        window.location.href = "/Lectuer/LectuerView";
+                    }, 1500);
+                },
+                error: function (xhr) {
+                    const errorMsg = xhr.responseJSON?.message || "حدث خطأ غير متوقع";
+                    notifyError(errorMsg);
+                    $("#submitBtn").prop("disabled", false);
+                }
+            });
+        });
+    </script>
 }

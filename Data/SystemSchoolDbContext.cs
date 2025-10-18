@@ -15,6 +15,8 @@ public partial class SystemSchoolDbContext : DbContext
 
     public virtual DbSet<Attendance> Attendances { get; set; }
 
+    public virtual DbSet<Branch> Branches { get; set; }
+
     public virtual DbSet<ErrorLog> ErrorLogs { get; set; }
 
     public virtual DbSet<Gender> Genders { get; set; }
@@ -29,11 +31,11 @@ public partial class SystemSchoolDbContext : DbContext
 
     public virtual DbSet<School> Schools { get; set; }
 
+    public virtual DbSet<StageClass> StageClasses { get; set; }
+
     public virtual DbSet<StatusSchool> StatusSchools { get; set; }
 
     public virtual DbSet<Student> Students { get; set; }
-
-    public virtual DbSet<StudentAverage> StudentAverages { get; set; }
 
     public virtual DbSet<StudentLectuerTeacher> StudentLectuerTeachers { get; set; }
 
@@ -95,6 +97,19 @@ public partial class SystemSchoolDbContext : DbContext
             entity.HasOne(d => d.IdTeacherNavigation).WithMany(p => p.Attendances)
                 .HasForeignKey(d => d.IdTeacher)
                 .HasConstraintName("FK_Attendance_Teacher");
+        });
+
+        modelBuilder.Entity<Branch>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__Branch__54205B04058BBB4F");
+
+            entity.ToTable("Branch");
+
+            entity.Property(e => e.BranchCode)
+                .HasMaxLength(1)
+                .IsUnicode(false)
+                .IsFixedLength();
+            entity.Property(e => e.BranchName).HasMaxLength(100);
         });
 
         modelBuilder.Entity<ErrorLog>(entity =>
@@ -224,9 +239,28 @@ public partial class SystemSchoolDbContext : DbContext
                 .HasForeignKey(d => d.IdGender)
                 .HasConstraintName("FK__School__IdGender__28B808A7");
 
+            entity.HasOne(d => d.IdStageNavigation).WithMany(p => p.Schools)
+                .HasForeignKey(d => d.IdStage)
+                .HasConstraintName("FK__School__IdStage__377B294A");
+
             entity.HasOne(d => d.IdStatusSchoolNavigation).WithMany(p => p.Schools)
                 .HasForeignKey(d => d.IdStatusSchool)
                 .HasConstraintName("FK__School__IdStatus__22FF2F51");
+        });
+
+        modelBuilder.Entity<StageClass>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__StageCla__3214EC07B7F14D02");
+
+            entity.ToTable("StageClass");
+
+            entity.HasIndex(e => e.Code, "UQ__StageCla__A25C5AA7AAECF2F1").IsUnique();
+
+            entity.Property(e => e.Code)
+                .HasMaxLength(1)
+                .IsUnicode(false)
+                .IsFixedLength();
+            entity.Property(e => e.NameStage).HasMaxLength(15);
         });
 
         modelBuilder.Entity<StatusSchool>(entity =>
@@ -267,27 +301,6 @@ public partial class SystemSchoolDbContext : DbContext
             entity.HasOne(d => d.IdSchoolNavigation).WithMany(p => p.Students)
                 .HasForeignKey(d => d.IdSchool)
                 .HasConstraintName("FK__Student__IdSchoo__24E777C3");
-        });
-
-        modelBuilder.Entity<StudentAverage>(entity =>
-        {
-            entity.HasKey(e => e.IdStudentAvg).HasName("PK__StudentA__9A002AFC4CA4B91A");
-
-            entity.ToTable("StudentAverage");
-
-            entity.HasIndex(e => e.IdSchool, "IX_StudentAverage_IdSchool");
-
-            entity.HasOne(d => d.IdClassNavigation).WithMany(p => p.StudentAverages)
-                .HasForeignKey(d => d.IdClass)
-                .HasConstraintName("FK__StudentAv__IdCla__03BB8E22");
-
-            entity.HasOne(d => d.IdSchoolNavigation).WithMany(p => p.StudentAverages)
-                .HasForeignKey(d => d.IdSchool)
-                .HasConstraintName("FK__StudentAv__IdSch__6E565CE8");
-
-            entity.HasOne(d => d.IdStudentNavigation).WithMany(p => p.StudentAverages)
-                .HasForeignKey(d => d.IdStudent)
-                .HasConstraintName("FK_StudentAverage_Student");
         });
 
         modelBuilder.Entity<StudentLectuerTeacher>(entity =>
@@ -387,9 +400,17 @@ public partial class SystemSchoolDbContext : DbContext
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.Name).HasMaxLength(20);
 
+            entity.HasOne(d => d.IdBranchNavigation).WithMany(p => p.TheClasses)
+                .HasForeignKey(d => d.IdBranch)
+                .HasConstraintName("FK__TheClass__IdBran__3592E0D8");
+
             entity.HasOne(d => d.IdSchoolNavigation).WithMany(p => p.TheClasses)
                 .HasForeignKey(d => d.IdSchool)
                 .HasConstraintName("FK_TheClass_School");
+
+            entity.HasOne(d => d.IdStageNavigation).WithMany(p => p.TheClasses)
+                .HasForeignKey(d => d.IdStage)
+                .HasConstraintName("FK__TheClass__IdStag__32B6742D");
         });
 
         OnModelCreatingPartial(modelBuilder);

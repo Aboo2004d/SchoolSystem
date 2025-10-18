@@ -22,14 +22,16 @@ namespace SchoolSystem.Controllers
         private readonly INotyfService _notyf;
         private readonly IErrorLoggerService _logger;
         private readonly ISessionValidatorService _sessionValidatorService;
+        private readonly EncryptionHelper _encryptionHelper;
 
 
-        public TeacherController(SystemSchoolDbContext context, ISessionValidatorService sessionValidatorService, INotyfService notyf, IErrorLoggerService logger)
+        public TeacherController(SystemSchoolDbContext context, EncryptionHelper encryptionHelper, ISessionValidatorService sessionValidatorService, INotyfService notyf, IErrorLoggerService logger)
         {
             _logger = logger;
             _context = context;
             _notyf = notyf;
             _sessionValidatorService = sessionValidatorService;
+            _encryptionHelper = encryptionHelper;
         }
 
         // GET: Teacher
@@ -49,7 +51,11 @@ namespace SchoolSystem.Controllers
                         if (teacher != null)
                         {
                             Console.WriteLine($"Id Teacher123: {teacher.Id}");
-                            return View(teacher);
+                            TeacherViewModel teacherViewModel = new TeacherViewModel
+                            {
+                                Id = _encryptionHelper.EncryptInt(teacher.Id)
+                            };
+                            return View(teacherViewModel);
                         }
                     }
                 }
@@ -64,141 +70,39 @@ namespace SchoolSystem.Controllers
         }
 
         // GET: Teacher/Details/5
-        public async Task<IActionResult> Details(int? id)
+        [AuthorizeRoles("admin")]
+        public async Task<IActionResult> Details(string? id)
         {
             if (id == null)
             {
+                await _logger.LogAsync(new Exception("ارسال معرف فارغ"), "Teacher/Details");
                 return NotFound();
             }
 
-            var teacher = await _context.Teachers
-                .FirstOrDefaultAsync(m => m.Id == id);
-            if (teacher == null)
-            {
-                return NotFound();
-            }
-
-            return View(teacher);
+            ViewBag.Id = id;
+            return View();
         }
 
         // GET: Teacher/Create
+        [AuthorizeRoles("admin")]
         public IActionResult Create()
         {
             return View();
         }
 
-        // POST: Teacher/Create
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Name,Phone,Email,TheDate,IdNumber,City,Area")]Teacher teacher)
-        {
-            if (ModelState.IsValid)
-            {
-                Teacher teacher1 = await _context.Teachers.FirstOrDefaultAsync(t => t.IdNumber == teacher.IdNumber);
-                if (teacher1 != null)
-                {
-                    _notyf.Error("رقم الهوية موجود مسبقا");
-                    return View(teacher);
-                }
-                if (teacher.TheDate > new DateOnly(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day))
-                {
-                    _notyf.Error("تاريخ الميلاد غير صالح");
-                    return View(teacher);
-                }
-                teacher.IdSchool = HttpContext.Session.GetInt32("School") ?? 0;
-                _context.Add(teacher);
-                await _context.SaveChangesAsync();
-                _notyf.Success("تم إضافة المعلم بنجاح");
-                return RedirectToAction("ManagerMenegarTeacherView", "Menegar");
-            }
-            return View(teacher);
-        }
-
         // GET: Teacher/Edit/5
-        public async Task<IActionResult> Edit(int? id)
+        [AuthorizeRoles("admin")]
+        [HttpGet]        
+        public async Task<IActionResult> Edit(string? id)
         {
             if (id == null)
             {
+                await _logger.LogAsync(new Exception("التلاعب بالبيانات المرسلة"), "Teacher/Edit");
                 return NotFound();
             }
 
-            var teacher = await _context.Teachers.FindAsync(id);
-            if (teacher == null)
-            {
-                return NotFound();
-            }
-            return View(teacher);
-        }
-
-        // POST: Teacher/Edit/5
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Name,Phone,Email,TheDate,IdNumber,City,Area")] Teacher teacher)
-        {
-            if (id != teacher.Id)
-            {
-                return NotFound();
-            }
-
-            if (ModelState.IsValid)
-            {
-                try
-                {
-                    _context.Update(teacher);
-                    await _context.SaveChangesAsync();
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!TeacherExists(teacher.Id))
-                    {
-                        return NotFound();
-                    }
-                    else
-                    {
-                        throw;
-                    }
-                }
-                return RedirectToAction(nameof(Index));
-            }
-            return View(teacher);
-        }
-
-        // GET: Teacher/Delete/5
-        public async Task<IActionResult> Delete(int? id)
-        {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
-            var teacher = await _context.Teachers
-                .FirstOrDefaultAsync(m => m.Id == id);
-            if (teacher == null)
-            {
-                return NotFound();
-            }
-
-            return View(teacher);
-        }
-
-        // POST: Teacher/Delete/5
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
-        {
-            var teacher = await _context.Teachers.FindAsync(id);
-            if (teacher != null)
-            {
-                teacher.IsDeleted = true;
-                _notyf.Success("تم حذف المعلم بنجاح");;
-            }
-
-            await _context.SaveChangesAsync();
-            return RedirectToAction("ManagerMenegarTeacherView", "Menegar");
+            ViewBag.Id = id;
+            return View();
         }
 
         public async Task<IActionResult> ManagerTeacher([FromQuery]int teacherId)
@@ -226,151 +130,80 @@ namespace SchoolSystem.Controllers
                 return RedirectToAction(nameof(Index));
             }
         }
+
         [HttpGet]
         [AuthorizeRoles("Teacher")]
-        public async Task<IActionResult> ManagerStudentToTeacher(
-            int teacherId,
-            [FromQuery] int draw,
-            [FromQuery] int start,
-            [FromQuery] int length = 10,
-            [FromQuery(Name = "search[value]")] string searchValue = "")
+        public async Task<IActionResult> Students(string? teacherId)
         {
+            int Id;
+
             try
             {
-                Console.WriteLine($"Id Teach: {teacherId}");
-                // التحقق من صلاحية المستخدم و التلاعب بالبيانات
-                var (IsValid, IdTeacher, IdSchool,status) = await _sessionValidatorService.ValidateTeacherSessionAsync(HttpContext, teacherId, "Attendance/DataAttendance");
-                if (!IsValid)
-                {
-                    return Json(new { success = false, status = status, error = "Unauthorized access. Session expired." });
-                }
+                Id = _encryptionHelper.DecryptInt(teacherId??"0");
 
-                //فحص اذا كان تم ارسال قيمة المتغير ام لا و وصع قيمة افتراضية اذا كان لا
-                if (length <= 0)
-                    length = 10;
-
-                // تحديد قيمة الـ searchValue
-                var orderColumnIndex = Request.Query["order[0][column]"].ToString();
-                var orderDir = Request.Query["order[0][dir]"].ToString().ToLower();
-
-                // تعيين افتراضي في حالة القيم غير صالحة
-                if (string.IsNullOrEmpty(orderColumnIndex)) orderColumnIndex = "0";
-                if (string.IsNullOrEmpty(orderDir)) orderDir = "asc";
-
-                // إجمالي عدد السجلات بدون فلترة
-                var totalRecords = await _context.StudentLectuerTeachers.Where(std => std.IdSchool == IdSchool && std.IdTeacher == IdTeacher)
-                .CountAsync();
-
-                // الاستعلام الأساسي مع تحسين الأداء
-                var query = _context.StudentLectuerTeachers.Where(std => std.IdSchool == IdSchool && std.IdTeacher == IdTeacher)
-                    .AsNoTracking()
-                    .Select(s => new
-                    {
-                        Id = s.Id,
-                        TeacherName = s.IdTeacherNavigation != null ? s.IdTeacherNavigation.Name : "Unknown",
-                        IdStudent = s.IdStudent,
-                        StudentName = s.IdStudentNavigation != null ? s.IdStudentNavigation.Name : "Unknown",
-                        ClassroomName = s.IdClassNavigation != null ? s.IdClassNavigation.Name : "Unknown",
-                        LectuerName = s.IdLectuerNavigation != null ? s.IdLectuerNavigation.Name : "Unknown",
-                        IdClass = s.IdClass
-                        
-                    });
-
-                // البحث
-                if (!string.IsNullOrWhiteSpace(searchValue))
-                {
-                    query = query.Where(s =>
-                        (s.StudentName != null && s.StudentName.Contains(searchValue))||
-                        (s.LectuerName != null && s.LectuerName.Contains(searchValue))||
-                        (s.ClassroomName != null && s.ClassroomName.Contains(searchValue))
-                    );
-                }
-
-                // عدد السجلات الاصلية التي تنطبق عليها الشروط
-                var filteredCount = await query.CountAsync();
-
-                // الترتيب
-                query = (orderColumnIndex, orderDir) switch
-                {
-                    ("0", "asc") => query.OrderBy(s => s.StudentName),
-                    ("0", "desc") => query.OrderByDescending(s => s.StudentName),
-                    ("1", "asc") => query.OrderBy(s => s.ClassroomName),
-                    ("1", "desc") => query.OrderByDescending(s => s.ClassroomName),
-                    ("2", "asc") => query.OrderBy(s => s.LectuerName),
-                    ("2", "desc") => query.OrderByDescending(s => s.LectuerName),
-                    _ => query.OrderBy(s => s.StudentName)
-                };
-
-                // التقطيع (Pagination)
-                var data = await query
-                        .Skip(start)
-                        .Take(length)
-                        .ToListAsync();
-
-                //ارسال بيانات للعرض
-                var students = data.
-                Select(s => new ManagerMenegarStudentInClassViewModel
-                {
-                    Id = s.Id,
-                    ClassroomName = s.ClassroomName,
-                    StudentName = s.StudentName,
-                    IdClass = s.IdClass,
-                    IdStudent = s.IdStudent,
-                    LectuerName = s.LectuerName
-                    })
-                    .ToList();
-
-                var result = new
-                {
-                    draw,
-                    recordsTotal = totalRecords,
-                    recordsFiltered = filteredCount,
-                    data = students
-                };
-                
-                return Json(result);
             }
-            catch (Exception e)
+            catch (Exception ex)
             {
-                // حال كان هناك خطأ غير متوقع
-                await _logger.LogAsync(e, "Attendance/DataAttendance");
-                return Json(new { error = e.Message, stack = e.StackTrace });
+                await _logger.LogAsync(ex, "Teacher/DownloadTeacherCertificate");
+                _notyf.Error("حدث خطأ غير متوقع.");
+                return RedirectToAction("ManagerMenegarTeacherView","Menegar");
             }
-        }
-
-
-        [HttpGet]
-        [AuthorizeRoles("Teacher")]
-        public async Task<IActionResult> Students(int teacherId)
-        {
+            
             // التحقق من صلاحية المستخدم و التلاعب بالبيانات
-            var (IsValid, IdTeacher, IdSchool,status) = await _sessionValidatorService.ValidateTeacherSessionAsync(HttpContext, teacherId, "Attendance/ViewAttendance");
+            var (IsValid, IdTeacher, IdSchool,status) = await _sessionValidatorService.ValidateTeacherSessionAsync(HttpContext, Id, "Attendance/ViewAttendance");
             if (!IsValid)
             {
-                if (!status)
-                    return RedirectToAction("Login", "Account");
+                
                 return View(nameof(Index));
             }
             var name = _context.Teachers.FirstOrDefault(c => c.Id == IdTeacher);
             ViewBag.name = name?.Name??"Null";
             Console.WriteLine($"std Teacher Id: {IdTeacher}");
-            ViewBag.IdTeacher = IdTeacher;
+            ViewBag.IdTeacher = teacherId;
+            return View();
+        }
+
+        [AuthorizeRoles("admin")]
+        [HttpGet]
+        public async Task<IActionResult> ManagementClassLectuerForTeachers(string? idTeacher)
+        {
+            if (idTeacher == null)
+            {
+                await _logger.LogAsync(new Exception("التلاعب بالبيانات المرسلة"), "Teacher/ManagementClassLectuerForTeachers");
+                return NotFound();
+            }
+
+            ViewBag.Id = idTeacher;
             return View();
         }
 
         [HttpGet]
-        public JsonResult GetStudentCountPerGrades(int? idTeacher)
+        public async Task<IActionResult> GetStudentCountPerGrades(string? idTeacher)
         {
+            int Id;
+
+            try
+            {
+                Id = _encryptionHelper.DecryptInt(idTeacher??"0");
+
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogAsync(ex, "Teacher/Details");
+                _notyf.Error("حدث خطأ غير متوقع.");
+                return RedirectToAction("ManagerMenegarTeacherView","Menegar");
+            }
+
             Console.WriteLine($"Id Teacher: {idTeacher}");
             var schoolId = HttpContext.Session.GetInt32("School");
             Console.WriteLine($"Id School: {schoolId}");
             var data = _context.Grades
                 .Where(g =>
-                    g.IdSchool == schoolId &&
-                    g.IdTeacher == idTeacher
-                    && g.IdStudentNavigation != null 
-                    &&(g.IdStudentNavigation.IsDeleted == false || g.IdStudentNavigation.IsDeleted == null) &&
-                    g.IdLectuerNavigation != null
+                    g.IdSchool == schoolId
+                    && g.IdTeacher == Id
+                    && g.IdStudentNavigation != null
+                    && g.IdStudentNavigation.IsDeletedStudent == false
+                    && g.IdLectuerNavigation != null
                     ).Include(l => l.IdClassNavigation)
                 .GroupBy(g => new { g.IdLectuer, g.IdLectuerNavigation.Name })
                 .Select(g => new
@@ -396,15 +229,29 @@ namespace SchoolSystem.Controllers
         }
 
         [HttpGet]
-        public JsonResult GetStudentCountPerAttendance(int? idTeacher)
+        public async Task<IActionResult> GetStudentCountPerAttendance(string? idTeacher)
         {
+            int Id;
+
+            try
+            {
+                Id = _encryptionHelper.DecryptInt(idTeacher??"0");
+
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogAsync(ex, "Teacher/Details");
+                _notyf.Error("حدث خطأ غير متوقع.");
+                return RedirectToAction("ManagerMenegarTeacherView","Menegar");
+            }
+
             var schoolId = HttpContext.Session.GetInt32("School");
 
             var data = _context.Attendances
                 .Where(g => g.IdSchool == schoolId
-                            && g.IdTeacher == idTeacher
+                            && g.IdTeacher == Id
                             && g.IdStudentNavigation != null
-                            && (g.IdStudentNavigation.IsDeleted == false || g.IdStudentNavigation.IsDeleted == null)
+                            && g.IdStudentNavigation.IsDeletedStudent == false
                             && g.IdLectuerNavigation != null)
                 .GroupBy(g => new { g.IdLectuer, g.IdLectuerNavigation.Name })
                 .Select(g => new
@@ -421,18 +268,30 @@ namespace SchoolSystem.Controllers
         }
 
         // شهادة قيد لطالب
-        [AuthorizeRoles("Teacher")]
-        public IActionResult DownloadTeacherCertificate(int? idTeacher)
+        [AuthorizeRoles("Teacher","admin")]
+        public async Task<IActionResult> DownloadTeacherCertificate(string? idTeacher)
         {
-            Console.WriteLine($"Id Teacher: {idTeacher}");
+            int Id;
+
+            try
+            {
+                Id = _encryptionHelper.DecryptInt(idTeacher??"0");
+
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogAsync(ex, "Teacher/DownloadTeacherCertificate");
+                _notyf.Error("حدث خطأ غير متوقع.");
+                return RedirectToAction("ManagerMenegarTeacherView","Menegar");
+            }
             try
             {
                 Teacher? teacher = _context.Teachers
-                .Where(s => s.Id == idTeacher && s.IsDeleted == false && s.IdSchool == HttpContext.Session.GetInt32("School"))
+                .Where(s => s.Id == Id && s.IsDeleted == false && s.IdSchool == HttpContext.Session.GetInt32("School"))
                 .Include(s => s.IdSchoolNavigation).SingleOrDefault();
                 if (teacher == null)
                 {
-                    _logger.LogAsync(new Exception("انتهت صلاحية الجلسة"), "Teacher/DownloadTeacherCertificate");
+                    await _logger.LogAsync(new Exception("انتهت صلاحية الجلسة"), "Teacher/DownloadTeacherCertificate");
                     _notyf.Error("انتهت الجلسة.");
                     return RedirectToAction("Logout", "Account");
                 }
@@ -443,7 +302,7 @@ namespace SchoolSystem.Controllers
                     teacher?.IdNumber ?? 0,
                     teacher?.IdSchoolNavigation?.Name ?? "غير معرف",
                     menegar?.Name ?? "لم يتم اعتماده بعد.",
-                    _context.TeacherLectuerClasses.Where(tl => tl.IdTeacher == teacher.Id && teacher.IdSchool == teacher.IdSchool).Select(name => name.IdLectuerNavigation.Name).ToList());
+                    _context.TeacherLectuerClasses.Where(tl => tl.IdTeacher == Id && teacher.IdSchool == teacher.IdSchool).Select(name => name.IdLectuerNavigation.Name).ToList());
                 var stream = new MemoryStream();
                 document.GeneratePdf(stream);
                 stream.Position = 0;
@@ -453,7 +312,7 @@ namespace SchoolSystem.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogAsync(ex, "Student/DownloadStudentCertificate");
+                await _logger.LogAsync(ex, "Student/DownloadStudentCertificate");
                 _notyf.Error("حدث خطا اثناء انشاء شهادة قيد.\nيرجى المحاولة لاحقا");
                 return View(nameof(Index));
             }

@@ -23,7 +23,9 @@ public partial class Teacher
 
     public int? IdNumber { get; set; }
 
-    public bool? IsDeleted { get; set; }
+    public bool IsDeleted { get; set; }
+
+    public bool IsDeletedSchool { get; set; }
 
     public virtual ICollection<Attendance> Attendances { get; set; } = new List<Attendance>();
 

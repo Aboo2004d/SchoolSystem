@@ -60,55 +60,36 @@ namespace SchoolSystem.Migrations
                     b.HasKey("Id")
                         .HasName("PK__Acounts__3213E83F1B5AE3B5");
 
-                    b.ToTable("Acounts");
+                    b.ToTable("Acounts", (string)null);
                 });
 
             modelBuilder.Entity("SchoolSystem.Data.Attendance", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<int>("AttendanceId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
-                        .HasColumnName("id");
+                        .HasColumnName("AttendanceID");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("AttendanceId"));
 
-                    b.Property<string>("AttendanceStatus")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(1)
-                        .IsUnicode(false)
-                        .HasColumnType("char(1)")
-                        .HasDefaultValue("0")
-                        .IsFixedLength();
-
-                    b.Property<DateOnly?>("DateAndTime")
-                        .HasColumnType("date");
-
-                    b.Property<string>("Excuse")
-                        .HasColumnType("text");
-
-                    b.Property<int?>("IdClass")
+                    b.Property<int>("AbsentDays")
                         .HasColumnType("int");
 
-                    b.Property<int?>("IdLectuer")
+                    b.Property<int>("IdStudent")
                         .HasColumnType("int");
 
-                    b.Property<int?>("IdStudent")
+                    b.Property<int>("PresentDays")
                         .HasColumnType("int");
 
-                    b.Property<int?>("IdTeacher")
-                        .HasColumnType("int");
+                    b.Property<int?>("TotalDays")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("int")
+                        .HasComputedColumnSql("([PresentDays]+[AbsentDays])", true);
 
-                    b.HasKey("Id")
-                        .HasName("PK__Attendan__3213E83FAD8350D2");
-
-                    b.HasIndex("IdClass");
-
-                    b.HasIndex("IdLectuer");
+                    b.HasKey("AttendanceId")
+                        .HasName("PK__Attendan__8B69263C0DDD08A8");
 
                     b.HasIndex("IdStudent");
-
-                    b.HasIndex("IdTeacher");
 
                     b.ToTable("Attendance", (string)null);
                 });
@@ -122,10 +103,10 @@ namespace SchoolSystem.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int?>("IdClass")
+                    b.Property<int>("IdClass")
                         .HasColumnType("int");
 
-                    b.Property<int?>("IdLectuer")
+                    b.Property<int>("IdLectuer")
                         .HasColumnType("int");
 
                     b.HasKey("Id")
@@ -138,53 +119,6 @@ namespace SchoolSystem.Migrations
                     b.ToTable("ClassLectuer", (string)null);
                 });
 
-            modelBuilder.Entity("SchoolSystem.Data.ErrorLog", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("DateOccurred")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Message")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Source")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("StackTrace")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("ErrorLogs");
-                });
-
-            modelBuilder.Entity("SchoolSystem.Data.Gender", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("TheType")
-                        .IsRequired()
-                        .HasMaxLength(7)
-                        .HasColumnType("nvarchar(7)");
-
-                    b.HasKey("Id")
-                        .HasName("PK__Gender__3214EC070A22819D");
-
-                    b.ToTable("Gender", (string)null);
-                });
-
             modelBuilder.Entity("SchoolSystem.Data.Grade", b =>
                 {
                     b.Property<int>("GradesId")
@@ -195,21 +129,12 @@ namespace SchoolSystem.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("GradesId"));
 
                     b.Property<int?>("Activity")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
+                        .HasColumnType("int");
 
                     b.Property<int?>("Final")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
+                        .HasColumnType("int");
 
                     b.Property<int?>("FirstMonth")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.Property<int?>("IdClass")
                         .HasColumnType("int");
 
                     b.Property<int?>("IdLectuer")
@@ -222,24 +147,18 @@ namespace SchoolSystem.Migrations
                         .HasColumnType("int");
 
                     b.Property<int?>("Mid")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
+                        .HasColumnType("int");
 
                     b.Property<int?>("SecondMonth")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
+                        .HasColumnType("int");
 
                     b.Property<int?>("Total")
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("int")
-                        .HasComputedColumnSql("(((([FirstMonth]+[Mid])+[SecondMonth])+[Activity])+[Final])", false);
+                        .HasComputedColumnSql("(((([FirstMonth]+[Mid])+[SecondMonth])+[Activity])+[Final])", true);
 
                     b.HasKey("GradesId")
                         .HasName("PK__Grades__931A40BF88D8CDCA");
-
-                    b.HasIndex("IdClass");
 
                     b.HasIndex("IdLectuer");
 
@@ -247,7 +166,12 @@ namespace SchoolSystem.Migrations
 
                     b.HasIndex("IdTeacher");
 
-                    b.ToTable("Grades");
+                    b.ToTable("Grades", null, t =>
+                        {
+                            t.HasTrigger("trg_UpdateStudentAverage");
+                        });
+
+                    b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
                 });
 
             modelBuilder.Entity("SchoolSystem.Data.Lectuer", b =>
@@ -271,23 +195,6 @@ namespace SchoolSystem.Migrations
                     b.ToTable("Lectuer", (string)null);
                 });
 
-            modelBuilder.Entity("SchoolSystem.Data.LogProgress", b =>
-                {
-                    b.Property<DateTime?>("LoggedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime")
-                        .HasDefaultValueSql("(getdate())");
-
-                    b.Property<string>("Message")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<int?>("Step")
-                        .HasColumnType("int");
-
-                    b.ToTable("LogProgress", (string)null);
-                });
-
             modelBuilder.Entity("SchoolSystem.Data.Menegar", b =>
                 {
                     b.Property<int>("Id")
@@ -302,9 +209,6 @@ namespace SchoolSystem.Migrations
                         .IsUnicode(false)
                         .HasColumnType("varchar(50)");
 
-                    b.Property<int?>("IdSchool")
-                        .HasColumnType("int");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -317,60 +221,7 @@ namespace SchoolSystem.Migrations
                     b.HasKey("Id")
                         .HasName("PK__Menegar__3213E83FE96BFA1F");
 
-                    b.HasIndex("IdSchool");
-
                     b.ToTable("Menegar", (string)null);
-                });
-
-            modelBuilder.Entity("SchoolSystem.Data.School", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int?>("IdGender")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("IdStatusSchool")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.HasKey("Id")
-                        .HasName("PK__School__3214EC07F11AFDBA");
-
-                    b.HasIndex("IdGender");
-
-                    b.HasIndex("IdStatusSchool");
-
-                    b.ToTable("School", (string)null);
-                });
-
-            modelBuilder.Entity("SchoolSystem.Data.StatusSchool", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int?>("Condition")
-                        .HasColumnType("int")
-                        .HasColumnName("condition");
-
-                    b.Property<string>("TheType")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.HasKey("Id")
-                        .HasName("PK__StatusSc__3214EC073DB2CBA3");
-
-                    b.ToTable("StatusSchool", (string)null);
                 });
 
             modelBuilder.Entity("SchoolSystem.Data.Student", b =>
@@ -387,9 +238,6 @@ namespace SchoolSystem.Migrations
                         .IsUnicode(false)
                         .HasColumnType("varchar(50)");
 
-                    b.Property<int?>("IdSchool")
-                        .HasColumnType("int");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -401,8 +249,6 @@ namespace SchoolSystem.Migrations
 
                     b.HasKey("Id")
                         .HasName("PK__Student__3213E83F6F20DDDC");
-
-                    b.HasIndex(new[] { "IdSchool" }, "IX_Student_IdSchool");
 
                     b.ToTable("Student", (string)null);
                 });
@@ -443,10 +289,10 @@ namespace SchoolSystem.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int?>("IdClass")
+                    b.Property<int>("IdClass")
                         .HasColumnType("int");
 
-                    b.Property<int?>("IdStudent")
+                    b.Property<int>("IdStudent")
                         .HasColumnType("int");
 
                     b.HasKey("Id")
@@ -468,10 +314,10 @@ namespace SchoolSystem.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int?>("IdLectuer")
+                    b.Property<int>("IdLectuer")
                         .HasColumnType("int");
 
-                    b.Property<int?>("IdStudent")
+                    b.Property<int>("IdStudent")
                         .HasColumnType("int");
 
                     b.HasKey("Id")
@@ -493,10 +339,10 @@ namespace SchoolSystem.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int?>("IdStudent")
+                    b.Property<int>("IdStudent")
                         .HasColumnType("int");
 
-                    b.Property<int?>("IdTeacher")
+                    b.Property<int>("IdTeacher")
                         .HasColumnType("int");
 
                     b.HasKey("Id")
@@ -523,9 +369,6 @@ namespace SchoolSystem.Migrations
                         .IsUnicode(false)
                         .HasColumnType("varchar(50)");
 
-                    b.Property<int?>("IdSchool")
-                        .HasColumnType("int");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -537,8 +380,6 @@ namespace SchoolSystem.Migrations
 
                     b.HasKey("Id")
                         .HasName("PK__Teacher__3213E83F92AB32EF");
-
-                    b.HasIndex(new[] { "IdSchool" }, "IX_Teacher_IdSchool");
 
                     b.ToTable("Teacher", (string)null);
                 });
@@ -552,10 +393,10 @@ namespace SchoolSystem.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int?>("IdClass")
+                    b.Property<int>("IdClass")
                         .HasColumnType("int");
 
-                    b.Property<int?>("IdTeacher")
+                    b.Property<int>("IdTeacher")
                         .HasColumnType("int");
 
                     b.HasKey("Id")
@@ -577,10 +418,10 @@ namespace SchoolSystem.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int?>("IdLectuer")
+                    b.Property<int>("IdLectuer")
                         .HasColumnType("int");
 
-                    b.Property<int?>("IdTeacher")
+                    b.Property<int>("IdTeacher")
                         .HasColumnType("int");
 
                     b.HasKey("Id")
@@ -616,33 +457,13 @@ namespace SchoolSystem.Migrations
 
             modelBuilder.Entity("SchoolSystem.Data.Attendance", b =>
                 {
-                    b.HasOne("SchoolSystem.Data.TheClass", "IdClassNavigation")
-                        .WithMany("Attendances")
-                        .HasForeignKey("IdClass")
-                        .HasConstraintName("FK_Attendance_Class");
-
-                    b.HasOne("SchoolSystem.Data.Lectuer", "IdLectuerNavigation")
-                        .WithMany("Attendances")
-                        .HasForeignKey("IdLectuer")
-                        .HasConstraintName("FK_Attendance_Lectuer");
-
                     b.HasOne("SchoolSystem.Data.Student", "IdStudentNavigation")
                         .WithMany("Attendances")
                         .HasForeignKey("IdStudent")
-                        .HasConstraintName("FK_Attendance_Student");
-
-                    b.HasOne("SchoolSystem.Data.Teacher", "IdTeacherNavigation")
-                        .WithMany("Attendances")
-                        .HasForeignKey("IdTeacher")
-                        .HasConstraintName("FK_Attendance_Teacher");
-
-                    b.Navigation("IdClassNavigation");
-
-                    b.Navigation("IdLectuerNavigation");
+                        .IsRequired()
+                        .HasConstraintName("FK__Attendanc__IdStu__09746778");
 
                     b.Navigation("IdStudentNavigation");
-
-                    b.Navigation("IdTeacherNavigation");
                 });
 
             modelBuilder.Entity("SchoolSystem.Data.ClassLectuer", b =>
@@ -650,12 +471,14 @@ namespace SchoolSystem.Migrations
                     b.HasOne("SchoolSystem.Data.TheClass", "IdClassNavigation")
                         .WithMany("ClassLectuers")
                         .HasForeignKey("IdClass")
-                        .HasConstraintName("FK_ClassLectuer_Class");
+                        .IsRequired()
+                        .HasConstraintName("FK__ClassLect__IdCla__66603565");
 
                     b.HasOne("SchoolSystem.Data.Lectuer", "IdLectuerNavigation")
                         .WithMany("ClassLectuers")
                         .HasForeignKey("IdLectuer")
-                        .HasConstraintName("FK_ClassLectuer_Lectuer");
+                        .IsRequired()
+                        .HasConstraintName("FK__ClassLect__IdLec__6754599E");
 
                     b.Navigation("IdClassNavigation");
 
@@ -664,70 +487,26 @@ namespace SchoolSystem.Migrations
 
             modelBuilder.Entity("SchoolSystem.Data.Grade", b =>
                 {
-                    b.HasOne("SchoolSystem.Data.TheClass", "IdClassNavigation")
-                        .WithMany("Grades")
-                        .HasForeignKey("IdClass")
-                        .HasConstraintName("FK__Grades__IdClass__0D0FEE32");
-
                     b.HasOne("SchoolSystem.Data.Lectuer", "IdLectuerNavigation")
                         .WithMany("Grades")
                         .HasForeignKey("IdLectuer")
-                        .HasConstraintName("FK_Grades_Lectuer");
+                        .HasConstraintName("FK__Grades__IdLectue__7EF6D905");
 
                     b.HasOne("SchoolSystem.Data.Student", "IdStudentNavigation")
                         .WithMany("Grades")
                         .HasForeignKey("IdStudent")
-                        .HasConstraintName("FK_Grades_Student");
+                        .HasConstraintName("FK__Grades__IdStuden__7D0E9093");
 
                     b.HasOne("SchoolSystem.Data.Teacher", "IdTeacherNavigation")
                         .WithMany("Grades")
                         .HasForeignKey("IdTeacher")
-                        .HasConstraintName("FK_Grades_Teacher");
-
-                    b.Navigation("IdClassNavigation");
+                        .HasConstraintName("FK__Grades__IdTeache__7E02B4CC");
 
                     b.Navigation("IdLectuerNavigation");
 
                     b.Navigation("IdStudentNavigation");
 
                     b.Navigation("IdTeacherNavigation");
-                });
-
-            modelBuilder.Entity("SchoolSystem.Data.Menegar", b =>
-                {
-                    b.HasOne("SchoolSystem.Data.School", "IdSchoolNavigation")
-                        .WithMany("Menegars")
-                        .HasForeignKey("IdSchool")
-                        .HasConstraintName("FK__Menegar__IdSchoo__23F3538A");
-
-                    b.Navigation("IdSchoolNavigation");
-                });
-
-            modelBuilder.Entity("SchoolSystem.Data.School", b =>
-                {
-                    b.HasOne("SchoolSystem.Data.Gender", "IdGenderNavigation")
-                        .WithMany("Schools")
-                        .HasForeignKey("IdGender")
-                        .HasConstraintName("FK__School__IdGender__28B808A7");
-
-                    b.HasOne("SchoolSystem.Data.StatusSchool", "IdStatusSchoolNavigation")
-                        .WithMany("Schools")
-                        .HasForeignKey("IdStatusSchool")
-                        .HasConstraintName("FK__School__IdStatus__22FF2F51");
-
-                    b.Navigation("IdGenderNavigation");
-
-                    b.Navigation("IdStatusSchoolNavigation");
-                });
-
-            modelBuilder.Entity("SchoolSystem.Data.Student", b =>
-                {
-                    b.HasOne("SchoolSystem.Data.School", "IdSchoolNavigation")
-                        .WithMany("Students")
-                        .HasForeignKey("IdSchool")
-                        .HasConstraintName("FK__Student__IdSchoo__24E777C3");
-
-                    b.Navigation("IdSchoolNavigation");
                 });
 
             modelBuilder.Entity("SchoolSystem.Data.StudentAverage", b =>
@@ -752,12 +531,14 @@ namespace SchoolSystem.Migrations
                     b.HasOne("SchoolSystem.Data.TheClass", "IdClassNavigation")
                         .WithMany("StudentClasses")
                         .HasForeignKey("IdClass")
-                        .HasConstraintName("FK_StudentClass_Class");
+                        .IsRequired()
+                        .HasConstraintName("FK__StudentCl__IdCla__5812160E");
 
                     b.HasOne("SchoolSystem.Data.Student", "IdStudentNavigation")
                         .WithMany("StudentClasses")
                         .HasForeignKey("IdStudent")
-                        .HasConstraintName("FK_StudentClass_Student");
+                        .IsRequired()
+                        .HasConstraintName("FK__StudentCl__IdStu__571DF1D5");
 
                     b.Navigation("IdClassNavigation");
 
@@ -769,12 +550,14 @@ namespace SchoolSystem.Migrations
                     b.HasOne("SchoolSystem.Data.Lectuer", "IdLectuerNavigation")
                         .WithMany("StudentLectuers")
                         .HasForeignKey("IdLectuer")
-                        .HasConstraintName("FK_StudentLectuer_Lectuer");
+                        .IsRequired()
+                        .HasConstraintName("FK__StudentLe__IdLec__5BE2A6F2");
 
                     b.HasOne("SchoolSystem.Data.Student", "IdStudentNavigation")
                         .WithMany("StudentLectuers")
                         .HasForeignKey("IdStudent")
-                        .HasConstraintName("FK_StudentLectuer_Student");
+                        .IsRequired()
+                        .HasConstraintName("FK__StudentLe__IdStu__5AEE82B9");
 
                     b.Navigation("IdLectuerNavigation");
 
@@ -786,26 +569,18 @@ namespace SchoolSystem.Migrations
                     b.HasOne("SchoolSystem.Data.Student", "IdStudentNavigation")
                         .WithMany("StudentTeachers")
                         .HasForeignKey("IdStudent")
-                        .HasConstraintName("FK_StudentTeacher_Student");
+                        .IsRequired()
+                        .HasConstraintName("FK__StudentTe__IdStu__534D60F1");
 
                     b.HasOne("SchoolSystem.Data.Teacher", "IdTeacherNavigation")
                         .WithMany("StudentTeachers")
                         .HasForeignKey("IdTeacher")
-                        .HasConstraintName("FK_StudentTeacher_Teacher");
+                        .IsRequired()
+                        .HasConstraintName("FK__StudentTe__IdTea__5441852A");
 
                     b.Navigation("IdStudentNavigation");
 
                     b.Navigation("IdTeacherNavigation");
-                });
-
-            modelBuilder.Entity("SchoolSystem.Data.Teacher", b =>
-                {
-                    b.HasOne("SchoolSystem.Data.School", "IdSchoolNavigation")
-                        .WithMany("Teachers")
-                        .HasForeignKey("IdSchool")
-                        .HasConstraintName("FK__Teacher__IdSchoo__25DB9BFC");
-
-                    b.Navigation("IdSchoolNavigation");
                 });
 
             modelBuilder.Entity("SchoolSystem.Data.TeacherClass", b =>
@@ -813,12 +588,14 @@ namespace SchoolSystem.Migrations
                     b.HasOne("SchoolSystem.Data.TheClass", "IdClassNavigation")
                         .WithMany("TeacherClasses")
                         .HasForeignKey("IdClass")
-                        .HasConstraintName("FK_TeacherClass_Class");
+                        .IsRequired()
+                        .HasConstraintName("FK__TeacherCl__IdCla__5FB337D6");
 
                     b.HasOne("SchoolSystem.Data.Teacher", "IdTeacherNavigation")
                         .WithMany("TeacherClasses")
                         .HasForeignKey("IdTeacher")
-                        .HasConstraintName("FK_TeacherClass_Teacher");
+                        .IsRequired()
+                        .HasConstraintName("FK__TeacherCl__IdTea__5EBF139D");
 
                     b.Navigation("IdClassNavigation");
 
@@ -830,27 +607,22 @@ namespace SchoolSystem.Migrations
                     b.HasOne("SchoolSystem.Data.Lectuer", "IdLectuerNavigation")
                         .WithMany("TeacherLectuers")
                         .HasForeignKey("IdLectuer")
-                        .HasConstraintName("FK_TeacherLectuer_Lectuer");
+                        .IsRequired()
+                        .HasConstraintName("FK__TeacherLe__IdLec__6383C8BA");
 
                     b.HasOne("SchoolSystem.Data.Teacher", "IdTeacherNavigation")
                         .WithMany("TeacherLectuers")
                         .HasForeignKey("IdTeacher")
-                        .HasConstraintName("FK_TeacherLectuer_Teacher");
+                        .IsRequired()
+                        .HasConstraintName("FK__TeacherLe__IdTea__628FA481");
 
                     b.Navigation("IdLectuerNavigation");
 
                     b.Navigation("IdTeacherNavigation");
                 });
 
-            modelBuilder.Entity("SchoolSystem.Data.Gender", b =>
-                {
-                    b.Navigation("Schools");
-                });
-
             modelBuilder.Entity("SchoolSystem.Data.Lectuer", b =>
                 {
-                    b.Navigation("Attendances");
-
                     b.Navigation("ClassLectuers");
 
                     b.Navigation("Grades");
@@ -858,20 +630,6 @@ namespace SchoolSystem.Migrations
                     b.Navigation("StudentLectuers");
 
                     b.Navigation("TeacherLectuers");
-                });
-
-            modelBuilder.Entity("SchoolSystem.Data.School", b =>
-                {
-                    b.Navigation("Menegars");
-
-                    b.Navigation("Students");
-
-                    b.Navigation("Teachers");
-                });
-
-            modelBuilder.Entity("SchoolSystem.Data.StatusSchool", b =>
-                {
-                    b.Navigation("Schools");
                 });
 
             modelBuilder.Entity("SchoolSystem.Data.Student", b =>
@@ -891,8 +649,6 @@ namespace SchoolSystem.Migrations
 
             modelBuilder.Entity("SchoolSystem.Data.Teacher", b =>
                 {
-                    b.Navigation("Attendances");
-
                     b.Navigation("Grades");
 
                     b.Navigation("StudentTeachers");
@@ -904,11 +660,7 @@ namespace SchoolSystem.Migrations
 
             modelBuilder.Entity("SchoolSystem.Data.TheClass", b =>
                 {
-                    b.Navigation("Attendances");
-
                     b.Navigation("ClassLectuers");
-
-                    b.Navigation("Grades");
 
                     b.Navigation("StudentAverages");
 

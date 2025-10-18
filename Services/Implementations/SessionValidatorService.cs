@@ -104,46 +104,59 @@ public class SessionValidatorService : ISessionValidatorService
         }
     }
 
-    public async Task<(bool IsValid, int IdSchool, bool status)> ValidateAdminSessionAsync(HttpContext httpContext, string sours)
+    public async Task<(bool IsValid, int IdSchool,string Message)> ValidateAdminSessionAsync(HttpContext httpContext, string sours)
     {
         try
         {
+            var school = httpContext.Session.GetInt32("School") ?? 0;
+
+            if (school == 0)
+            {
+                await _logger.LogAsync(new Exception("دخول غير مصرح."), sours);
+                httpContext.Session.Clear(); // مسح الجلسة
+                // تسجيل الخروج باستخدام ملفات تعريف الارتباط
+                await httpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                return (false, 0,"انتهت صلاحية الجلسة");
+            }
 
             int? idmenegar = httpContext.Session.GetInt32("Id") ?? 0;
 
             if (idmenegar == 0)
             {
-                _notyf.Error("دخول غير مصرح به. انتهت صلاحية الجلسة.");
                 await _logger.LogAsync(new Exception("دخول غير مصرح."), sours);
+                httpContext.Session.Clear(); // مسح الجلسة
+                // تسجيل الخروج باستخدام ملفات تعريف الارتباط
                 await httpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                return (false, 0, false);
+                return (false, 0,"انتهت صلاحية الجلسة");
             }
             Menegar? menegar = await _context.Menegars.FindAsync(idmenegar);
-
             if (menegar == null)
             {
-                _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة");
-                await _logger.LogAsync(new Exception("التلاعب بالبيانات المرسلة."), sours);
-                return (false, 0, true);
-            }
-
-            int? idSchool = menegar?.IdSchool ?? 0;
-            if (idSchool == 0)
-            {
-                _notyf.Error("دخول غير مصرح به. انتهت صلاحية الجلسة.");
-                await _logger.LogAsync(new Exception("دخول غير مصرح."), sours);
+                await _logger.LogAsync(new Exception("التلاعب ببيانات المدير."), sours);
+                httpContext.Session.Clear(); // مسح الجلسة
+                // تسجيل الخروج باستخدام ملفات تعريف الارتباط
                 await httpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                return (false, 0, false);
+                return (false, 0, "لا يمكن التلاعب ببيانات المدير");
             }
 
-            return (true, idSchool.Value, true);
+            if (menegar.IdSchool != school)
+            {
+                await _logger.LogAsync(new Exception("مدرسة المدير غير مطابقة لمدرسته في الجلسة مما يعني هناك تلاعب بالبيانات."), sours);
+                httpContext.Session.Clear(); // مسح الجلسة
+                // تسجيل الخروج باستخدام ملفات تعريف الارتباط
+                await httpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                return (false, 0, "لا يمكن التلاعب بالبيانات المحفوظة في الجلسة");
+            }
+
+            return (true, school, "");
         }
         catch (Exception ex)
         {
-            _notyf.Error("حدث خطأ غير متوقع/nحاول لاحقا.");
             await _logger.LogAsync(ex, sours);
+            httpContext.Session.Clear(); // مسح الجلسة
+                // تسجيل الخروج باستخدام ملفات تعريف الارتباط
             await httpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            return (false, 0, false);
+            return (false, 0, "حدث خطأ غير متوقع");
         }
     }
 

@@ -23,7 +23,21 @@ public partial class Attendance
 
     public int? IdSchool { get; set; }
 
-    public bool? IsDeleted { get; set; }
+    public bool IsDeletedAttendance { get; set; }
+
+    public bool IsDeletedClass { get; set; }
+
+    public bool IsDeletedTeacher { get; set; }
+
+    public bool IsDeletedStudent { get; set; }
+
+    public bool IsDeletedLectuer { get; set; }
+
+    public bool IsDeletedSchool { get; set; }
+
+    public bool IsTeacherRemovedFromClass { get; set; }
+
+    public bool IsTeacherRemovedFromLectuer { get; set; }
 
     public virtual TheClass? IdClassNavigation { get; set; }
 

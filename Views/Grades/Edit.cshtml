@@ -1,51 +1,70 @@
 @model SchoolSystem.Data.Grade
 
 @{
-    ViewData["Title"] = "Edit";
+    ViewData["Title"] = "تعديل درجة الطالب";
 }
 
-<h1>Edit</h1>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
 
-<h4>Grade</h4>
-<hr />
-<div class="row">
-    <div class="col-md-4">
-        <form asp-action="Edit">
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-            <input type="hidden" asp-for="GradesId" />
-            <div class="form-group">
-                <label asp-for="FirstMonth" class="control-label"></label>
-                <input asp-for="FirstMonth" value="@Model.FirstMonth" class="form-control" />
-                <span asp-validation-for="FirstMonth" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="Mid" class="control-label"></label>
-                <input asp-for="Mid" value="@Model.Mid" class="form-control" />
-                <span asp-validation-for="Mid" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="SecondMonth" class="control-label"></label>
-                <input asp-for="SecondMonth" value="@Model.SecondMonth" class="form-control" />
-                <span asp-validation-for="SecondMonth" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="Activity" class="control-label"></label>
-                <input asp-for="Activity" value="@Model.Activity" class="form-control" />
-                <span asp-validation-for="Activity" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="Final" class="control-label"></label>
-                <input asp-for="Final" value="@Model.Final" class="form-control" />
-                <span asp-validation-for="Final" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <input type="submit" value="Save" class="btn btn-primary" />
-                <a class="btn btn-dark" asp-action="Index" asp-route-teacherId="@Model.IdTeacher">Back</a>
-            </div>
-        </form>
+<div class="container mt-5">
+    <div class="card shadow rounded-4">
+        <div class="card-header bg-info text-dark rounded-top-4 d-flex justify-content-between align-items-center">
+            <h3 class="mb-0"><i class="bi bi-pencil-square me-2"></i> تعديل الدرجات</h3>
+        </div>
+
+        <div class="card-body">
+            <form asp-action="Edit" method="post" novalidate>
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+                <input type="hidden" asp-for="GradesId" />
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="FirstMonth" class="form-label fw-bold">الشهر الأول:</label>
+                        <input asp-for="FirstMonth" class="form-control" type="number" />
+                        <span asp-validation-for="FirstMonth" class="text-danger small"></span>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="Mid" class="form-label fw-bold">نصف الفصل:</label>
+                        <input asp-for="Mid" class="form-control" type="number" />
+                        <span asp-validation-for="Mid" class="text-danger small"></span>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="SecondMonth" class="form-label fw-bold">الشهر الثاني:</label>
+                        <input asp-for="SecondMonth" class="form-control" type="number" />
+                        <span asp-validation-for="SecondMonth" class="text-danger small"></span>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="Activity" class="form-label fw-bold">النشاط:</label>
+                        <input asp-for="Activity" class="form-control" type="number" />
+                        <span asp-validation-for="Activity" class="text-danger small"></span>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="Final" class="form-label fw-bold">النهائي:</label>
+                        <input asp-for="Final" class="form-control" type="number" />
+                        <span asp-validation-for="Final" class="text-danger small"></span>
+                    </div>
+                </div>
+
+                <div class="card-footer d-flex justify-content-center gap-2">
+                    <button type="submit" class="btn btn-outline-success">
+                        <i class="bi bi-save-fill me-1"></i> حفظ
+                    </button>
+                    <a class="btn btn-outline-secondary" asp-action="Index" asp-route-teacherId="@Model.IdTeacher">
+                        <i class="bi bi-arrow-return-left me-1"></i> عودة
+                    </a>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
-
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}

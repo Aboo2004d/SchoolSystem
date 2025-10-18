@@ -128,6 +128,10 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcTGVjdHVlclxEZWxldGUuY3NodG1s
 build_metadata.AdditionalFiles.CssScope = 
 
+[E:/Uni/Files/Training/aspdotnet_core/SchoolSystem/Views/Lectuer/DeleteTeacherLectuer.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcTGVjdHVlclxEZWxldGVUZWFjaGVyTGVjdHVlci5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
 [E:/Uni/Files/Training/aspdotnet_core/SchoolSystem/Views/Lectuer/Details.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcTGVjdHVlclxEZXRhaWxzLmNzaHRtbA==
 build_metadata.AdditionalFiles.CssScope = 
@@ -252,6 +256,10 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU3RhdHVzU2Nob29sXEluZGV4LmNzaHRtbA==
 build_metadata.AdditionalFiles.CssScope = 
 
+[E:/Uni/Files/Training/aspdotnet_core/SchoolSystem/Views/Student/ChangeClass.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU3R1ZGVudFxDaGFuZ2VDbGFzcy5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
 [E:/Uni/Files/Training/aspdotnet_core/SchoolSystem/Views/Student/Create.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU3R1ZGVudFxDcmVhdGUuY3NodG1s
 build_metadata.AdditionalFiles.CssScope = 
@@ -298,6 +306,10 @@ build_metadata.AdditionalFiles.CssScope =
 
 [E:/Uni/Files/Training/aspdotnet_core/SchoolSystem/Views/Teacher/Index.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcVGVhY2hlclxJbmRleC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/Uni/Files/Training/aspdotnet_core/SchoolSystem/Views/Teacher/ManagementClassLectuerForTeachers.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcVGVhY2hlclxNYW5hZ2VtZW50Q2xhc3NMZWN0dWVyRm9yVGVhY2hlcnMuY3NodG1s
 build_metadata.AdditionalFiles.CssScope = 
 
 [E:/Uni/Files/Training/aspdotnet_core/SchoolSystem/Views/Teacher/Students.cshtml]

@@ -15,6 +15,8 @@ public partial class StudentAverage
 
     public int? IdSchool { get; set; }
 
+    public bool IsDeletedSchool { get; set; }
+
     public virtual TheClass? IdClassNavigation { get; set; }
 
     public virtual School? IdSchoolNavigation { get; set; }

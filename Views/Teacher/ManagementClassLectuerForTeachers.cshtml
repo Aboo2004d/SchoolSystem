@@ -1,0 +1,317 @@
+@{
+    ViewData["Title"] = "إدارة المعلم";
+    string id = ViewBag.Id;
+}
+
+<div class="container mt-5 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card shadow rounded-4">
+                <div class="card-header bg-primary text-white text-center">
+                    <h4 class="mb-0">إدارة المعلم</h4>
+                </div>
+                <div class="card-body">
+
+                    <div id="validationSummary" class="text-danger mb-3"></div>
+
+                    <!-- اختيار الصفوف -->
+                    <h5 class="fw-bold mb-3">اختر الصف:</h5>
+                    <div id="classesContainer" class="d-flex flex-wrap gap-2 mb-4"></div>
+
+                    <!-- اختيار المواد -->
+                    <h5 class="fw-bold mb-3">اختر المواد:</h5>
+                    <div id="subjectsContainer" class="d-flex flex-wrap gap-2 mb-4"></div>
+
+                    <!-- زر إضافة -->
+                    <div class="d-flex justify-content-center mb-4">
+                        <button id="addBtn" class="btn btn-outline-success px-4">
+                            <i class="bi bi-plus-circle"></i> إضافة
+                        </button>
+                    </div>
+
+                    <hr />
+
+                    <!-- جدول يوضح الصفوف والمواد المختارة -->
+                    <h5 class="fw-bold mb-3">الصفوف والمواد المختارة:</h5>
+                    <div class="table-responsive">
+                        <table class="table table-bordered text-center align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>الصف</th>
+                                    <th>المواد</th>
+                                    <th>إجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="classSubjectTable"></tbody>
+                        </table>
+                    </div>
+
+                    <div class="d-flex justify-content-center mt-4">
+                        <button id="saveBtn" class="btn btn-primary px-5">
+                            <i class="bi bi-save"></i> حفظ 
+                        </button>
+                        <a class="btn btn-outline-dark px-4" asp-controller="Menegar" asp-action="ManagerMenegarTeacherView">
+                            <i class="bi bi-arrow-left-circle"></i> عودة
+                        </a>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+let assignments = [];      
+let newAssignments = [];
+let selectedClass = null;
+let idTeacher = "@id";
+
+function disableAllButtons() { $("button").prop("disabled", true); }
+function enableAllButtons() { $("button").prop("disabled", false); }
+
+// ======== دالة جلب الصفوف ========
+function loadClasses() {
+    $.getJSON("/api/theClass/GetClasses?idTeacher=" + idTeacher, function(res){
+        const $classes = $("#classesContainer").empty();
+
+        if(!res || !res.success || !res.theClasses || res.theClasses.length === 0){
+            $classes.append(`<span class="text-muted">لا توجد صفوف للعرض</span>`);
+        } else {
+            res.theClasses.forEach(c=>{
+                $classes.append(`
+                    <button type="button" 
+                        class="btn btn-outline-primary class-btn" 
+                        data-id="${c.id}" 
+                        data-name="${c.name}">
+                        ${c.name}
+                    </button>
+                `);
+            });
+        }
+
+        // **مسح assignments القديمة قبل البناء من جديد لتجنب التكرار**
+        assignments = [];
+
+        if(res.lastClassesToTeacher && res.lastClassesToTeacher.length > 0){
+            res.lastClassesToTeacher.forEach(item=>{
+                let existing = assignments.find(a=>a.classId===item.idClass);
+                if(existing){
+                    existing.subjects.push({id:item.idLectuer, name:item.nameLectuer});
+                } else {
+                    assignments.push({
+                        classId: item.idClass,
+                        className: item.nameClass,
+                        subjects: [{id:item.idLectuer, name:item.nameLectuer}]
+                    });
+                }
+            });
+            renderTable();
+        }
+    });
+}
+
+// ======== دالة جلب المواد لصف محدد ========
+function loadSubjects(classId) {
+    $.getJSON(`/api/lectuer/GetLectuers?idClass=${classId}`, function(res){
+        const $lectuer = $("#subjectsContainer").empty();
+        if(!res || !res.success || !res.lectuers || res.lectuers.length===0){
+            $lectuer.append(`<span class="text-muted">لا توجد مواد لهذا الصف</span>`);
+            enableAllButtons();
+            return;
+        }
+
+        res.lectuers.forEach(s=>{
+            $lectuer.append(`
+                <button type="button" 
+                    class="btn btn-outline-info subject-btn" 
+                    data-id="${s.id}" 
+                    data-name="${s.name}">
+                    ${s.name}
+                </button>
+            `);
+        });
+
+        enableAllButtons();
+    }).fail(function(){
+        $("#validationSummary").text("فشل تحميل المواد.");
+        enableAllButtons();
+    });
+}
+
+// ======== دالة الحذف ========
+function deleteAssignment(idTeacher, idClass, idLectuer) {
+    console.log("حذف:", {idTeacher, idClass, idLectuer});
+    $.ajax({
+        url: '/api/teacher/RemoveTeacherToClassLectuers',
+        method: 'DELETE',
+        contentType: "application/json",
+        data: JSON.stringify({
+            idTeacher: idTeacher,
+            idClass: idClass,
+            idLectuer: idLectuer
+        }),
+        success: function (res){
+            notifySuccess("تمت الإزالة بنجاح");
+
+            // تحديث local array
+            assignments.forEach(a=>{
+                if(a.classId === idClass){
+                    a.subjects = a.subjects.filter(s=>s.id !== idLectuer);
+                }
+            });
+            assignments = assignments.filter(a=>a.subjects.length > 0);
+            renderTable();
+
+            // إعادة تحميل الصفوف لتحديث الخيارات
+            loadClasses();
+        },
+        error: function (xhr) {
+            const errorMsg = xhr.responseJSON?.message || "حدث خطأ غير متوقع";
+            notifyError(errorMsg);
+        }
+    });
+}
+
+// ======== رسم الجدول ========
+function renderTable(){
+    const $table = $("#classSubjectTable").empty();
+    assignments.forEach((a)=>{
+        a.subjects.forEach((s)=>{
+            $table.append(`
+                <tr>
+                    <td>${a.className}</td>
+                    <td>${s.name}</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger delete-btn" 
+                            data-class="${a.classId}" 
+                            data-lectuer="${s.id}" 
+                            data-teacher="${idTeacher}">
+                            <i class="bi bi-trash"></i> حذف
+                        </button>
+                    </td>
+                </tr>
+            `);
+        });
+    });
+}
+
+$(document).ready(function () {
+
+    // تحميل الصفوف أول مرة
+    loadClasses();
+
+    // عند اختيار صف → جلب المواد
+    $(document).on("click", ".class-btn", function(){
+        disableAllButtons();
+        $(".class-btn").removeClass("btn-primary active").addClass("btn-outline-primary");
+        $(this).removeClass("btn-outline-primary").addClass("btn-primary active");
+
+        selectedClass = {
+            id: $(this).data("id"),
+            name: $(this).data("name")
+        };
+
+        loadSubjects(selectedClass.id);
+    });
+
+    // اختيار المواد
+    $(document).on("click", ".subject-btn", function(){
+        $(this).toggleClass("btn-outline-info btn-info active");
+    });
+
+    // زر إضافة
+    $("#addBtn").click(function(){
+        if(!selectedClass){
+            notifyError("الرجاء اختيار صف");
+            return;
+        }
+
+        const selectedSubjects = $(".subject-btn.active").map(function(){
+            return {
+                id: $(this).data("id"), 
+                name: $(this).data("name")
+            };
+        }).get();
+
+        if(selectedSubjects.length === 0){
+            notifyError("الرجاء اختيار مادة واحدة على الأقل");
+            return;
+        }
+
+        let existing = assignments.find(a=>a.classId===selectedClass.id);
+        if(existing){
+            selectedSubjects.forEach(sub=>{
+                if(!existing.subjects.some(s=>s.id===sub.id)){
+                    existing.subjects.push(sub);
+                }
+            });
+        } else {
+            assignments.push({
+                classId: selectedClass.id,
+                className: selectedClass.name,
+                subjects: selectedSubjects
+            });
+        }
+
+        newAssignments.push({
+            idTeacher: idTeacher,
+            idClass: selectedClass.id,
+            lectuers: selectedSubjects
+        });
+
+        renderTable();
+        $(".subject-btn").removeClass("btn-info active").addClass("btn-outline-info");
+    });
+
+    // حذف من الجدول و DB
+    $(document).on("click", ".delete-btn", function(){
+        const idClass = $(this).data("class");
+        const idLectuer = $(this).data("lectuer");
+        const idTeacher = $(this).data("teacher");
+
+        deleteAssignment(idTeacher, idClass, idLectuer);
+    });
+
+    // حفظ الجديد فقط
+    $("#saveBtn").click(function(){
+        if(newAssignments.length===0){
+            notifyError("لا يوجد بيانات جديدة للحفظ");
+            return;
+        }
+
+        const payload = newAssignments.map(a=>{
+            return {
+                idTeacher: idTeacher,
+                idClass: a.idClass,
+                lectuers: a.lectuers.map(s=>s.id)
+            };
+        });
+
+        $.ajax({
+            url: '/api/teacher/AddTeacherToClassesAndLectuers',
+            method: 'POST',
+            contentType: "application/json",
+            data: JSON.stringify(payload),
+            success: function(res){
+                notifySuccess("تم الحفظ بنجاح");
+                newAssignments = []; 
+
+                // إعادة التهيئة
+                selectedClass = null;
+                $("#subjectsContainer").empty(); // إخفاء المواد
+                $(".class-btn").removeClass("btn-primary active").addClass("btn-outline-primary");
+
+                // إعادة تحميل الجدول الرئيسي
+                loadClasses();
+            },
+            error: function (xhr) {
+                const errorMsg = xhr.responseJSON?.message || "حدث خطأ غير متوقع";
+                notifyError(errorMsg);
+            }
+        });
+    });
+});
+</script>
+}

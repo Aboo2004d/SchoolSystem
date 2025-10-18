@@ -77,7 +77,7 @@ public class ProfileController : Controller
         catch (Exception ex)
         {
             Console.WriteLine($"Error decoding ID: {ex.Message}");
-            _notyf.Error("معرف غير صالح أو تم التلاعب به.");
+            _notyf.Error("حدث خطأ غير متوقع.");
             return View(nameof(IndexProfile));
         }
 
@@ -154,7 +154,7 @@ public class ProfileController : Controller
         catch (Exception ex)
         {
             Console.WriteLine($"Error decoding ID: {ex.Message}");
-            _notyf.Error("معرف غير صالح أو تم التلاعب به.");
+            _notyf.Error("حدث خطأ غير متوقع.");
             return View(nameof(IndexProfile));
         }
 

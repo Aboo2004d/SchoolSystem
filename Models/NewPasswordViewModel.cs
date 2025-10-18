@@ -10,5 +10,5 @@ namespace SchoolSystem.Models{
 
         [DataType(DataType.Password)]
         public string ConfirmPassword { get; set; }
-    }  
-    }
+  }  
+}

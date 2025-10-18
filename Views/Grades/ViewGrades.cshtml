@@ -1,10 +1,11 @@
 @model SchoolSystem.Data.Grade
+@inject EncryptionHelper Encryption
 @{
     ViewData["Title"] = "ادارة العلامات للطلاب";
 }
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css" />
 
-<h1>علامات الطلاب</h1>
+<h1>علامات الطلاب للمعلم: @ViewBag.NameTeacher</h1>
 <div class="dropdown">
     <button class="btn btn-outline-success dropdown-toggle" type="button" id="dropdownNewMark" data-bs-toggle="dropdown" aria-expanded="false">
        <i class="bi bi-plus-circle"></i> اضافة العلامات
@@ -68,7 +69,8 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
     
     <script>
-        var idTeacher = @Html.Raw(ViewBag.IdTeacher);
+        var idTeacher = "@Html.Raw(ViewBag.IdTeacher)";
+        console.log("Id: "+idTeacher);
         $(document).ready(function () {
             $('#studentsTable').DataTable({
                 "deferRender": true,
@@ -110,7 +112,7 @@
                     {
                          "data": null,
                         "render": function (data, type, row) {
-                                return`<a class="btn btn-outline-warning" href="/TheClass/Edit/${row.id}">تعديل</a>`;
+                                return`<a class="btn btn-outline-warning" href="/Grades/Edit/${row.id}">تعديل</a>`;
                             
                         }
                     }
@@ -131,7 +133,7 @@
 
     <script>
         // إرسال رقم المعلم مع الرابط
-        var idTeacher = @Html.Raw(ViewBag.IdTeacher);
+        var idTeacher = "@Html.Raw(ViewBag.IdTeacher)";
         document.getElementById('exportBtn').addEventListener('click', function () {
             // عرض إشعار (من خلال Toastify أو Notyf أو SweetAlert)
             Toastify({
@@ -151,10 +153,12 @@
     
     <script>
         $(function () {
-            var teacherId = @Html.Raw(ViewBag.IdTeacher);
+            var teacherId = "@Html.Raw(ViewBag.IdTeacher)";
+            console.log("Id1: "+teacherId);
             // عند فتح القائمة (Bootstrap Dropdown)
             $('#dropdownNewMark').on('click', function () {
-                // تحميل المواد عند أول مرة فقط (يمكنك تحسينه لاحقاً للتحميل مرة واحدة فقط)
+               
+
                 $.getJSON('/Grades/GetSubjectsForTeacher', { teacherId: teacherId }, function (data) {
                     var subjectDropdown = $('#subjectDropdown');
                     subjectDropdown.empty().append('<option value="">يرجى الاختيار...</option>');

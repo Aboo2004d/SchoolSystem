@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using SchoolSystem.Data;
 using SchoolSystem.Filters;
 using SchoolSystem.Model;
+using SchoolSystem.Models;
 
 namespace SchoolSystem.Controllers
 {
@@ -49,7 +50,7 @@ namespace SchoolSystem.Controllers
 
                 if (!IsValid)
                 {
-                    return Json(new { success = false, status = status, error = "Unauthorized access. Session expired." });
+                    return Json(new { success = false, error = "Unauthorized access. Session expired." });
                 }
 
                 //فحص اذا كان تم ارسال قيمة المتغير ام لا و وصع قيمة افتراضية اذا كان لا
@@ -159,8 +160,7 @@ namespace SchoolSystem.Controllers
             var (IsValid, IdTeacher, IdSchool,status) = await _sessionValidatorService.ValidateTeacherSessionAsync(HttpContext, teacherId, "Grades/DataGrades");
             if (!IsValid)
             {
-                if (!status)
-                    return RedirectToAction("Login", "Account");
+                
                 return RedirectToAction("Index", "Teacher");
             }
             var name =await _context.Teachers.SingleOrDefaultAsync(c => c.Id == teacherId);
@@ -402,11 +402,11 @@ namespace SchoolSystem.Controllers
                 if (!string.IsNullOrWhiteSpace(searchValue))
                 {
                     query = query.Where(s =>
-                        s.StudentName.Contains(searchValue) ||
-                        s.LectuerName.Contains(searchValue) ||
-                        s.excuse.Contains(searchValue) ||
+                        (s.StudentName != null && s.StudentName.Contains(searchValue)) ||
+                        (s.LectuerName != null && s.LectuerName.Contains(searchValue)) ||
+                        (s.excuse != null && s.excuse.Contains(searchValue)) ||
                         s.Date.ToString().Contains(searchValue) ||
-                        s.ClassroomName.Contains(searchValue)
+                        (s.ClassroomName != null && s.ClassroomName.Contains(searchValue))
                     );
                 }
 
@@ -424,8 +424,6 @@ namespace SchoolSystem.Controllers
                     ("2", "desc") => query.OrderByDescending(s => s.LectuerName),
                     ("3", "asc") => query.OrderBy(s => s.excuse),
                     ("3", "desc") => query.OrderByDescending(s => s.excuse),
-                    ("4", "asc") => query.OrderBy(s => s.Date),
-                    ("4", "desc") => query.OrderByDescending(s => s.Date),
                     _ => query.OrderBy(s => s.StudentName)
                 };
 

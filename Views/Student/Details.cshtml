@@ -1,92 +1,24 @@
-@model SchoolSystem.Data.Student
-
 @{
     ViewData["Title"] = "تفاصيل الطالب";
+    var studentId = ViewBag.Id; 
 }
 
 <div class="container mt-5">
     <div class="card shadow rounded-4">
         <div class="card-header bg-primary text-white rounded-top-4 d-flex justify-content-between align-items-center">
-            <h3 class="mb-0"><i class="bi bi-person-vcard-fill me-2"></i> تفاصيل الطالب</h3>
+            <h3 class="mb-0"><i class="bi bi-person-vcard-fill me-2"></i> <span id="header"> تفاصيل الطالب</span></h3>
         </div>
 
-        <div class="card-body">
-            <div class="row mb-3">
-                <label class="col-sm-3 fw-bold text-secondary">الاسم:</label>
-                <div class="col-sm-9">
-                    @Html.DisplayFor(model => model.Name)
-                </div>
-            </div>
-
-            <div class="row mb-3">
-                <label class="col-sm-3 fw-bold text-secondary">رقم الهوية:</label>
-                <div class="col-sm-9">
-                    @Html.DisplayFor(model => model.IdNumber)
-                </div>
-            </div>
-
-            <div class="row mb-3">
-                <label class="col-sm-3 fw-bold text-secondary">رقم الجوال:</label>
-                <div class="col-sm-9">
-                    @Html.DisplayFor(model => model.Phone)
-                </div>
-            </div>
-
-            <div class="row mb-3">
-                <label class="col-sm-3 fw-bold text-secondary">البريد الإلكتروني:</label>
-                <div class="col-sm-9">
-                    @Html.DisplayFor(model => model.Email)
-                </div>
-            </div>
-
-            <div class="row mb-3">
-                <label class="col-sm-3 fw-bold text-secondary">تاريخ الميلاد:</label>
-                <div class="col-sm-9">
-                    @{
-                        DateOnly TheDate = Model.TheDate ?? new DateOnly(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day);
-                    }
-                    @TheDate
-                </div>
-            </div>
-
-            <div class="row mb-3">
-                <label class="col-sm-3 fw-bold text-secondary">المدرسة:</label>
-                <div class="col-sm-9">
-                    @{
-                        string NameSchool = Model.IdSchoolNavigation?.Name ?? "غير محددة";
-                    }
-                    @NameSchool
-                </div>
-            </div>
-
-            <div class="row mb-3">
-                <label class="col-sm-3 fw-bold text-secondary">الصف:</label>
-                <div class="col-sm-9">
-                    @{
-                        string NameClass = Model.IdClassNavigation?.Name ?? "غير محدد";
-                    }
-                    @NameClass
-                </div>
-            </div>
-
-            <div class="row mb-3">
-                <label class="col-sm-3 fw-bold text-secondary">العنوان:</label>
-                <div class="col-sm-9">
-                    @{
-                        var city = Model?.City ?? "غير متوفر";
-                        var area = Model?.Area ?? "غير متوفر";
-                    }
-                    @city / @area
-                </div>
-            </div>
+        <div class="card-body" id="studentDetails">
+            <!-- يتم تعبئة التفاصيل هنا ديناميكيًا -->
         </div>
 
         <div class="card-footer d-flex justify-content-center gap-2">
-            <a class="btn btn-outline-warning" asp-action="Edit" asp-route-id="@Model?.Id">
+            <a class="btn btn-outline-warning" id="editBtn">
                 <i class="bi bi-pencil-fill"></i> تعديل
             </a>
-            <a class="btn btn-lg btn-outline-primary w-100" asp-action="DownloadStudentCertificate" asp-route-idStudent="@Model?.Id" ></a>
-                <i class="bi bi-file-earmark-arrow-up"></i>  شهادة قيد
+            <a class="btn btn-outline-primary" id="certBtn">
+                <i class="bi bi-file-earmark-arrow-up"></i> شهادة قيد
             </a>
             <a class="btn btn-outline-secondary" asp-controller="Menegar" asp-action="ManagerMenegarStudentView">
                 <i class="bi bi-arrow-return-left"></i> عودة
@@ -94,3 +26,47 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const id = "@studentId";
+
+        if (!id) {
+            notifyError("المعرف مفقود");
+            return;
+        }
+
+        fetch(`/api/student/details?id=${id}`)
+            .then(res => {
+                if (!res.ok) throw res;
+                return res.json();
+            })
+            .then(data => {
+                document.getElementById("header").textContent = `تفاصيل الطالب (${data.isDeleted})`;
+                const html = `
+                    <div class="row mb-3"><label class="col-sm-3 fw-bold text-secondary">الاسم:</label><div class="col-sm-9">${data.nameStudent}</div></div>
+                    <div class="row mb-3"><label class="col-sm-3 fw-bold text-secondary">رقم الهوية:</label><div class="col-sm-9">${data.idNumber}</div></div>
+                    <div class="row mb-3"><label class="col-sm-3 fw-bold text-secondary">رقم الجوال:</label><div class="col-sm-9">${data.phoneStudent}</div></div>
+                    <div class="row mb-3"><label class="col-sm-3 fw-bold text-secondary">البريد الإلكتروني:</label><div class="col-sm-9">${data.emailAddressStudent}</div></div>
+                    <div class="row mb-3"><label class="col-sm-3 fw-bold text-secondary">تاريخ الميلاد:</label><div class="col-sm-9">${data.theDate}</div></div>
+                    <div class="row mb-3"><label class="col-sm-3 fw-bold text-secondary">المدرسة:</label><div class="col-sm-9">${data.nameSchool}</div></div>
+                    <div class="row mb-3"><label class="col-sm-3 fw-bold text-secondary">الصف:</label><div class="col-sm-9">${data.nameClass}</div></div>
+                    <div class="row mb-3"><label class="col-sm-3 fw-bold text-secondary">العنوان:</label><div class="col-sm-9">${data.address}</div></div>
+                `;
+                document.getElementById("studentDetails").innerHTML = html;
+
+                document.getElementById("editBtn").href = `/Student/Edit/${data.idStudent}`;
+                document.getElementById("certBtn").href = `/Student/DownloadStudentCertificate?idStudent=${data.idStudent}`;
+            })
+            .catch(async err => {
+                let message = "حدث خطأ أثناء جلب البيانات";
+                if (err.json) {
+                    const res = await err.json();
+                    message = res.message || message;
+                }
+                notifyError(message);
+            });
+    });
+</script>
+}

@@ -7,6 +7,7 @@ using SchoolSystem.Data;
 using Microsoft.EntityFrameworkCore;
 using AspNetCoreHero.ToastNotification.Abstractions;
 using SchoolSystem.Filters;
+using SchoolSystem.Models;
 
 public class ImageProfileController : Controller
 {

@@ -1,0 +1,127 @@
+@{
+    ViewData["Title"] = "تغيير الصف";
+    string encryptedId = ViewBag.IdStudent; // تأكد أنك مرسل الـ id مشفرًا من Controller
+}
+
+<div class="container mt-5 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow rounded-4">
+                <div class="card-header text-center bg-primary text-white">
+                    <h4 class="mb-0" id="studentHeader">تغيير صف الطالب</h4>
+                </div>
+                <div class="card-body">
+                    <form id="changeClassForm">
+                        <div id="validationSummary" class="text-danger mb-3"></div>
+                        <input type="hidden" id="IdStudent" name="IdStudent" value="@encryptedId" />
+                        <input type="hidden" id="LastIdClass" name="LastIdClass" />
+
+                        <div class="mb-3">
+                            <label for="IdClass" class="form-label fw-bold">الصف: </label>
+                            <select id="IdClass" name="IdClass" class="form-control select2"></select>
+                            <span id="IdClassError" class="text-danger small"></span>
+                        </div>
+
+                        <div class="d-flex justify-content-center gap-3 mt-4">
+                            <button  id="submitBtn" type="submit" class="btn btn-outline-success px-4">
+                                <i class="bi bi-save"></i> حفظ
+                            </button>
+                            <a id="backBtn" class="btn btn-outline-secondary px-4">
+                                <i class="bi bi-arrow-left-circle"></i> عودة
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        $(document).ready(function () {
+            $('.select2').select2({
+                placeholder: "اختر الصف...",
+                allowClear: true,
+                width: '100%'
+            });
+
+            const idStudent = "@encryptedId";
+            const apiUrl = `/api/student/ChangeClass?idStudent=${idStudent}`;
+            let lastIdClass = 0;
+
+            $.getJSON(apiUrl, function (res) {
+                console.log("استجابة الـ GET:", res);
+                if (!res || res.success === false) {
+                    $("#validationSummary").text(res.message || "فشل في تحميل البيانات.");
+                    return;
+                }
+
+                // تعبئة اسم الطالب
+                $("#studentHeader").text("تغيير صف الطالب: " + res.nameStudent);
+                
+                // تعبئة الصفوف
+                const classSelect = $("#IdClass");
+                classSelect.empty();
+
+                res.theClasses.forEach(cls => {
+                    const isSelected = cls.idClass === res.lastIdClass;
+                    classSelect.append(
+                        $("<option>")
+                            .val(cls.idClass)
+                            .text(cls.nameClass)
+                            .prop("selected", isSelected)
+                    );
+                });
+
+                lastIdClass = res.lastIdClassEnc;
+
+                $("#backBtn").click(function () {
+                if (lastIdClass) {
+                    window.location.href = `/Menegar/ManagerMenegarStudentInClassView?idClass=${lastIdClass}`;
+                } else {
+                    history.back(); 
+                }
+            });
+
+            }).fail(function () {
+                $("#validationSummary").text("حدث خطأ أثناء تحميل البيانات.");
+            });
+
+            // إرسال النموذج
+            $("#changeClassForm").submit(function (e) {
+                e.preventDefault();
+                $("#submitBtn").prop("disabled", true);
+
+                const payload = {
+                    idStudent: idStudent,
+                    idClass: $("#IdClass").val()
+                };
+
+                console.log("البيانات المُرسلة:", payload);
+
+                $.ajax({
+                    url: '/api/student/ChangeClass', 
+                    method: 'POST',
+                    contentType: "application/json",
+                    data: JSON.stringify(payload),
+                    success: function () {
+                        notifySuccess("تم الحفظ بنجاح");
+                        console.log("Id Last Class: "+ lastIdClass);
+                        setTimeout(() => {
+                        window.location.href = `/Menegar/ManagerMenegarStudentInClassView?idClass=${lastIdClass}`;
+                    }, 1500);
+                        
+                    },
+                    error: function (xhr) {
+                        console.log("خطأ في الاستجابة:", xhr); 
+                        const error = xhr.responseJSON?.message || "123حدث خطأ غير متوقع";
+                        notifyError(error);
+                        $("#submitBtn").prop("disabled", false);
+                    }
+                });
+            });
+        });
+    </script>
+}

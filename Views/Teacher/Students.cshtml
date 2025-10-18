@@ -28,7 +28,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
     <script>
         $(document).ready(function () {
-            var idTeacher = @Html.Raw(ViewBag.IdTeacher);
+            var idTeacher = "@Html.Raw(ViewBag.IdTeacher)";
             $('#studentsTable').DataTable({
                 "deferRender": true,
                 "processing": true,
@@ -75,7 +75,7 @@
     
     <script>
         // إرسال رقم المعلم مع الرابط
-        var idTeacher = @Html.Raw(ViewBag.IdTeacher);
+        var idTeacher = "@Html.Raw(ViewBag.IdTeacher)";
         document.getElementById('exportBtn').addEventListener('click', function () {
             // عرض إشعار (من خلال Toastify أو Notyf أو SweetAlert)
             Toastify({

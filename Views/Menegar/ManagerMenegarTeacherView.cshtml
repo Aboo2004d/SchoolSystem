@@ -28,16 +28,11 @@
                 <th>الاسم</th>
                 <th class="d-none d-sm-table-cell">الإيميل</th>
                 <th>الهاتف</th>
-                <th>الخيارات</th>
             </tr>
         </thead>
     </table>
 </div>
 
-<form asp-action="Delete" asp-controller="Teacher" id="DeleteTeacher" method="post">
-    @Html.AntiForgeryToken()
-    <input type="hidden" name="Id" id="teacherid" />
-</form>
 
 @section Scripts {
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
@@ -52,7 +47,7 @@
                 processing: true,
                 serverSide: true,
                 "ajax": {
-                    "url": "/Menegar/ManagerMenegarTeacher",
+                    "url": "/api/menegar/MenegarTeacher",
                     "type": "GET",
                     "dataSrc": function (json) {
                         if (json.error) {
@@ -69,34 +64,62 @@
                 },
                 columns: [
                     {
-                        data: "name",
-                        render: function (data) {
+                        data: "nameTeacher",
+                        "render": function (data, type, row) {
                             const parts = data.trim().split(" ");
-                            return parts.length === 1 ? parts[0] : parts[0] + " " + parts[parts.length - 1];
+                            const displayName = parts.length === 1
+                                ? parts[0]
+                                : parts[0] + " " + parts[parts.length - 1];
+
+                            return `
+                                <span class="toggle-options" data-id="${row.idTeacher}">${displayName}</span>
+                                <div class="options-container d-none" id="options-${row.idTeacher}">
+                                    <ul class="list-unstyled m-0 p-2 bg-light border rounded">
+                                        <li>
+                                            <a class="dropdown-item details-btn text-end" 
+                                            href="/Teacher/Details?id=${row.idTeacher}">
+                                            <i class="fa fa-eye me-1"></i> تفاصيل
+                                            </a>
+                                        </li>
+                                        <li><hr class="dropdown-divider custom-divider" /></li>
+                                        <li>
+                                            <a class="dropdown-item details-btn text-warning fw-bold text-end" 
+                                            href="/Teacher/ManagementClassLectuerForTeachers?idTeacher=${row.idTeacher}">
+                                            <i class="fa fa-cogs me-1"></i> إدارة
+                                            </a>
+                                        </li>
+                                        <li><hr class="dropdown-divider custom-divider" /></li>
+                                        <li>
+                                            <a class="dropdown-item delete-btn text-end delete" data-id="${row.idTeacher}">
+                                                <i class="fa fa-trash me-1"></i> حذف 
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
+                            `;
                         }
                     },
                     {
-                        data: "email",
+                        data: "emailAddressTeacher",
                         createdCell: function (td) {
                             $(td).addClass('d-none d-sm-table-cell');
                         },
                         render: function (data) {
+                            // تقسيم النص حسب @@
                             const parts = data.trim().split("@@");
+
+                            // الجزء الأول قبل @@ (عادة الإيميل)
                             const parts1 = parts[0].trim().split(".");
+                            const firstPart = parts1[0].substring(0, 3); // أول 3 أحرف
+
+                            // الجزء الثاني بعد @@ (عادة دومين)
                             const parts2 = parts[1].trim().split(".");
-                            return `${parts1[0]}***@@***${parts2[parts2.length-1]}` ;
+                            const lastDomain = parts2[parts2.length - 1]; // آخر دومين
+
+                            return `${firstPart}***@@***${lastDomain}`;
                         }
                     },
-                    { data: "phone" },
-                    {
-                        data: null,
-                        render: function (data, type, row) {
-                            return `
-                                <a class="btn btn-outline-danger delete-btn" data-id="${row.id}">
-                                    <i class="bi bi-trash"></i> حذف
-                                </a>`;
-                        }
-                    }
+                    { data: "phoneTeacher" }
                 ],
                 language: {
                     search: "بحث: 🔍",
@@ -116,14 +139,14 @@
         });
 
         $(function () {
-            $(document).on('click', '.delete-btn', function (e) {
+            $(document).on('click', '.delete', function (e) {
                 e.preventDefault();
                 var btn = $(this);
                 var id = btn.data('id');
 
                 Swal.fire({
                     title: "هل أنت متأكد من الحذف؟",
-                    text: "انت على وشك القيام بهذه العملية!",
+                    text: "انت على وشك القيام بهذه العملية! هذا الإجراء لا يمكن التراجع عنه.",
                     icon: "warning",
                     showCancelButton: true,
                     confirmButtonColor: "#3085d6",
@@ -132,30 +155,54 @@
                     cancelButtonText: "إلغاء"
                 }).then((result) => {
                     if (result.isConfirmed) {
-                        $('#teacherid').val(id);
+                        const data = {id: id};
                         $.ajax({
-                            url: $('#DeleteTeacher').attr('action'),
-                            type: "POST",
-                            data: $('#DeleteTeacher').serialize(),
+                            url: '/api/teacher/Delete',
+                            method: "DELETE",
+                            contentType: "application/json",
+                            data: JSON.stringify(data),
                             success: function () {
-                                Swal.fire({
-                                    title: "تم الحذف",
-                                    text: "تم حذف المعلم بنجاح.",
-                                    icon: "success"
-                                });
+                                notifySuccess("تم حذف الطالب بنجاح");
                                 $('#teachersTable').DataTable().ajax.reload();
                             },
                             error: function () {
-                                Swal.fire({
-                                    icon: "error",
-                                    title: "فشل العملية",
-                                    text: "حدث خطأ أثناء الحذف"
-                                });
+                                notifyError("فشلت عملية الحذف");
                             }
                         });
                     }
                 });
+
             });
+        });
+    </script>
+
+    <script>
+        $(document).on("click", ".toggle-options", function (e) {
+            e.stopPropagation(); // منع انتشار الحدث لمنع إغلاق فوري للقائمة
+
+            var id = $(this).data("id");
+            var target = $("#options-" + id);
+
+            // إذا كانت هذه القائمة مفتوحة، نغلقها
+            if (!target.hasClass("d-none")) {
+                target.addClass("d-none");
+            } else {
+                // إغلاق كل القوائم الأخرى
+                $(".options-container").addClass("d-none");
+
+                // فتح القائمة الحالية
+                target.removeClass("d-none");
+            }
+        });
+
+        // إغلاق القائمة عند النقر خارجها
+        $(document).on("click", function () {
+            $(".options-container").addClass("d-none");
+        });
+
+        // منع إغلاق القائمة إذا تم النقر داخل القائمة نفسها
+        $(document).on("click", ".options-container", function (e) {
+            e.stopPropagation();
         });
     </script>
     
@@ -179,9 +226,9 @@
 
     <style>
         .delete-btn {
-            display: inline-block;
+            display: block;
             padding: 8px 16px;
-            color: #dc3545;
+            color: #dc3545; /* أحمر Bootstrap */
             border: 1px solid #dc3545;
             border-radius: 50px;
             text-decoration: none;
@@ -199,6 +246,52 @@
         .delete-btn:active {
             transform: scale(0.98);
             box-shadow: 0 2px 4px rgba(220, 53, 69, 0.2) inset;
+        }
+
+        .details-btn {
+            display: block;
+            padding: 8px 16px;
+            color: #0d6efd; /* أزرق Bootstrap */
+            border: 1px solid #0d6efd;
+            border-radius: 50px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            background-color: #fff;
+            font-weight: 500;
+        }
+
+        .details-btn:hover {
+            background-color: #0d6efd;
+            color: #fff;
+            box-shadow: 0 4px 8px rgba(13, 110, 253, 0.2);
+        }
+
+        .details-btn:active {
+            transform: scale(0.98);
+            box-shadow: 0 2px 4px rgba(13, 110, 253, 0.2) inset;
+        }
+
+        .dropdown-item.text-warning:hover {
+            background-color: #fff3cd; /* لون فاتح يشبه التحذير/الإدارة */
+            color: #856404;
+
+        }
+        .custom-divider {
+            border: 0;
+            height: 1px;
+            background: linear-gradient(to right, transparent, #ccc, transparent);
+            margin: 8px 0;
+        }
+        .custom-details-btn {
+            color: #ffc107; /* النص أبيض */
+            border-color: #ffc107; /* لون حدود الزر - أصفر */
+            background-color: transparent;
+            transition: 0.3s ease-in-out;
+        }
+
+        .custom-details-btn:hover {
+            background-color: #ffc107; /* خلفية الزر تصبح صفراء عند الهوفر */
+            color: #fff; /* النص يبقى أبيض */
         }
 
         body {

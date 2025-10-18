@@ -25,7 +25,11 @@ public partial class Student
 
     public int? IdNumber { get; set; }
 
-    public bool? IsDeleted { get; set; }
+    public bool IsDeletedStudent { get; set; }
+
+    public bool IsDeletedClass { get; set; }
+
+    public bool IsDeletedSchool { get; set; }
 
     public virtual ICollection<Attendance> Attendances { get; set; } = new List<Attendance>();
 
@@ -34,8 +38,6 @@ public partial class Student
     public virtual TheClass? IdClassNavigation { get; set; }
 
     public virtual School? IdSchoolNavigation { get; set; }
-
-    public virtual ICollection<StudentAverage> StudentAverages { get; set; } = new List<StudentAverage>();
 
     public virtual ICollection<StudentLectuerTeacher> StudentLectuerTeachers { get; set; } = new List<StudentLectuerTeacher>();
 }

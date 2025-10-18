@@ -1,7 +1,7 @@
-@model SchoolSystem.Data.Grade
+@model SchoolSystem.Models.GradeInputViewModel
 @using SchoolSystem.Data;
 @{
-    ViewData["Title"] = "Create";
+    ViewData["Title"] = "انشاء العلامات";
 }
 
 <h4>اضافة العلامات للطلاب في الصف: @ViewBag.GradeName في مادة: @ViewBag.SubjectName</h4>
@@ -33,12 +33,15 @@
                     var lastName = fullname[nameLength - 1];
                     if(fullname.Length > 1){
                         lastName = fullname[nameLength - 1];
-                        <p>@firstName - @lastName</p> 
+                        <p>@fullname[0] @fullname[1] @fullname[nameLength - 1]</p> 
                     }else{
                         @firstName
                     }
-                } 
-                <input type="hidden" name="Grades[@i].StudentId" value="@student.Id" />
+                }
+                <input type="hidden" name="Grades[@i].StudentId" value="@grade.IdStudent" />
+                <input type="hidden" name="Grades[@i].TeacherId" value="@grade.IdTeacher" />
+                <input type="hidden" name="Grades[@i].LectuerId" value="@grade.IdLectuer" />
+                <input type="hidden" name="Grades[@i].ClassId" value="@grade.IdClass" />
             </td>
             <td><input type="number" class="form-control small-input" name="Grades[@i].FirstMonth" value="@(grade.FirstMonth )" /></td>
             <td><input type="number" class="form-control small-input" name="Grades[@i].Mid" value="@(grade.Mid )" /></td>
@@ -46,6 +49,12 @@
             <td><input type="number" class="form-control small-input" name="Grades[@i].Activity" value="@(grade.Activity)" /></td>
             <td><input type="number" class="form-control small-input" name="Grades[@i].Final" value="@(grade.Final )" /></td>
         </tr>
+        <p>
+            teacherId: @grade.IdTeacher, subjectId: @grade.IdLectuer classId: @grade.IdClass
+            <br />
+            studentId: @grade.IdStudent
+            <br />
+        </p>
     }
 
 
@@ -60,25 +69,25 @@
 
 @section Scripts {
     <script>
-    $(document).ready(function () {
-        $('#gradesTable').DataTable({
-            paging: false,
-            searching: true,
-            info: true,
-            lengthChange: false,
-            ordering: true,
-            language: {
-                "search": "🔍بحث: ",
-                "info": "عرض من  _START_ الى _END_ من اصل _TOTAL_ سجل",
-                "zeroRecords": "لم يتم العثور على سجلات"
-            },
-            dom:
-            "<'row mb-3'<'col-sm-12 text-end'f>>" +        // البحث فقط في اليمين
-            "<'row'<'col-sm-12'tr>>" +                     // الجدول
-            "<'row mt-3'<'col-sm-6 text-start'i>>" // المعلومات يسار والترقيم يمين
+        $(document).ready(function () {
+            $('#gradesTable').DataTable({
+                paging: false,
+                searching: true,
+                info: true,
+                lengthChange: false,
+                ordering: true,
+                language: {
+                    "search": "🔍بحث: ",
+                    "info": "عرض من  _START_ الى _END_ من اصل _TOTAL_ سجل",
+                    "zeroRecords": "لم يتم العثور على سجلات"
+                },
+                dom:
+                "<'row mb-3'<'col-sm-12 text-end'f>>" +        // البحث فقط في اليمين
+                "<'row'<'col-sm-12'tr>>" +                     // الجدول
+                "<'row mt-3'<'col-sm-6 text-start'i>>" // المعلومات يسار والترقيم يمين
+            });
         });
-    });
-</script>
+    </script>
 
     <script>
         $('#saveAllBtn').click(function () {

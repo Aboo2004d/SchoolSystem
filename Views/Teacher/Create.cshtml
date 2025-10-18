@@ -12,60 +12,54 @@
                     <h4 class="mb-0"><i class="bi bi-person-plus-fill"></i> إضافة معلم جديد</h4>
                 </div>
                 <div class="card-body">
-                    <form asp-action="Create">
+                    <form id="createTeacherForm">
                         <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
                             <div class="row">
                                 <div class="col-md-6 mb-3">
-                                    <label asp-for="Name" class="form-label">الاسم</label>
-                                    <input asp-for="Name" class="form-control" />
-                                    <span asp-validation-for="Name" class="text-danger"></span>
+                                    <label for="nameTeacher" class="form-label">الاسم:</label>
+                                    <input id="nameTeacher" name="nameTeacher" class="form-control" />
                                 </div>
 
                                 <div class="col-md-6 mb-3">
-                                    <label asp-for="IdNumber" class="form-label">رقم الهوية</label>
-                                    <input asp-for="IdNumber" class="form-control" type="number" autocomplete="off" />
-                                    <span asp-validation-for="IdNumber" class="text-danger"></span>
+                                    <label for="idNumber" class="form-label">رقم الهوية:</label>
+                                    <input id="idNumber" name="idNumber" class="form-control" type="number" autocomplete="off" />
                                 </div>
 
                             </div>
                             <div class="row">
                                 <div class="col-md-6 mb-3">
-                                    <label asp-for="Phone" class="form-label">الهاتف</label>
-                                    <input asp-for="Phone" class="form-control" type="tel" autocomplete="off" />
-                                    <span asp-validation-for="Phone" class="text-danger"></span>
+                                    <label for="phone" class="form-label">الهاتف:</label>
+                                    <input id="phone" name="phone" class="form-control" type="tel" autocomplete="off" />
                                 </div>
 
                                 <div class="col-md-6 mb-3">
-                                    <label asp-for="Email" class="form-label">الإيميل</label>
-                                    <input asp-for="Email" class="form-control" type="email" />
-                                    <span asp-validation-for="Email" class="text-danger"></span>
+                                    <label for="emailAddressTeacher" class="form-label">البريد الالكتروني:</label>
+                                    <input id="emailAddressTeacher" name="emailAddressTeacher" class="form-control" type="email" />
                                 </div>
                                 
                             </div>
                             <div class="row">
                                 <div class="col-md-6 mb-3">
-                                    <label asp-for="City" class="form-label">المدينة</label>
-                                    <input asp-for="City" class="form-control" />
-                                    <span asp-validation-for="City" class="text-danger"></span>
+                                    <label for="city" class="form-label">المدينة:</label>
+                                    <input id="city" name="city" class="form-control" />
                                 </div>
 
                                 <div class="col-md-6 mb-3">
-                                    <label asp-for="Area" class="form-label ">الحي</label>
-                                    <input asp-for="Area" class="form-control" />
-                                    <span asp-validation-for="Area" class="text-danger"></span>
+                                    <label for="area" class="form-label ">الحي:</label>
+                                    <input id="area" name="area" class="form-control" />
                                 </div>
 
                             </div>
 
                             <div class="row justify-content-center">
                                 <div class="col-md-6 mb-3">
-                                    <label asp-for="TheDate" class="form-label">تاريخ الميلاد:</label>
-                                    <input asp-for="TheDate" class="form-control" type="date" />
-                                    <span asp-validation-for="TheDate" class="text-danger small"></span>
+                                    <label for="theDate" class="form-label">تاريخ الميلاد:</label>
+                                    <input id="theDate" name="theDate" class="form-control" type="date" />
                                 </div>
                             </div>
+                            
                             <div class="card-footer d-flex justify-content-center gap-2">
-                                <button type="submit" class="btn btn-outline-success">
+                                <button id="submitBtn" type="submit" class="btn btn-outline-success">
                                     <i class="bi bi-save-fill me-1"></i> حفظ
                                 </button>
                                 <a class="btn btn-outline-dark px-4" asp-controller="Menegar" asp-action="ManagerMenegarTeacherView">
@@ -83,4 +77,39 @@
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        $("#createTeacherForm").submit(function (e) {
+            e.preventDefault(); 
+            $("#submitBtn").prop("disabled", true);
+
+            const data = {
+                name: $("#nameTeacher").val(),
+                idNumber: $("#idNumber").val(),
+                phone: $("#phone").val(),
+                email: $("#emailAddressTeacher").val(),
+                theDate: $("#theDate").val(),
+                city: $("#city").val(),
+                area: $("#area").val()
+            };
+
+            $.ajax({
+                url: "/api/teacher/Create",
+                method: "POST",
+                contentType: "application/json",
+                data: JSON.stringify(data),
+                success: function (res) {
+                    notifySuccess("تم الحفظ بنجاح");
+
+                    setTimeout(() => {
+                        window.location.href = "/Menegar/ManagerMenegarTeacherView";
+                    }, 1500);
+                },
+                error: function (xhr) {
+                    const errorMsg = xhr.responseJSON?.message || "حدث خطأ غير متوقع";
+                    notifyError(errorMsg);
+                    $("#submitBtn").prop("disabled", false);
+                }
+            });
+        });
+    </script>
 }
