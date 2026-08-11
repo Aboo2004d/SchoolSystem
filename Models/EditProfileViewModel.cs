@@ -12,7 +12,8 @@ namespace SchoolSystem.Models
         public DateOnly TheDate { get; set; }
         public string City { get; set; }
         public string Area { get; set; }
-        public string School { get; set; }
+        // Display-only: the main admin may legitimately have no school assigned.
+        public string? School { get; set; }
         public string? TheClass { get; set; }
     }
 }

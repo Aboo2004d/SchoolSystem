@@ -1,23 +1,23 @@
 {
   "format": 1,
   "restore": {
-    "E:\\Uni\\Files\\Training\\aspdotnet_core\\SchoolSystem\\SchoolSystem.csproj": {}
+    "D:\\Abdallah\\SchoolSystem\\Aboo2004d\\SchoolSystem\\SchoolSystem.csproj": {}
   },
   "projects": {
-    "E:\\Uni\\Files\\Training\\aspdotnet_core\\SchoolSystem\\SchoolSystem.csproj": {
+    "D:\\Abdallah\\SchoolSystem\\Aboo2004d\\SchoolSystem\\SchoolSystem.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "E:\\Uni\\Files\\Training\\aspdotnet_core\\SchoolSystem\\SchoolSystem.csproj",
+        "projectUniqueName": "D:\\Abdallah\\SchoolSystem\\Aboo2004d\\SchoolSystem\\SchoolSystem.csproj",
         "projectName": "SchoolSystem",
-        "projectPath": "E:\\Uni\\Files\\Training\\aspdotnet_core\\SchoolSystem\\SchoolSystem.csproj",
-        "packagesPath": "C:\\Users\\Abo_Od\\.nuget\\packages\\",
-        "outputPath": "E:\\Uni\\Files\\Training\\aspdotnet_core\\SchoolSystem\\obj\\",
+        "projectPath": "D:\\Abdallah\\SchoolSystem\\Aboo2004d\\SchoolSystem\\SchoolSystem.csproj",
+        "packagesPath": "C:\\Users\\RaedNahal\\.nuget\\packages\\",
+        "outputPath": "D:\\Abdallah\\SchoolSystem\\Aboo2004d\\SchoolSystem\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\Abo_Od\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\RaedNahal\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -26,10 +26,12 @@
         ],
         "sources": {
           "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "C:\\Program Files\\dotnet\\library-packs": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
           "net9.0": {
+            "framework": "net9.0",
             "targetAlias": "net9.0",
             "projectReferences": {}
           }
@@ -44,10 +46,11 @@
           "auditLevel": "low",
           "auditMode": "direct"
         },
-        "SdkAnalysisLevel": "9.0.100"
+        "SdkAnalysisLevel": "10.0.300"
       },
       "frameworks": {
         "net9.0": {
+          "framework": "net9.0",
           "targetAlias": "net9.0",
           "dependencies": {
             "AspNetCoreHero.ToastNotification": {
@@ -65,6 +68,10 @@
             "MailKit": {
               "target": "Package",
               "version": "[4.10.0, )"
+            },
+            "Microsoft.AspNetCore.Identity.EntityFrameworkCore": {
+              "target": "Package",
+              "version": "[9.0.2, )"
             },
             "Microsoft.EntityFrameworkCore": {
               "target": "Package",
@@ -126,7 +133,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.110/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.302/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

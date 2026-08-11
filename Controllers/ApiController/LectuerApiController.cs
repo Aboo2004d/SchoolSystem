@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using AspNetCoreHero.ToastNotification.Abstractions;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -246,7 +247,7 @@ namespace SchoolSystem.Controllers
                 await _logger.LogAsync(new Exception("انتهت صلاحية الدخول"), "TheClassApi/PostCreateLectuer");
                 HttpContext.Session.Clear(); // مسح الجلسة
                 // تسجيل الخروج باستخدام ملفات تعريف الارتباط
-                await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                await HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
                 return Unauthorized(new { success = false, message = "انتهت صلاحية تسجيل الدخول" });
             }
             try

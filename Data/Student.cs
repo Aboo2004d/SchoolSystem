@@ -5,6 +5,9 @@ namespace SchoolSystem.Data;
 
 public partial class Student
 {
+    public Guid? ApplicationUserId { get; set; }
+    public virtual ApplicationUser? ApplicationUser { get; set; }
+
     public int Id { get; set; }
 
     public string? Name { get; set; }

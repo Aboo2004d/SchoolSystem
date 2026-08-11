@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using AspNetCoreHero.ToastNotification.Abstractions;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -64,7 +65,7 @@ namespace SchoolSystem.Controllers
                 // إذا كان المستخدم مصادقًا عليه بالفعل، قم بإعادة توجيهه إلى الصفحة الرئيسية
                 Exception ex = new Exception("Bypass verification system");
                 await _logger.LogAsync(ex,"Teacher/Index");
-                await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                await HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
                 _notyf.Error("دخول غي مصرح");
                 return RedirectToAction("Login", "Account");
         }

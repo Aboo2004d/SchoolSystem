@@ -918,7 +918,9 @@ namespace SchoolSystem.Controllers
 
             teacher.IsDeleted = true;
 
-            Acount? account = await _context.Acounts.Where(a => a.IdUser == Id && a.IsActive == true).FirstOrDefaultAsync();
+            ApplicationUser? account = teacher.ApplicationUserId.HasValue
+                ? await _context.Users.FirstOrDefaultAsync(a => a.Id == teacher.ApplicationUserId.Value && a.IsActive)
+                : null;
             if (account != null)
             {
                 account.IsActive = false;

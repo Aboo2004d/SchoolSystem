@@ -1,163 +1,76 @@
 using AspNetCoreHero.ToastNotification.Abstractions;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using SchoolSystem.Data;
 
-public class SessionValidatorService : ISessionValidatorService
+public sealed class SessionValidatorService : ISessionValidatorService
 {
     private readonly SystemSchoolDbContext _context;
+    private readonly UserManager<ApplicationUser> _userManager;
+    private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly IErrorLoggerService _logger;
     private readonly INotyfService _notyf;
 
-    public SessionValidatorService(SystemSchoolDbContext context, IErrorLoggerService logger, INotyfService notyf)
+    public SessionValidatorService(SystemSchoolDbContext context, UserManager<ApplicationUser> userManager,
+        SignInManager<ApplicationUser> signInManager, IErrorLoggerService logger, INotyfService notyf)
     {
         _context = context;
+        _userManager = userManager;
+        _signInManager = signInManager;
         _logger = logger;
         _notyf = notyf;
     }
 
-    public async Task<(bool IsValid, int IdTeacher, int IdSchool, bool status)> ValidateTeacherSessionAsync(HttpContext httpContext, int teacherId, string sours)
+    public async Task<(bool IsValid, int IdTeacher, int IdSchool, bool status)> ValidateTeacherSessionAsync(
+        HttpContext httpContext, int teacherId, string source)
     {
-        try
-        {
-
-            int? idTeacher = httpContext.Session.GetInt32("Id") ?? 0;
-
-            if (idTeacher == 0)
-            {
-                _notyf.Error("دخول غير مصرح به. انتهت صلاحية الجلسة.");
-                await _logger.LogAsync(new Exception("دخول غير مصرح."), sours);
-                await httpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                return (false, 0, 0, false);
-            }
-
-            var teacher = await _context.Teachers.FindAsync(idTeacher);
-            if (teacherId != idTeacher || teacher == null)
-            {
-                Console.WriteLine($"TeacherId: {teacherId}, IdTeacher session: {idTeacher}");
-                _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة");
-                await _logger.LogAsync(new Exception("التلاعب بالبيانات المرسلة."), sours);
-                return (false, 0, 0, true);
-            }
-
-            int? idSchool = teacher?.IdSchool ?? 0;
-            if (idSchool == 0)
-            {
-                _notyf.Error("دخول غير مصرح به. انتهت صلاحية الجلسة.");
-                await _logger.LogAsync(new Exception("دخول غير مصرح."), sours);
-                await httpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                return (false, 0, 0, false);
-            }
-
-            return (true, idTeacher.Value, idSchool.Value, true);
-        }
-        catch (Exception ex)
-        {
-            _notyf.Error("حدث خطأ غير متوقع/nحاول لاحقا.");
-            await _logger.LogAsync(ex, sours);
-            await httpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            
-            return (false, 0, 0, false);
-        }
+        var user = await GetAuthorizedUserAsync(httpContext, RoleNames.Teacher, source);
+        if (user is null) return (false, 0, 0, false);
+        var profile = await _context.Teachers.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.ApplicationUserId == user.Id && !x.IsDeleted);
+        if (profile is null || profile.Id != teacherId || !profile.IdSchool.HasValue)
+            return await RejectAsync(source, (false, 0, 0, true));
+        return (true, profile.Id, profile.IdSchool.Value, true);
     }
 
-    public async Task<(bool IsValid, int IdTeacher, int IdSchool, bool status)> ValidateStudentSessionAsync(HttpContext httpContext, int studentId, string sours)
+    public async Task<(bool IsValid, int IdTeacher, int IdSchool, bool status)> ValidateStudentSessionAsync(
+        HttpContext httpContext, int studentId, string source)
     {
-        try
-        {
-
-            int? idstudent = httpContext.Session.GetInt32("Id") ?? 0;
-
-            if (idstudent == 0)
-            {
-                _notyf.Error("دخول غير مصرح به. انتهت صلاحية الجلسة.");
-                await _logger.LogAsync(new Exception("دخول غير مصرح."), sours);
-                await httpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                return (false, 0, 0, false);
-            }
-            var student = await _context.Students.FindAsync(studentId);
-
-            if (studentId != idstudent || student == null)
-            {
-                _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة");
-                await _logger.LogAsync(new Exception("التلاعب بالبيانات المرسلة."), sours);
-                return (false, 0, 0, true);
-            }
-
-            int? idSchool = student?.IdSchool ?? 0;
-            if (idSchool == 0)
-            {
-                _notyf.Error("دخول غير مصرح به. انتهت صلاحية الجلسة.");
-                await _logger.LogAsync(new Exception("دخول غير مصرح."), sours);
-                await httpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                return (false, 0, 0, false);
-            }
-
-            return (true, idstudent.Value, idSchool.Value, true);
-        }
-        catch (Exception ex)
-        {
-            _notyf.Error("حدث خطأ غير متوقع/nحاول لاحقا.");
-            await _logger.LogAsync(ex, sours);
-            await httpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            return (false, 0, 0, false);
-        }
+        var user = await GetAuthorizedUserAsync(httpContext, RoleNames.Student, source);
+        if (user is null) return (false, 0, 0, false);
+        var profile = await _context.Students.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.ApplicationUserId == user.Id && !x.IsDeletedStudent);
+        if (profile is null || profile.Id != studentId || !profile.IdSchool.HasValue)
+            return await RejectAsync(source, (false, 0, 0, true));
+        return (true, profile.Id, profile.IdSchool.Value, true);
     }
 
-    public async Task<(bool IsValid, int IdSchool,string Message)> ValidateAdminSessionAsync(HttpContext httpContext, string sours)
+    public async Task<(bool IsValid, int IdSchool, string Message)> ValidateAdminSessionAsync(
+        HttpContext httpContext, string source)
     {
-        try
-        {
-            var school = httpContext.Session.GetInt32("School") ?? 0;
-
-            if (school == 0)
-            {
-                await _logger.LogAsync(new Exception("دخول غير مصرح."), sours);
-                httpContext.Session.Clear(); // مسح الجلسة
-                // تسجيل الخروج باستخدام ملفات تعريف الارتباط
-                await httpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                return (false, 0,"انتهت صلاحية الجلسة");
-            }
-
-            int? idmenegar = httpContext.Session.GetInt32("Id") ?? 0;
-
-            if (idmenegar == 0)
-            {
-                await _logger.LogAsync(new Exception("دخول غير مصرح."), sours);
-                httpContext.Session.Clear(); // مسح الجلسة
-                // تسجيل الخروج باستخدام ملفات تعريف الارتباط
-                await httpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                return (false, 0,"انتهت صلاحية الجلسة");
-            }
-            Menegar? menegar = await _context.Menegars.FindAsync(idmenegar);
-            if (menegar == null)
-            {
-                await _logger.LogAsync(new Exception("التلاعب ببيانات المدير."), sours);
-                httpContext.Session.Clear(); // مسح الجلسة
-                // تسجيل الخروج باستخدام ملفات تعريف الارتباط
-                await httpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                return (false, 0, "لا يمكن التلاعب ببيانات المدير");
-            }
-
-            if (menegar.IdSchool != school)
-            {
-                await _logger.LogAsync(new Exception("مدرسة المدير غير مطابقة لمدرسته في الجلسة مما يعني هناك تلاعب بالبيانات."), sours);
-                httpContext.Session.Clear(); // مسح الجلسة
-                // تسجيل الخروج باستخدام ملفات تعريف الارتباط
-                await httpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                return (false, 0, "لا يمكن التلاعب بالبيانات المحفوظة في الجلسة");
-            }
-
-            return (true, school, "");
-        }
-        catch (Exception ex)
-        {
-            await _logger.LogAsync(ex, sours);
-            httpContext.Session.Clear(); // مسح الجلسة
-                // تسجيل الخروج باستخدام ملفات تعريف الارتباط
-            await httpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            return (false, 0, "حدث خطأ غير متوقع");
-        }
+        var user = await GetAuthorizedUserAsync(httpContext, RoleNames.Admin, source);
+        if (user is null) return (false, 0, "انتهت صلاحية تسجيل الدخول.");
+        var profile = await _context.Menegars.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.ApplicationUserId == user.Id && !x.IsDeleted);
+        if (profile is null || !profile.IdSchool.HasValue)
+            return await RejectAsync(source, (false, 0, "ملف المدير غير صالح."));
+        return (true, profile.IdSchool.Value, string.Empty);
     }
 
+    private async Task<ApplicationUser?> GetAuthorizedUserAsync(HttpContext context, string role, string source)
+    {
+        var user = await _userManager.GetUserAsync(context.User);
+        if (user is not null && user.IsActive && await _userManager.IsInRoleAsync(user, role))
+            return user;
+        await _logger.LogAsync(new UnauthorizedAccessException("Identity authorization failed."), source);
+        await _signInManager.SignOutAsync();
+        return null;
+    }
+
+    private async Task<T> RejectAsync<T>(string source, T result)
+    {
+        _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة.");
+        await _logger.LogAsync(new UnauthorizedAccessException("Profile identifier mismatch."), source);
+        return result;
+    }
 }

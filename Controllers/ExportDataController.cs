@@ -1,6 +1,7 @@
 using AspNetCoreHero.ToastNotification.Abstractions;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -31,7 +32,7 @@ public class ExportDataController : Controller
             await _logger.LogAsync(new Exception("انتهت صلاحية الدخول"), "StudentApi/Create");
             HttpContext.Session.Clear(); // مسح الجلسة
             // تسجيل الخروج باستخدام ملفات تعريف الارتباط
-            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            await HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
             return NotFound();
         }
         try

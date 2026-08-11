@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using AspNetCoreHero.ToastNotification.Abstractions;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -399,7 +400,7 @@ namespace SchoolSystem.Controllers
                 await _logger.LogAsync(new Exception("انتهت صلاحية الدخول"), "StudentApi/Create");
                 HttpContext.Session.Clear(); // مسح الجلسة
                 // تسجيل الخروج باستخدام ملفات تعريف الارتباط
-                await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                await HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
                 return Unauthorized(new { success = false, message = "انتهت صلاحية تسجيل الدخول" });
             }
 
@@ -428,7 +429,7 @@ namespace SchoolSystem.Controllers
                 await _logger.LogAsync(new Exception("انتهت صلاحية الدخول"), "StudentApi/Create");
                 HttpContext.Session.Clear(); // مسح الجلسة
                 // تسجيل الخروج باستخدام ملفات تعريف الارتباط
-                await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                await HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
                 return Unauthorized(new { success = false, message = "انتهت صلاحية تسجيل الدخول" });
             }
 
@@ -510,9 +511,11 @@ namespace SchoolSystem.Controllers
 
                 student.IsDeletedStudent = true;
 
-                Acount? acount = await _context.Acounts.SingleOrDefaultAsync(s => s.IdUser == student.Id && s.IsActive == true);
-                if (acount != null)
-                    acount.IsActive = false;
+                ApplicationUser? account = student.ApplicationUserId.HasValue
+                    ? await _context.Users.SingleOrDefaultAsync(s => s.Id == student.ApplicationUserId.Value && s.IsActive)
+                    : null;
+                if (account != null)
+                    account.IsActive = false;
                     
                 List<Grade>? grades = await _context.Grades
                     .Where(g => g.IdStudent == Id && g.IdSchool == school && g.IsDeletedStudent == false)

@@ -1,564 +1,376 @@
-using Microsoft.AspNetCore.Mvc;
-using SchoolSystem.Models;
-using SchoolSystem.Data;
-using SchoolSystem;
-using System.Security.Cryptography;
-using System.Text;
-using System.Net.Mail;
-using MimeKit;
-using System.Security.Claims;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.EntityFrameworkCore;
-using AspNetCoreHero.ToastNotification.Notyf;
 using AspNetCoreHero.ToastNotification.Abstractions;
-using System.Threading.Tasks;
-using SchoolSystem.Filters;
-namespace SchoolSystem.Controllers
+using MailKit.Net.Smtp;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using MimeKit;
+using SchoolSystem.Data;
+using SchoolSystem.Models;
+
+namespace SchoolSystem.Controllers;
+
+public class AccountController : Controller
 {
-    public class AccountController : Controller
+    private readonly SystemSchoolDbContext _context;
+    private readonly UserManager<ApplicationUser> _userManager;
+    private readonly SignInManager<ApplicationUser> _signInManager;
+    private readonly RoleManager<IdentityRole<Guid>> _roleManager;
+    private readonly INotyfService _notyf;
+    private readonly IAccountService _accountService;
+
+    public AccountController(
+        SystemSchoolDbContext context,
+        UserManager<ApplicationUser> userManager,
+        SignInManager<ApplicationUser> signInManager,
+        RoleManager<IdentityRole<Guid>> roleManager,
+        INotyfService notyf,
+        IAccountService accountService)
     {
-        private readonly SystemSchoolDbContext _context;
-        private readonly INotyfService _notyf;
-        private readonly IErrorLoggerService _logger;
-        private readonly IAccountService _accountService;
+        _context = context;
+        _userManager = userManager;
+        _signInManager = signInManager;
+        _roleManager = roleManager;
+        _notyf = notyf;
+        _accountService = accountService;
+    }
 
+    public bool CheckUser() => User.Identity?.IsAuthenticated == true;
 
-        public AccountController(SystemSchoolDbContext context, INotyfService notyf, IErrorLoggerService logger, IAccountService accountService)
+    [HttpGet]
+    [AllowAnonymous]
+    public IActionResult Login() => CheckUser() ? RedirectToAction("Index", "Home") : View();
+
+    [HttpPost]
+    [AllowAnonymous]
+    public async Task<IActionResult> Login(LoginViewModel model)
+    {
+        if (!ModelState.IsValid)
+            return View(model);
+
+        var user = await _userManager.FindByNameAsync(model.UserName);
+        if (user is null || !user.IsActive)
         {
-            _logger = logger;
-            _context = context;
-            _notyf = notyf;
-            _accountService = accountService;
-        }
-
-        public bool CheckUser()
-        {
-            return User.Identity.IsAuthenticated &&
-                HttpContext.Session.GetInt32("Id") != null &&
-                HttpContext.Session.GetString("UserName") != null &&
-                HttpContext.Session.GetString("Role") != null;
-        }
-
-        private readonly int SaltSize = 16; // حجم الملح بالبايت (128 بت)
-        private readonly int KeySize = 32;  // حجم المفتاح الناتج (256 بت)
-        private readonly int Iterations = 10000; // عدد التكرارات
-
-        public string HashPassword(string password)
-        {
-            // إنشاء ملح عشوائي
-            using (var rng = RandomNumberGenerator.Create())
-            {
-                byte[] salt = new byte[SaltSize];
-                rng.GetBytes(salt);
-
-                // توليد الهاش باستخدام PBKDF2
-                using (var pbkdf2 = new Rfc2898DeriveBytes(password, salt, Iterations, HashAlgorithmName.SHA256))
-                {
-                    byte[] key = pbkdf2.GetBytes(KeySize);
-
-                    // تخزين الملح والهاش معًا في صيغة Base64 مفصولة بفاصل (مثل $)
-                    return $"{Convert.ToBase64String(salt)}${Convert.ToBase64String(key)}";
-                }
-            }
-        }
-
-        public bool VerifyPassword(string password, string? storedHash)
-        {
-            // فصل الملح والهاش المخزن
-            var parts = storedHash.Split('$');
-            if (parts.Length != 2)
-                return false;
-
-            byte[] salt = Convert.FromBase64String(parts[0]);
-            byte[] key = Convert.FromBase64String(parts[1]);
-
-            // توليد هاش جديد من كلمة المرور المدخلة والملح نفسه
-            using (var pbkdf2 = new Rfc2898DeriveBytes(password, salt, Iterations, HashAlgorithmName.SHA256))
-            {
-                byte[] keyToCheck = pbkdf2.GetBytes(KeySize);
-
-                // مقارنة بين الهاش المخزن والهاش الذي تم توليده
-                return CryptographicOperations.FixedTimeEquals(key, keyToCheck);
-            }
-        }
-        // GET: /Account/Login
-        [HttpGet]
-        public IActionResult Login()
-        {
-            if (CheckUser())
-            {
-                Console.WriteLine($"CheckUser: {CheckUser()}");
-                // إذا كان المستخدم مصادقًا عليه، قم بإعادة توجيهه إلى الصفحة الرئيسية
-                return RedirectToAction("Index", "Home");
-            }
-            return View();
-        }
-
-        // POST: /Account/Login
-        [HttpPost]
-        public async Task<IActionResult> Login(LoginViewModel model)
-        {
-            if (ModelState.IsValid)
-            {
-                Acount? account = await _context.Acounts
-                .FirstOrDefaultAsync(a => a.UsersName == model.UserName);
-
-                if (account != null)
-                {
-                    if (VerifyPassword(model.Password, account.Passwords))
-                    {
-                        if (account.IsActive == true)
-                        {
-                            switch (account.Role)
-                            {
-                                case "admin":
-                                    Menegar? menegar = await _context.Menegars.FirstOrDefaultAsync(s => s.Id == account.IdUser && s.IsDeleted == false);
-                                    if (menegar == null)
-                                    {
-                                        _notyf.Error("الحساب غير متوفر");
-                                        return View(model);
-                                    }
-                                    if (await Cookies(account.UsersName, account.Role, menegar.Email, menegar.Id, menegar.IdSchool, menegar.Name))
-                                    {
-                                        return RedirectToAction("Index", "Home");
-                                    }
-                                    break;
-                                case "Student":
-                                    Student? student = await _context.Students.FirstOrDefaultAsync(s => s.Id == account.IdUser);
-                                    if (student == null)
-                                    {
-                                        _notyf.Error("الحساب غير متوفر");
-                                        return View(model);
-                                    }
-                                    if (await Cookies(account?.UsersName, account?.Role, student?.Email, student?.Id, student?.IdSchool, student?.Name))
-                                    {
-                                        return RedirectToAction("Index", "Home");
-                                    }
-                                    break;
-                                case "Teacher":
-                                    Teacher? teacher = await _context.Teachers.FirstOrDefaultAsync(s => s.Id == account.IdUser);
-                                    if (teacher == null)
-                                    {
-                                        _notyf.Error("الحساب غير متوفر");
-                                        return View(model);
-                                    }
-                                    if (await Cookies(account?.UsersName, account?.Role, teacher?.Email, teacher?.Id, teacher?.IdSchool, teacher?.Name))
-                                    {
-                                        return RedirectToAction("Index", "Home");
-                                    }
-                                    break;
-                                default:
-                                    _notyf.Error("فشل تسجيل الدخول");
-                                    break;
-                            }
-                        }
-                        else
-                        {
-                            _notyf.Error("فشل تسجيل الدخول");
-                        }
-                    }
-                    else
-                    {
-                        _notyf.Error("اسم المستخدم او كلمة المرور خاظئة");
-                    }
-                }
-                else
-                {
-                    _notyf.Error("اسم المستخدم او كلمة المرور خاظئة");
-                }
-            }
-            else
-            {
-                _notyf.Error("خطأ في البيانات المدخلة");
-            }
+            _notyf.Error("اسم المستخدم أو كلمة المرور غير صحيحة.");
             return View(model);
         }
 
-        protected async Task<bool> Cookies(string? username, string? role, string? email, int? id, int? school, string? name)
+        var result = await _signInManager.PasswordSignInAsync(user, model.Password, false, lockoutOnFailure: true);
+        if (result.IsLockedOut)
         {
-            // تحقق من القيم المدخلة
-            if (string.IsNullOrEmpty(username) || 
-                string.IsNullOrEmpty(role) || 
-                string.IsNullOrEmpty(email) || 
-                id == null || 
-                school == null || 
-                string.IsNullOrEmpty(name))
-            {
-                _notyf.Error("فشل تسجيل الدخول. يرجى المحاولة مرة أخرى.");
-                return false;
-            }
-
-            // ✅ تخزين القيم الأساسية فقط في الجلسة
-            HttpContext.Session.SetInt32("Id", id??0);
-            HttpContext.Session.SetInt32("School", school??0);
-            HttpContext.Session.SetString("UserName", username??"null");
-            HttpContext.Session.SetString("Role", role??"null");
-            
-            // ✅ إعداد قائمة Claims
-            var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.Name, username??"null"),
-                new Claim(ClaimTypes.Role, role??"null"),
-                new Claim(ClaimTypes.Email, email??"null")
-            };
-
-            // ✅ إنشاء الهوية والمستخدم
-            var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-            var principal = new ClaimsPrincipal(identity);
-
-            // ✅ خيارات الكوكيز
-            var authProperties = new AuthenticationProperties
-            {
-                IsPersistent = false, // تبقى بعد إغلاق المتصفح
-                ExpiresUtc = DateTimeOffset.UtcNow.AddMinutes(30)
-            };
-
-            // ✅ تسجيل الدخول
-            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal, authProperties);
-
-            // ✅ ترحيب بالاسم الأول
-            var firstName = name.Split(" ")[0];
-            _notyf.Success($"مرحباً {firstName}");
-            return true;
-        }
-
-        // GET: /Account/Register
-        [HttpGet]
-        public IActionResult Register()
-        {
-            if (CheckUser())
-            {
-                // إذا كان المستخدم مصادقًا عليه، قم بإعادة توجيهه إلى الصفحة الرئيسية
-                return RedirectToAction("Index", "Home");
-            }
-            return View();
-        }
-
-        // POST: /Account/Register
-        [HttpPost]
-        public async Task<IActionResult> Register(RegisterViewModel model)
-        {
-            if (ModelState.IsValid)
-            {
-                var result = await _accountService.RegisterUserAsync(model);
-                if (!result.IsSuccess)
-                {
-                    _notyf.Error(result.Message);
-                    return View(model);
-                }
-                HttpContext.Session.SetString("email", model.Email);
-                HttpContext.Session.SetString("role", model.Role);
-                HttpContext.Session.SetInt32("idUser", model.IdUser);
-                HttpContext.Session.SetInt32("school", model.School ?? 0);
-                HttpContext.Session.SetString("name", model.FullName);
-
-                return RedirectToAction("SetCredentials");
-            }
-            
-            Console.WriteLine($"Name: {model.FullName}");
-            _notyf.Error("بيانات التحقق غير صحيحة");
+            _notyf.Error("تم قفل الحساب مؤقتًا بسبب محاولات الدخول الفاشلة.");
             return View(model);
-
         }
-        // GET: /Account/SetCredentials
-        [HttpGet]
-        public IActionResult SetCredentials()
+        if (!result.Succeeded)
         {
-            if (CheckUser())
-            {
-                return RedirectToAction("Index", "Home");
-            }
-            string? email = HttpContext.Session.GetString("email");
-            string? role = HttpContext.Session.GetString("role");
-            int? idUser = HttpContext.Session.GetInt32("idUser");
-            int? school = HttpContext.Session.GetInt32("school");
-            string? name = HttpContext.Session.GetString("name");
-
-            if (email == null || role == null || idUser == null || school == null)
-            {
-                _notyf.Error("البيانات غير متوفرة أو انتهت الجلسة");
-                return RedirectToAction("Register");
-            }
-            Console.WriteLine($"Role: {role}");
-
-            var model = new SetCredentialsViewModel
-            {
-                Email = email,
-                Role = role,
-                IdUser = idUser ?? 0,
-                School = school ?? 0,
-                name = name ?? "Null"
-            };
-            HttpContext.Session.Clear();
+            _notyf.Error("اسم المستخدم أو كلمة المرور غير صحيحة.");
             return View(model);
         }
 
-        // POST: /Account/SetCredentials
-        [HttpPost]
-        public async Task<IActionResult> SetCredentials(SetCredentialsViewModel model)
+        if (!await PopulateLegacySessionAsync(user))
         {
-
-            // التحقق من صحة النموذج
-            if (!ModelState.IsValid)
-            {
-                foreach (var state in ModelState)
-                {
-                    var key = state.Key;
-                    var errors = state.Value.Errors;
-                    
-                    foreach (var error in errors)
-                    {
-                        Console.WriteLine($"خطأ في الحقل: {key} - الرسالة: {error.ErrorMessage}");
-                    }
-                }
-                _notyf.Error("خطأ بالبيانات المدخلة");
-                return View(model);
-            }
-
-            // التحقق مما إذا كانت كلمة المرور وتأكيد كلمة المرور متطابقتين
-            if (model.Password != model.ConfirmPassword)
-            {
-                _notyf.Error("كلمة المرور غير متطابقة");
-                return View(model);
-            }
-
-            // التحقق مما إذا كان اسم المستخدم مستخدمًا بالفعل
-            bool account1 = _context.Acounts.Any(a => a.UsersName == model.UserName);
-            if (account1 == true)
-            {
-                _notyf.Error("اسم المستخدم موجود مسبقا");
-                return View(model);
-            }
-
-            // إنشاء حساب جديد
-            Acount account = new Acount
-            {
-                UsersName = model.UserName,
-                Passwords = HashPassword(model.Password), // تخزين القيمة المشفرة
-                Email = model.Email,
-                IdUser = model.IdUser,
-                Role = model.Role,
-                ResetToken = " ",
-                IsActive = true,
-                ResetTokenExpiry = System.DateTime.Now
-            };
-
-            // إضافة الحساب إلى قاعدة البيانات
-            await _context.Acounts.AddAsync(account);
-            await _context.SaveChangesAsync();
-
-            if (await Cookies(account.UsersName, account.Role, account.Email, model.IdUser, model.School, model.name))
-                return RedirectToAction("Index", "Home");
-            return await Logout();
-        }
-
-        public async Task<IActionResult> Logout()
-        {
-            HttpContext.Session.Clear(); // مسح الجلسة
-            // تسجيل الخروج باستخدام ملفات تعريف الارتباط
-            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            _notyf.Success("تم تسجيل الخروج");
-            // إعادة توجيه المستخدم إلى صفحة تسجيل الدخول
-            return RedirectToAction("Login");
-        }
-
-        [HttpGet]
-        public IActionResult ForgotPassword()
-        {
-            if (CheckUser())
-            {
-                _notyf.Warning("The user is authenticated!");
-                // إذا كان المستخدم مصادقًا عليه، قم بإعادة توجيهه إلى الصفحة الرئيسية
-                return RedirectToAction("Index", "Home");
-            }
-            return View();
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model)
-        {
-            Console.WriteLine($"Email: {model.Email}");
-            if (ModelState.IsValid)
-            {
-
-                Console.WriteLine(ModelState.IsValid);
-                Acount? account = _context.Acounts.FirstOrDefault(a => a.Email == model.Email);
-                if (account != null)
-                {
-                    // إنشاء رمز تحقق عشوائي
-                    var resetToken = Guid.NewGuid().ToString();
-                    var tokenExpiry = DateTime.UtcNow.AddHours(1); // صلاحية الرمز لمدة ساعة
-                    // التحقق من أن الأعمدة ليست NULL
-                    if (account.ResetToken == null || account.ResetTokenExpiry == null)
-                    {
-                        account.ResetToken = resetToken;
-                        account.ResetTokenExpiry = tokenExpiry;
-                    }
-                    else
-                    {
-                        // إذا كان هناك رمز سابق، يمكن تحديثه
-                        account.ResetToken = resetToken;
-                        account.ResetTokenExpiry = tokenExpiry;
-                    }
-
-                    _context.SaveChanges();
-
-                    // إنشاء رابط إعادة تعيين كلمة المرور
-                    var resetLink = Url.Action("ResetPassword", "Account", new { token = resetToken }, Request.Scheme);
-
-                    // إرسال البريد الإلكتروني
-                    await SendResetEmailAsync(model.Email, resetLink);
-                }
-                Console.WriteLine($"Email: {model.Email}");
-
-                _notyf.Success($"An email to reset the password has been sent to the email {model.Email}.");
-                return RedirectToAction("Login");
-            }
-            _notyf.Error("There is an error in the entered data.");
+            await _signInManager.SignOutAsync();
+            _notyf.Error("الحساب غير مرتبط بملف شخصي صالح.");
             return View(model);
         }
 
-        private async Task SendResetEmailAsync(string email, string resetLink)
+        _notyf.Success("تم تسجيل الدخول بنجاح.");
+        return RedirectToAction("Index", "Home");
+    }
+
+    [HttpGet]
+    [AllowAnonymous]
+    public IActionResult Register() => CheckUser() ? RedirectToAction("Index", "Home") : View();
+
+    [HttpPost]
+    [AllowAnonymous]
+    public async Task<IActionResult> Register(RegisterViewModel model)
+    {
+        if (!ModelState.IsValid)
+            return View(model);
+
+        model.Role = RoleNames.Normalize(model.Role) ?? string.Empty;
+        var validation = await _accountService.RegisterUserAsync(model);
+        if (!validation.IsSuccess)
         {
-            var subject = "Password Reset Request";
-            var body = $"Please click the following link to reset your password: {resetLink}";
-
-            // استخدام Mailtrap لإرسال البريد الإلكتروني
-            using (var smtpClient = new MailKit.Net.Smtp.SmtpClient())
-            {
-                await smtpClient.ConnectAsync(
-                    Environment.GetEnvironmentVariable("MAILTRAP_HOST"),
-                    int.Parse(Environment.GetEnvironmentVariable("MAILTRAP_PORT")),
-                    false);
-
-                smtpClient.Authenticate(
-                    Environment.GetEnvironmentVariable("MAILTRAP_USERNAME"),
-                    Environment.GetEnvironmentVariable("MAILTRAP_PASSWORD"));
-
-                var mailMessage = new MimeKit.MimeMessage();
-                mailMessage.From.Add(new MimeKit.MailboxAddress("Your App", "no-reply@example.com"));
-                mailMessage.To.Add(new MimeKit.MailboxAddress("", email));
-                mailMessage.Subject = subject;
-                mailMessage.Body = new MimeKit.TextPart("plain") { Text = body };
-
-                await smtpClient.SendAsync(mailMessage);
-                await smtpClient.DisconnectAsync(true);
-            }
-        }
-
-        [HttpGet]
-        public IActionResult ResetPassword(string token)
-        {
-            if (CheckUser())
-            {
-                _notyf.Warning("The user is authenticated!");
-                return RedirectToAction("Index", "Home");
-            }
-            if (string.IsNullOrEmpty(token))
-            {
-                return BadRequest("Invalid token.");
-            }
-
-            var model = new ResetPasswordViewModel { Token = token };
+            _notyf.Error(validation.Message);
             return View(model);
         }
-        [HttpPost]
-        public IActionResult ResetPassword(ResetPasswordViewModel model)
-        {
-            if (!ModelState.IsValid)
-            {
-                return View(model);
-            }
 
-            var account = _context.Acounts.FirstOrDefault(a => a.ResetToken == model.Token && a.ResetTokenExpiry > DateTime.UtcNow);
+        HttpContext.Session.SetString("PendingEmail", model.Email);
+        HttpContext.Session.SetString("PendingRole", model.Role);
+        HttpContext.Session.SetInt32("PendingProfileId", model.IdUser);
+        HttpContext.Session.SetInt32("PendingSchool", model.School ?? 0);
+        HttpContext.Session.SetString("PendingName", model.FullName);
+        return RedirectToAction(nameof(SetCredentials));
+    }
 
-            if (account == null)
-            {
-                return BadRequest("Invalid or expired token.");
-            }
-            string hashedPassword = HashPassword(model.NewPassword);
-            string hashedConfirmPassword = HashPassword(model.ConfirmPassword);
-
-            if (model.NewPassword != model.ConfirmPassword)
-            {
-                _notyf.Error("كلمة المرور المطابقة غير صحيحة");
-                return View(model);
-            }
-            if (account.Passwords == hashedPassword)
-            {
-                _notyf.Error("لا يمكن ان تكون كلمة المرور الجديدة تشبه القديمة");
-                return View(model);
-            }
-
-            account.Passwords = HashPassword(model.NewPassword);
-
-            // مسح الرموز القديمة بعد تحديث كلمة المرور
-
-
-            _context.SaveChanges();
-
-            _notyf.Success("تم تحديث كلمة المرور بنجاح");
-            return RedirectToAction("Login");
-        }
-
-
-
-        [HttpGet]
-        [AuthorizeRoles("admin", "Student", "Teacher")]
-        public IActionResult NewPassword()
-        {
-
-            return View();
-        }
-
-        [HttpPost]
-        [AuthorizeRoles("admin", "Student", "Teacher")]
-        public async Task<IActionResult> NewPassword(NewPasswordViewModel model)
-        {
-            if (!ModelState.IsValid)
-            {
-                _notyf.Error("خطأ بالبيانات المدخلة");
-                return View(model);
-            }
-            string username = HttpContext.Session.GetString("UserName") ?? "null";
-            if (username == "null")
-            {
-                return await Logout();
-            }
-            Acount? account = await _context.Acounts.FirstOrDefaultAsync(acc => username == acc.UsersName);
-            if (account == null)
-            {
-               return await Logout();
-            }
-            string Hash = HashPassword(model.LastPassword);
-            if (Hash != account.Passwords)
-            {
-                _notyf.Error("كلمة المرور القديمة خاطئة");
-                return View(model);
-            }
-            if (model.NewPassword != model.ConfirmPassword)
-            {
-                _notyf.Error("كلمة المرور المدخلة للتأكيد خاطئة");
-                return View(model);
-            }
-            if (HashPassword(model.NewPassword) == Hash)
-            {
-                _notyf.Error("لا يمكن ان تكون كلمة المرور القديمة تشبه الجديدة");
-                return View(model);
-            }
-            account.Passwords = HashPassword(model.NewPassword);
-            _context.SaveChanges();
-            _notyf.Success("تم تحديث كلمة المرور");
-            return RedirectToAction("IndexProfile", "Profile");
-        }
-
-        [HttpGet]
-        public IActionResult AccessDenied()
-        {
-            _notyf.Warning("لا تملك الصلاحية للوصول إلى هذه الصفحة.");
+    [HttpGet]
+    [AllowAnonymous]
+    public IActionResult SetCredentials()
+    {
+        if (CheckUser())
             return RedirectToAction("Index", "Home");
+
+        var email = HttpContext.Session.GetString("PendingEmail");
+        var role = HttpContext.Session.GetString("PendingRole");
+        var profileId = HttpContext.Session.GetInt32("PendingProfileId");
+        if (email is null || role is null || profileId is null)
+            return RedirectToAction(nameof(Register));
+
+        return View(new SetCredentialsViewModel
+        {
+            Email = email,
+            Role = role,
+            IdUser = profileId.Value,
+            School = HttpContext.Session.GetInt32("PendingSchool") ?? 0,
+            name = HttpContext.Session.GetString("PendingName") ?? string.Empty
+        });
+    }
+
+    [HttpPost]
+    [AllowAnonymous]
+    public async Task<IActionResult> SetCredentials(SetCredentialsViewModel model)
+    {
+        var pendingEmail = HttpContext.Session.GetString("PendingEmail");
+        var pendingRole = RoleNames.Normalize(HttpContext.Session.GetString("PendingRole"));
+        var pendingProfileId = HttpContext.Session.GetInt32("PendingProfileId");
+        if (!ModelState.IsValid || pendingEmail is null || pendingRole is null || pendingProfileId is null)
+            return View(model);
+
+        if (!string.Equals(model.Email, pendingEmail, StringComparison.OrdinalIgnoreCase) ||
+            model.IdUser != pendingProfileId.Value || RoleNames.Normalize(model.Role) != pendingRole)
+            return BadRequest("بيانات التسجيل غير متطابقة.");
+
+        if (!await _roleManager.RoleExistsAsync(pendingRole))
+            return StatusCode(StatusCodes.Status500InternalServerError, "الدور المطلوب غير مهيأ.");
+
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+        var user = new ApplicationUser
+        {
+            Id = Guid.NewGuid(),
+            UserName = model.UserName,
+            Email = pendingEmail,
+            EmailConfirmed = false,
+            IsActive = true
+        };
+        var createResult = await _userManager.CreateAsync(user, model.Password);
+        if (!createResult.Succeeded)
+        {
+            AddIdentityErrors(createResult);
+            return View(model);
         }
 
+        var roleResult = await _userManager.AddToRoleAsync(user, pendingRole);
+        if (!roleResult.Succeeded)
+        {
+            AddIdentityErrors(roleResult);
+            return View(model);
+        }
+
+        if (!await LinkProfileAsync(user.Id, pendingRole, pendingProfileId.Value))
+        {
+            ModelState.AddModelError(string.Empty, "الملف الشخصي غير موجود أو مرتبط بحساب آخر.");
+            return View(model);
+        }
+
+        await _context.SaveChangesAsync();
+        await transaction.CommitAsync();
+        await _signInManager.SignInAsync(user, isPersistent: false);
+        await PopulateLegacySessionAsync(user);
+        ClearPendingRegistration();
+        _notyf.Success("تم إنشاء الحساب بنجاح.");
+        return RedirectToAction("Index", "Home");
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> Logout()
+    {
+        HttpContext.Session.Clear();
+        await _signInManager.SignOutAsync();
+        _notyf.Success("تم تسجيل الخروج.");
+        return RedirectToAction(nameof(Login));
+    }
+
+    [HttpGet]
+    [AllowAnonymous]
+    public IActionResult ForgotPassword() => CheckUser() ? RedirectToAction("Index", "Home") : View();
+
+    [HttpPost]
+    [AllowAnonymous]
+    public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model)
+    {
+        if (!ModelState.IsValid)
+            return View(model);
+
+        var user = await _userManager.FindByEmailAsync(model.Email);
+        if (user is not null && user.IsActive)
+        {
+            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+            var resetLink = Url.Action(nameof(ResetPassword), "Account", new { userId = user.Id, token }, Request.Scheme)!;
+            await SendResetEmailAsync(model.Email, resetLink);
+        }
+
+        // Do not disclose whether an account exists for the supplied address.
+        _notyf.Success("إذا كان البريد مسجلًا فسيتم إرسال رابط استعادة كلمة المرور.");
+        return RedirectToAction(nameof(Login));
+    }
+
+    [HttpGet]
+    [AllowAnonymous]
+    public IActionResult ResetPassword(Guid userId, string token)
+    {
+        if (userId == Guid.Empty || string.IsNullOrWhiteSpace(token))
+            return BadRequest("رابط الاستعادة غير صالح.");
+        return View(new ResetPasswordViewModel { UserId = userId, Token = token });
+    }
+
+    [HttpPost]
+    [AllowAnonymous]
+    public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model)
+    {
+        if (!ModelState.IsValid)
+            return View(model);
+
+        var user = await _userManager.FindByIdAsync(model.UserId.ToString());
+        if (user is null)
+            return RedirectToAction(nameof(Login));
+
+        var result = await _userManager.ResetPasswordAsync(user, model.Token, model.NewPassword);
+        if (!result.Succeeded)
+        {
+            AddIdentityErrors(result);
+            return View(model);
+        }
+        await _userManager.ResetAccessFailedCountAsync(user);
+        _notyf.Success("تم تحديث كلمة المرور.");
+        return RedirectToAction(nameof(Login));
+    }
+
+    [HttpGet]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Student + "," + RoleNames.Teacher)]
+    public IActionResult NewPassword() => View();
+
+    [HttpPost]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Student + "," + RoleNames.Teacher)]
+    public async Task<IActionResult> NewPassword(NewPasswordViewModel model)
+    {
+        if (!ModelState.IsValid)
+            return View(model);
+        var user = await _userManager.GetUserAsync(User);
+        if (user is null)
+            return Challenge();
+
+        var result = await _userManager.ChangePasswordAsync(user, model.LastPassword, model.NewPassword);
+        if (!result.Succeeded)
+        {
+            AddIdentityErrors(result);
+            return View(model);
+        }
+        await _signInManager.RefreshSignInAsync(user);
+        _notyf.Success("تم تحديث كلمة المرور.");
+        return RedirectToAction("IndexProfile", "Profile");
+    }
+
+    [HttpGet]
+    public IActionResult AccessDenied()
+    {
+        _notyf.Warning("لا تملك صلاحية الوصول إلى هذه الصفحة.");
+        return RedirectToAction("Index", "Home");
+    }
+
+    private async Task<bool> LinkProfileAsync(Guid userId, string role, int profileId)
+    {
+        switch (role)
+        {
+            case RoleNames.Admin:
+                var manager = await _context.Menegars.SingleOrDefaultAsync(x => x.Id == profileId);
+                if (manager is null || manager.ApplicationUserId.HasValue) return false;
+                manager.ApplicationUserId = userId;
+                return true;
+            case RoleNames.Teacher:
+                var teacher = await _context.Teachers.SingleOrDefaultAsync(x => x.Id == profileId);
+                if (teacher is null || teacher.ApplicationUserId.HasValue) return false;
+                teacher.ApplicationUserId = userId;
+                return true;
+            case RoleNames.Student:
+                var student = await _context.Students.SingleOrDefaultAsync(x => x.Id == profileId);
+                if (student is null || student.ApplicationUserId.HasValue) return false;
+                student.ApplicationUserId = userId;
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private async Task<bool> PopulateLegacySessionAsync(ApplicationUser user)
+    {
+        var roles = await _userManager.GetRolesAsync(user);
+        var role = roles.SingleOrDefault();
+        int id;
+        int school;
+        string? name;
+
+        switch (role)
+        {
+            case RoleNames.Admin:
+                var manager = await _context.Menegars.AsNoTracking().SingleOrDefaultAsync(x => x.ApplicationUserId == user.Id && !x.IsDeleted);
+                if (manager is null) return false;
+                (id, school, name) = (manager.Id, manager.IdSchool ?? 0, manager.Name);
+                break;
+            case RoleNames.Teacher:
+                var teacher = await _context.Teachers.AsNoTracking().SingleOrDefaultAsync(x => x.ApplicationUserId == user.Id && !x.IsDeleted);
+                if (teacher is null) return false;
+                (id, school, name) = (teacher.Id, teacher.IdSchool ?? 0, teacher.Name);
+                break;
+            case RoleNames.Student:
+                var student = await _context.Students.AsNoTracking().SingleOrDefaultAsync(x => x.ApplicationUserId == user.Id && !x.IsDeletedStudent);
+                if (student is null) return false;
+                (id, school, name) = (student.Id, student.IdSchool ?? 0, student.Name);
+                break;
+            default:
+                return false;
+        }
+
+        HttpContext.Session.SetInt32("Id", id);
+        HttpContext.Session.SetInt32("School", school);
+        HttpContext.Session.SetString("UserName", user.UserName ?? string.Empty);
+        HttpContext.Session.SetString("Role", role);
+        HttpContext.Session.SetString("Name", name ?? string.Empty);
+        return true;
+    }
+
+    private void ClearPendingRegistration()
+    {
+        foreach (var key in new[] { "PendingEmail", "PendingRole", "PendingProfileId", "PendingSchool", "PendingName" })
+            HttpContext.Session.Remove(key);
+    }
+
+    private void AddIdentityErrors(IdentityResult result)
+    {
+        foreach (var error in result.Errors)
+            ModelState.AddModelError(string.Empty, error.Description);
+    }
+
+    private static async Task SendResetEmailAsync(string email, string resetLink)
+    {
+        var host = Environment.GetEnvironmentVariable("MAILTRAP_HOST")
+            ?? throw new InvalidOperationException("MAILTRAP_HOST is not configured.");
+        var portText = Environment.GetEnvironmentVariable("MAILTRAP_PORT");
+        if (!int.TryParse(portText, out var port))
+            throw new InvalidOperationException("MAILTRAP_PORT is not configured.");
+
+        using var smtp = new SmtpClient();
+        await smtp.ConnectAsync(host, port, false);
+        await smtp.AuthenticateAsync(
+            Environment.GetEnvironmentVariable("MAILTRAP_USERNAME"),
+            Environment.GetEnvironmentVariable("MAILTRAP_PASSWORD"));
+        var message = new MimeMessage();
+        message.From.Add(new MailboxAddress("School System", "no-reply@example.com"));
+        message.To.Add(MailboxAddress.Parse(email));
+        message.Subject = "Password Reset Request";
+        message.Body = new TextPart("plain") { Text = $"Reset your password using this link: {resetLink}" };
+        await smtp.SendAsync(message);
+        await smtp.DisconnectAsync(true);
     }
 }

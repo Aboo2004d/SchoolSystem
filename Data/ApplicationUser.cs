@@ -1,0 +1,26 @@
+using Microsoft.AspNetCore.Identity;
+
+namespace SchoolSystem.Data;
+
+public sealed class ApplicationUser : IdentityUser<Guid>
+{
+    public bool IsActive { get; set; } = true;
+    public Student? Student { get; set; }
+    public Teacher? Teacher { get; set; }
+    public Menegar? Menegar { get; set; }
+}
+
+public static class RoleNames
+{
+    public const string Admin = "Admin";
+    public const string Teacher = "Teacher";
+    public const string Student = "Student";
+
+    public static string? Normalize(string? role) => role?.Trim().ToLowerInvariant() switch
+    {
+        "admin" => Admin,
+        "teacher" => Teacher,
+        "student" => Student,
+        _ => null
+    };
+}

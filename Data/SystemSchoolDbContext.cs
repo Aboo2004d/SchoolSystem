@@ -1,17 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 
 namespace SchoolSystem.Data;
 
-public partial class SystemSchoolDbContext : DbContext
+public partial class SystemSchoolDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>
 {
     public SystemSchoolDbContext(DbContextOptions<SystemSchoolDbContext> options)
         : base(options)
     {
     }
-
-    public virtual DbSet<Acount> Acounts { get; set; }
 
     public virtual DbSet<Attendance> Attendances { get; set; }
 
@@ -47,20 +47,7 @@ public partial class SystemSchoolDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<Acount>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("PK__Acounts__3213E83F1B5AE3B5");
-
-            entity.Property(e => e.Id).HasColumnName("id");
-            entity.Property(e => e.Email).HasMaxLength(50);
-            entity.Property(e => e.Passwords).HasMaxLength(500);
-            entity.Property(e => e.ResetToken).HasMaxLength(200);
-            entity.Property(e => e.ResetTokenExpiry).HasColumnType("datetime");
-            entity.Property(e => e.Role).HasMaxLength(50);
-            entity.Property(e => e.UsersName)
-                .HasMaxLength(50)
-                .IsUnicode(false);
-        });
+        base.OnModelCreating(modelBuilder);
 
         modelBuilder.Entity<Attendance>(entity =>
         {
@@ -199,6 +186,9 @@ public partial class SystemSchoolDbContext : DbContext
             entity.HasIndex(e => e.Name, "IX_Menegar_Name");
 
             entity.HasIndex(e => e.IdNumber, "UQ_Menegar_IdNumber").IsUnique();
+            entity.HasIndex(e => e.ApplicationUserId).IsUnique().HasFilter("[ApplicationUserId] IS NOT NULL");
+            entity.HasOne(e => e.ApplicationUser).WithOne(e => e.Menegar)
+                .HasForeignKey<Menegar>(e => e.ApplicationUserId).OnDelete(DeleteBehavior.SetNull);
 
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.Area).HasMaxLength(50);
@@ -282,6 +272,9 @@ public partial class SystemSchoolDbContext : DbContext
             entity.HasIndex(e => e.IdSchool, "IX_Student_IdSchool");
 
             entity.HasIndex(e => e.Name, "IX_Student_Name");
+            entity.HasIndex(e => e.ApplicationUserId).IsUnique().HasFilter("[ApplicationUserId] IS NOT NULL");
+            entity.HasOne(e => e.ApplicationUser).WithOne(e => e.Student)
+                .HasForeignKey<Student>(e => e.ApplicationUserId).OnDelete(DeleteBehavior.SetNull);
 
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.Area).HasMaxLength(50);
@@ -343,6 +336,9 @@ public partial class SystemSchoolDbContext : DbContext
             entity.HasIndex(e => e.IdSchool, "IX_Teacher_IdSchool");
 
             entity.HasIndex(e => e.Name, "IX_Teacher_Name");
+            entity.HasIndex(e => e.ApplicationUserId).IsUnique().HasFilter("[ApplicationUserId] IS NOT NULL");
+            entity.HasOne(e => e.ApplicationUser).WithOne(e => e.Teacher)
+                .HasForeignKey<Teacher>(e => e.ApplicationUserId).OnDelete(DeleteBehavior.SetNull);
 
             entity.HasIndex(e => e.IdNumber, "UQ_Teacher_IdNumber").IsUnique();
 

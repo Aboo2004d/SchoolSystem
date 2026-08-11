@@ -6,6 +6,7 @@ using AspNetCoreHero.ToastNotification;
 using AspNetCoreHero.ToastNotification.Abstractions;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -720,7 +721,7 @@ namespace SchoolSystem.Controllers
                         await _logger.LogAsync(new Exception("Manipulation of transmitted data"), "Grades/Edit");
                         return RedirectToAction("Index", new { teacherId = Id });
                     }
-                    await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                    await HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
                     _notyf.Error("Unauthenticated user.");
                     await _logger.LogAsync(new Exception("Unauthenticated user."), "Grades/Edit");
                     return RedirectToAction("Index", "Home");
@@ -774,7 +775,7 @@ namespace SchoolSystem.Controllers
                         _notyf.Error("Data is not Found.");
                         return View(nameof(Index),new{idTeacher = TeacherId});
                     }
-                    await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                    await HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
                     _notyf.Error("Unauthenticated user.");
                     Exception ex = new Exception("Unauthenticated user.");
                     await _logger.LogAsync(ex, "Grades/Delete");
@@ -788,7 +789,7 @@ namespace SchoolSystem.Controllers
                     await _logger.LogAsync(ex, "Grades/Delete");
                     return View(nameof(Index),new{idTeacher = TeacherId});
                 }
-                await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                await HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
                 _notyf.Error("Unauthenticated user.");
                 await _logger.LogAsync(ex, "Grades/Delete");
                 return RedirectToAction("Index","Home");
