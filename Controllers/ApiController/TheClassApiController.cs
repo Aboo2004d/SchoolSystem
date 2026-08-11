@@ -24,38 +24,36 @@ namespace SchoolSystem.Controllers
         private readonly SystemSchoolDbContext _context;
         private readonly INotyfService _notyf;
         private readonly IErrorLoggerService _logger;
-        private readonly EncryptionHelper _encryptionHelper;
         private readonly ISessionValidatorService _sessionValidatorService;
         private readonly IDistributedCache _cache;
 
 
-        public TheClassApiController(SystemSchoolDbContext context, IDistributedCache cache, ISessionValidatorService sessionValidatorService, EncryptionHelper encryptionHelper, INotyfService notyf, IErrorLoggerService logger)
+        public TheClassApiController(SystemSchoolDbContext context, IDistributedCache cache, ISessionValidatorService sessionValidatorService, INotyfService notyf, IErrorLoggerService logger)
         {
             _logger = logger;
             _context = context;
             _notyf = notyf;
-            _encryptionHelper = encryptionHelper;
             _sessionValidatorService = sessionValidatorService;
             _cache = cache;
         }
 
-        [AuthorizeRoles("admin")]
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
         [HttpGet("GetClasses")]
-        public async Task<IActionResult> GetClassesToTeacher(string idTeacher)
+        public async Task<IActionResult> GetClassesToTeacher(Guid idTeacher)
         {
             Console.WriteLine("================================123================================");
             // التحقق من صلاحية المستخدم
-            var (isValid, school, Message) = await _sessionValidatorService.ValidateAdminSessionAsync(HttpContext, "TheClassApi/GetClassesToTeacher");
+            var (isValid, school, Message) = await _sessionValidatorService.ValidateManagerSessionAsync(HttpContext, "TheClassApi/GetClassesToTeacher");
 
             if (!isValid)
             {
                 return Unauthorized(new ApiResponse { Success = isValid, Message = Message });
             }
 
-            int Id;
+            Guid Id;
             try
             {
-                Id = _encryptionHelper.DecryptInt(idTeacher);
+                Id = idTeacher;
 
             }
             catch (Exception ex)
@@ -75,7 +73,7 @@ namespace SchoolSystem.Controllers
                                 t.IsTeacherRemovedFromClass == false && t.IsTeacherRemovedFromLectuer == false)
                     ).Select(c => new
                     {
-                        id = _encryptionHelper.EncryptInt(c.Id),
+                        id = c.Id,
                         name = c.Name
                     }).ToListAsync();
 
@@ -84,12 +82,12 @@ namespace SchoolSystem.Controllers
                                 t.IsTeacherRemovedFromClass == false && t.IsTeacherRemovedFromLectuer == false
                 ).Select(teacher => new
                 {
-                    idTeacher = _encryptionHelper.EncryptInt(teacher.IdTeacher??0),
+                    idTeacher = teacher.IdTeacher ?? Guid.Empty,
                     teacherName = teacher.IdTeacherNavigation.Name,
                     nameLectuer = teacher.IdLectuerNavigation.Name,
-                    idLectuer = _encryptionHelper.EncryptInt(teacher.IdLectuer??0),
+                    idLectuer = teacher.IdLectuer ?? Guid.Empty,
                     nameClass = teacher.IdClassNavigation.Name,
-                    idClass = _encryptionHelper.EncryptInt(teacher.IdClass??0),
+                    idClass = teacher.IdClass ?? Guid.Empty,
                 }).ToListAsync();
 
                 return Ok(new { success = true, theClasses = classes, lastClassesToTeacher = lastClassesToLectuer });
@@ -100,12 +98,12 @@ namespace SchoolSystem.Controllers
                 return StatusCode(500, new { success = false, message = "حدث خطأ أثناء جلب الصفوف" });
             }
         }
-        [AuthorizeRoles("admin")]
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
         [HttpGet("GetClassToStudent")]
         public async Task<IActionResult> GetClassesPerStudent()
         {
             // التحقق من صلاحية المستخدم
-            var (isValid, school, Message) = await _sessionValidatorService.ValidateAdminSessionAsync(HttpContext, "TheClassApi/GetClassesPerStudent");
+            var (isValid, school, Message) = await _sessionValidatorService.ValidateManagerSessionAsync(HttpContext, "TheClassApi/GetClassesPerStudent");
 
             if (!isValid)
             {
@@ -119,7 +117,7 @@ namespace SchoolSystem.Controllers
                             c.IdSchool == school && c.IsDeleted == false 
                     ).Select(c => new GetClassInSchool
                     {
-                        idClass = _encryptionHelper.EncryptInt(c.Id),
+                        idClass = c.Id,
                         nameClass = c.Name
                     }).ToListAsync();
 
@@ -132,13 +130,13 @@ namespace SchoolSystem.Controllers
             }
         }
 
-        [AuthorizeRoles("admin")]
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
         [HttpGet("Create")]
         public async Task<ActionResult<GetCreateClass>> GetCreateClass()
         {
 
             // التحقق من صلاحية المستخدم
-            var (isValid, school, Message) = await _sessionValidatorService.ValidateAdminSessionAsync(HttpContext, "TheClassApi/GetCreateClass");
+            var (isValid, school, Message) = await _sessionValidatorService.ValidateManagerSessionAsync(HttpContext, "TheClassApi/GetCreateClass");
 
             if (!isValid)
             {
@@ -167,7 +165,7 @@ namespace SchoolSystem.Controllers
 
                     List<BranchClass> branch = await _context.Branches.Select(s => new BranchClass
                     {
-                        idBranch = _encryptionHelper.EncryptInt(s.Id),
+                        idBranch = s.Id,
                         nameBranch = s.BranchName
                     }).ToListAsync();
 
@@ -197,11 +195,11 @@ namespace SchoolSystem.Controllers
 
 
         [HttpPost("Create")]
-        [AuthorizeRoles("admin")]
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
         public async Task<IActionResult> PostCreateClass([FromBody]PostCreateClass theClass)
         {
             // التحقق من صلاحية المستخدم
-            var (isValid, school, Message) = await _sessionValidatorService.ValidateAdminSessionAsync(HttpContext, "TheClassApi/PostCreateClass");
+            var (isValid, school, Message) = await _sessionValidatorService.ValidateManagerSessionAsync(HttpContext, "TheClassApi/PostCreateClass");
 
             if (!isValid)
             {
@@ -242,10 +240,10 @@ namespace SchoolSystem.Controllers
                             return BadRequest(new { success = false, message = "يجب اختيار فرع للصف" });
                         }
 
-                        int Id;
+                        Guid Id;
                         try
                         {
-                            Id = _encryptionHelper.DecryptInt(theClass.idBranch);
+                            Id = theClass.idBranch ?? Guid.Empty;
 
                         }
                         catch (Exception ex)
@@ -313,13 +311,13 @@ namespace SchoolSystem.Controllers
 
 
         // GET: TheClass/Edit/5
-        [AuthorizeRoles("admin")]
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
         [HttpGet("Edit")]
-        public async Task<ActionResult<EditClassInSchool>> GetEditClass(string? id)
+        public async Task<ActionResult<EditClassInSchool>> GetEditClass(Guid? id)
         {
 
             // التحقق من صلاحية المستخدم
-            var (isValid, school, Message) = await _sessionValidatorService.ValidateAdminSessionAsync(HttpContext, "TheClassApi/GetEditClass");
+            var (isValid, school, Message) = await _sessionValidatorService.ValidateManagerSessionAsync(HttpContext, "TheClassApi/GetEditClass");
 
             if (!isValid)
             {
@@ -332,11 +330,11 @@ namespace SchoolSystem.Controllers
                 return BadRequest(new { success = false, message = "لا يمكن ارسال معرف فارغ" });
             }
 
-            int Id;
+            Guid Id;
 
             try
             {
-                Id = _encryptionHelper.DecryptInt(id);
+                Id = id ?? Guid.Empty;
 
             }
             catch (Exception ex)
@@ -357,7 +355,7 @@ namespace SchoolSystem.Controllers
 
                 EditClassInSchool theClassViewModel = new EditClassInSchool
                 {
-                    idClass = _encryptionHelper.EncryptInt(theClass.Id),
+                    idClass = theClass.Id,
                     nameClass = theClass.Name
                 };
                 return Ok(theClassViewModel);
@@ -371,11 +369,11 @@ namespace SchoolSystem.Controllers
         }
 
         [HttpPut("Edit")]
-        [AuthorizeRoles("admin")]
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
         public async Task<IActionResult> PostEditClass([FromBody]EditClassInSchool theClass)
         {
             // التحقق من صلاحية المستخدم
-            var (isValid, school, Message) = await _sessionValidatorService.ValidateAdminSessionAsync(HttpContext, "TheClassApi/GetEditClass");
+            var (isValid, school, Message) = await _sessionValidatorService.ValidateManagerSessionAsync(HttpContext, "TheClassApi/GetEditClass");
 
             if (!isValid)
             {
@@ -388,11 +386,11 @@ namespace SchoolSystem.Controllers
                 return BadRequest(new { success = false, message = "لا يمكن ارسال بيانات ناقصة الى التحقق" });
             }
 
-            int Id;
+            Guid Id;
 
             try
             {
-                Id = _encryptionHelper.DecryptInt(theClass.idClass);
+                Id = theClass.idClass ?? Guid.Empty;
 
             }
             catch (Exception ex)
@@ -448,11 +446,11 @@ namespace SchoolSystem.Controllers
         }
 
         [HttpGet("CreateTeacherClass")]
-        [AuthorizeRoles("admin")]
-        public async Task<IActionResult> GetCreateTeacherClass(string idClass)
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
+        public async Task<IActionResult> GetCreateTeacherClass(Guid idClass)
         {
             // التحقق من صلاحية المستخدم
-            var (isValid, school, Message) = await _sessionValidatorService.ValidateAdminSessionAsync(HttpContext, "TheClassApi/GetCreateTeacherClass");
+            var (isValid, school, Message) = await _sessionValidatorService.ValidateManagerSessionAsync(HttpContext, "TheClassApi/GetCreateTeacherClass");
 
             if (!isValid)
             {
@@ -465,11 +463,11 @@ namespace SchoolSystem.Controllers
                 return BadRequest(new ApiResponse { Success = false, Message = "لا يمكن ارسال معرف فارغ" });
             }
 
-            int Id;
+            Guid Id;
 
             try
             {
-                Id = _encryptionHelper.DecryptInt(idClass);
+                Id = idClass;
 
             }
             catch (Exception ex)
@@ -497,19 +495,19 @@ namespace SchoolSystem.Controllers
                 teacherclasslectuer.IdTeacher == teacher.Id  && teacherclasslectuer.IdClass == Id)
                 ).Select(teacher => new Teachers
                 {
-                    idTeacher = _encryptionHelper.EncryptInt(teacher.Id),
+                    idTeacher = teacher.Id,
                     nameTeacher = teacher.Name??"غير معرف"
                 }).ToListAsync();
 
                 GetCreateTeacherToClass getCreateTeacherToClass = new GetCreateTeacherToClass
                 {
-                    idClass = _encryptionHelper.EncryptInt(theClass.Id),
+                    idClass = theClass.Id,
                     nameClass = theClass.Name,
                     teachers = teachers,
                     lectuers = await _context.Lectuers.Where(l => l.IdSchool == school && l.IsDeleted == false)
                     .Select(l => new Lectuers
                     {
-                        idLectuer = _encryptionHelper.EncryptInt(l.Id),
+                        idLectuer = l.Id,
                         nameLectuer = l.Name??"غير معرف"
                     }).ToListAsync()
                 };
@@ -524,11 +522,11 @@ namespace SchoolSystem.Controllers
         }
 
         /*[HttpPost("CreateTeacherClass")]
-        [AuthorizeRoles("admin")]
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
         public async Task<IActionResult> PostCreateTeacherClass([FromBody] PostCreateTeacherToClass teacherClass)
         {
             // التحقق من صلاحية المستخدم
-            var (isValid, school, Message) = await _sessionValidatorService.ValidateAdminSessionAsync(HttpContext, "TheClassApi/GetCreateTeacherClass");
+            var (isValid, school, Message) = await _sessionValidatorService.ValidateManagerSessionAsync(HttpContext, "TheClassApi/GetCreateTeacherClass");
 
             if (!isValid)
             {
@@ -541,13 +539,13 @@ namespace SchoolSystem.Controllers
                 return BadRequest(new ApiResponse { Success = false, Message = "لا يمكن ارسال معرف فارغ" });
             }
 
-            int idClass;
-            int idTeacher;
+            Guid idClass;
+            Guid idTeacher;
 
             try
             {
-                idClass = _encryptionHelper.DecryptInt(teacherClass.idClass);
-                idTeacher = _encryptionHelper.DecryptInt(teacherClass.idTeacher);
+                idClass = teacherClass.idClass;
+                idTeacher = teacherClass.idTeacher;
 
             }
             catch (Exception ex)
@@ -756,12 +754,12 @@ namespace SchoolSystem.Controllers
         }
 */
         
-        [AuthorizeRoles("admin")]
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
         [HttpDelete("Delete")]
         public async Task<IActionResult> DeleteClass([FromBody] DeleteInSchool deleteInSchool)
         {
             // التحقق من صلاحية المستخدم
-            var (isValid, school, Message) = await _sessionValidatorService.ValidateAdminSessionAsync(HttpContext, "TheClassApi/DeleteClass");
+            var (isValid, school, Message) = await _sessionValidatorService.ValidateManagerSessionAsync(HttpContext, "TheClassApi/DeleteClass");
 
             if (!isValid)
             {
@@ -774,11 +772,11 @@ namespace SchoolSystem.Controllers
                 return BadRequest(new ApiResponse { Success = false, Message = "لا يمكن ارسال معرف فارغ" });
             }
 
-            int Id;
+            Guid Id;
 
             try
             {
-                Id = _encryptionHelper.DecryptInt(deleteInSchool.id);
+                Id = deleteInSchool.id ?? Guid.Empty;
 
             }
             catch (Exception ex)
@@ -855,7 +853,7 @@ namespace SchoolSystem.Controllers
 
             return normalized.ToLower();
         }
-        private bool TheClassExists(int id)
+        private bool TheClassExists(Guid id)
         {
             return _context.TheClasses.Any(e => e.Id == id);
         }

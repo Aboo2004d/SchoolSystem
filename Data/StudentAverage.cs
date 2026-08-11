@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace SchoolSystem.Data;
@@ -7,13 +7,13 @@ public partial class StudentAverage
 {
     public double AverageGrade { get; set; }
 
-    public int IdStudentAvg { get; set; }
+    public Guid IdStudentAvg { get; set; }
 
-    public int? IdStudent { get; set; }
+    public Guid? IdStudent { get; set; }
 
-    public int? IdClass { get; set; }
+    public Guid? IdClass { get; set; }
 
-    public int? IdSchool { get; set; }
+    public Guid? IdSchool { get; set; }
 
     public bool IsDeletedSchool { get; set; }
 

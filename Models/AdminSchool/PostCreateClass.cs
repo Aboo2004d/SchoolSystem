@@ -5,7 +5,7 @@ namespace SchoolSystem.Models.AdminSchool
 
         public string? nameClass { get; set; }
 
-        public string? idBranch { get; set; }
+        public Guid? idBranch { get; set; }
 
         public int? numberClass { get; set; }
 

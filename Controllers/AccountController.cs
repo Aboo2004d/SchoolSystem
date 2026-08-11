@@ -99,8 +99,8 @@ public class AccountController : Controller
 
         HttpContext.Session.SetString("PendingEmail", model.Email);
         HttpContext.Session.SetString("PendingRole", model.Role);
-        HttpContext.Session.SetInt32("PendingProfileId", model.IdUser);
-        HttpContext.Session.SetInt32("PendingSchool", model.School ?? 0);
+        HttpContext.Session.SetGuid("PendingProfileId", model.IdUser);
+        HttpContext.Session.SetGuid("PendingSchool", model.School ?? Guid.Empty);
         HttpContext.Session.SetString("PendingName", model.FullName);
         return RedirectToAction(nameof(SetCredentials));
     }
@@ -114,7 +114,7 @@ public class AccountController : Controller
 
         var email = HttpContext.Session.GetString("PendingEmail");
         var role = HttpContext.Session.GetString("PendingRole");
-        var profileId = HttpContext.Session.GetInt32("PendingProfileId");
+        var profileId = HttpContext.Session.GetGuid("PendingProfileId");
         if (email is null || role is null || profileId is null)
             return RedirectToAction(nameof(Register));
 
@@ -123,7 +123,7 @@ public class AccountController : Controller
             Email = email,
             Role = role,
             IdUser = profileId.Value,
-            School = HttpContext.Session.GetInt32("PendingSchool") ?? 0,
+            School = HttpContext.Session.GetGuid("PendingSchool") ?? Guid.Empty,
             name = HttpContext.Session.GetString("PendingName") ?? string.Empty
         });
     }
@@ -134,7 +134,7 @@ public class AccountController : Controller
     {
         var pendingEmail = HttpContext.Session.GetString("PendingEmail");
         var pendingRole = RoleNames.Normalize(HttpContext.Session.GetString("PendingRole"));
-        var pendingProfileId = HttpContext.Session.GetInt32("PendingProfileId");
+        var pendingProfileId = HttpContext.Session.GetGuid("PendingProfileId");
         if (!ModelState.IsValid || pendingEmail is null || pendingRole is null || pendingProfileId is null)
             return View(model);
 
@@ -248,11 +248,11 @@ public class AccountController : Controller
     }
 
     [HttpGet]
-    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Student + "," + RoleNames.Teacher)]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager + "," + RoleNames.Student + "," + RoleNames.Teacher)]
     public IActionResult NewPassword() => View();
 
     [HttpPost]
-    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Student + "," + RoleNames.Teacher)]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager + "," + RoleNames.Student + "," + RoleNames.Teacher)]
     public async Task<IActionResult> NewPassword(NewPasswordViewModel model)
     {
         if (!ModelState.IsValid)
@@ -273,17 +273,19 @@ public class AccountController : Controller
     }
 
     [HttpGet]
+    [AllowAnonymous]
     public IActionResult AccessDenied()
     {
         _notyf.Warning("لا تملك صلاحية الوصول إلى هذه الصفحة.");
         return RedirectToAction("Index", "Home");
     }
 
-    private async Task<bool> LinkProfileAsync(Guid userId, string role, int profileId)
+    private async Task<bool> LinkProfileAsync(Guid userId, string role, Guid profileId)
     {
         switch (role)
         {
             case RoleNames.Admin:
+            case RoleNames.Manager:
                 var manager = await _context.Menegars.SingleOrDefaultAsync(x => x.Id == profileId);
                 if (manager is null || manager.ApplicationUserId.HasValue) return false;
                 manager.ApplicationUserId = userId;
@@ -307,33 +309,34 @@ public class AccountController : Controller
     {
         var roles = await _userManager.GetRolesAsync(user);
         var role = roles.SingleOrDefault();
-        int id;
-        int school;
+        Guid id;
+        Guid school;
         string? name;
 
         switch (role)
         {
             case RoleNames.Admin:
+            case RoleNames.Manager:
                 var manager = await _context.Menegars.AsNoTracking().SingleOrDefaultAsync(x => x.ApplicationUserId == user.Id && !x.IsDeleted);
                 if (manager is null) return false;
-                (id, school, name) = (manager.Id, manager.IdSchool ?? 0, manager.Name);
+                (id, school, name) = (manager.Id, manager.IdSchool ?? Guid.Empty, manager.Name);
                 break;
             case RoleNames.Teacher:
                 var teacher = await _context.Teachers.AsNoTracking().SingleOrDefaultAsync(x => x.ApplicationUserId == user.Id && !x.IsDeleted);
                 if (teacher is null) return false;
-                (id, school, name) = (teacher.Id, teacher.IdSchool ?? 0, teacher.Name);
+                (id, school, name) = (teacher.Id, teacher.IdSchool ?? Guid.Empty, teacher.Name);
                 break;
             case RoleNames.Student:
                 var student = await _context.Students.AsNoTracking().SingleOrDefaultAsync(x => x.ApplicationUserId == user.Id && !x.IsDeletedStudent);
                 if (student is null) return false;
-                (id, school, name) = (student.Id, student.IdSchool ?? 0, student.Name);
+                (id, school, name) = (student.Id, student.IdSchool ?? Guid.Empty, student.Name);
                 break;
             default:
                 return false;
         }
 
-        HttpContext.Session.SetInt32("Id", id);
-        HttpContext.Session.SetInt32("School", school);
+        HttpContext.Session.SetGuid("Id", id);
+        HttpContext.Session.SetGuid("School", school);
         HttpContext.Session.SetString("UserName", user.UserName ?? string.Empty);
         HttpContext.Session.SetString("Role", role);
         HttpContext.Session.SetString("Name", name ?? string.Empty);

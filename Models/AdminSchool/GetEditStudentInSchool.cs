@@ -3,7 +3,7 @@ namespace SchoolSystem.Models.AdminSchool
 
     public partial class GetEditStudentInSchool
     {
-        public string? idStudent { get; set; }
+        public Guid? idStudent { get; set; }
 
         public string? nameStudent { get; set; }
 
@@ -22,7 +22,7 @@ namespace SchoolSystem.Models.AdminSchool
         public string? area { get; set; }
 
         public int? idNumber { get; set; }
-        public int? idClass { get; set; }
+        public Guid? idClass { get; set; }
 
         public string? isDeleted { get; set; }
     }

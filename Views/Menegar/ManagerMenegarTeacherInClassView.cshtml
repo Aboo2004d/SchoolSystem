@@ -1,6 +1,6 @@
 @{
     ViewData["Title"] = "ادارة المعلمين للصف";
-    string id = ViewBag.IdClass;
+    string id = ViewBag.IdClass as string ?? string.Empty;
 }
 <!-- تضمين Bootstrap Icons -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">

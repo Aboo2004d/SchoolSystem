@@ -1,11 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace SchoolSystem.Models
 {
     public partial class AttendanceViewModel
     {
-        public int Id { get; set; }
+        public Guid Id { get; set; }
 
         public string AttendanceStatus { get; set; } = null!;
 

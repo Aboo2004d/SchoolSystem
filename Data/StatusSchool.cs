@@ -1,11 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace SchoolSystem.Data;
 
 public partial class StatusSchool
 {
-    public int Id { get; set; }
+    public Guid Id { get; set; }
 
     public bool? Condition { get; set; }
 

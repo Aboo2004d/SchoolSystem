@@ -1,27 +1,27 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace SchoolSystem.Data;
 
 public partial class TheClass
 {
-    public int Id { get; set; }
+    public Guid Id { get; set; }
 
     public string Name { get; set; } = null!;
 
-    public int? IdSchool { get; set; }
+    public Guid? IdSchool { get; set; }
 
     public bool IsDeleted { get; set; }
 
     public bool IsDeletedSchool { get; set; }
 
-    public int? IdStage { get; set; }
+    public Guid? IdStage { get; set; }
 
     public int? NumberClass { get; set; }
 
     public int? Section { get; set; }
 
-    public int? IdBranch { get; set; }
+    public Guid? IdBranch { get; set; }
 
     public virtual ICollection<Attendance> Attendances { get; set; } = new List<Attendance>();
 

@@ -1,9 +1,9 @@
-﻿namespace SchoolSystem.Models
+namespace SchoolSystem.Models
 {
 
     public partial class StudentViewModel
     {
-        public string Id { get; set; }
+        public Guid Id { get; set; }
 
         public string? Name { get; set; }
 
@@ -11,12 +11,12 @@
 
         public string? Email { get; set; }
 
-        public int? IdSchool { get; set; }
+        public Guid? IdSchool { get; set; }
         public string? SchoolName { get; set; }
 
         public DateOnly? TheDate { get; set; }
 
-        public int? IdClass { get; set; }
+        public Guid? IdClass { get; set; }
         public string? ClassName { get; set; }
 
         public string? City { get; set; }

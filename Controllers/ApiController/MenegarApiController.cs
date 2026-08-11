@@ -27,22 +27,20 @@ namespace SchoolSystem.Controllers
         private readonly INotyfService _notyf;
         private readonly IErrorLoggerService _logger;
         private readonly ISessionValidatorService _sessionValidatorService;
-        private readonly EncryptionHelper _encryptionHelper;
         private readonly IDistributedCache _cache;
         
 
 
-        public MenegarApiController(SystemSchoolDbContext context, IDistributedCache cache, EncryptionHelper encryptionHelper, ISessionValidatorService sessionValidatorService, INotyfService notyf, IErrorLoggerService logger)
+        public MenegarApiController(SystemSchoolDbContext context, IDistributedCache cache, ISessionValidatorService sessionValidatorService, INotyfService notyf, IErrorLoggerService logger)
         {
             _logger = logger;
             _context = context;
             _notyf = notyf;
             _sessionValidatorService = sessionValidatorService;
-            _encryptionHelper = encryptionHelper;
             _cache = cache;
         }
 
-        [AuthorizeRoles("admin")]
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
         [HttpGet("MenegarStudent")]
         public async Task<IActionResult> ManagerMenegarStudent(
             [FromQuery] int draw,
@@ -53,7 +51,7 @@ namespace SchoolSystem.Controllers
             try
             {
                 // التحقق من صلاحية المستخدم
-                var (isValid, school, Message) = await _sessionValidatorService.ValidateAdminSessionAsync(HttpContext, "MenegarApi/ManagerMenegarStudent");
+                var (isValid, school, Message) = await _sessionValidatorService.ValidateManagerSessionAsync(HttpContext, "MenegarApi/ManagerMenegarStudent");
             
                 if (!isValid)
                 {
@@ -86,6 +84,8 @@ namespace SchoolSystem.Controllers
 
                 string studentsKey = $"Students_School_{school}";
                 var cachedData = await _cache.GetStringAsync(studentsKey);
+                Response.Headers["X-Cache"] = string.IsNullOrEmpty(cachedData) ? "MISS" : "HIT";
+                Response.Headers["X-Cache-Key"] = studentsKey;
                 List<StudentInSchool> students;
                 IQueryable<StudentInSchool> AllStudent;
 
@@ -93,34 +93,51 @@ namespace SchoolSystem.Controllers
                 {
 
                     // الاستعلام الأساسي مع تحسين الأداء
-                    students = _context.Students
-                    .Where(std => std.IdSchool == school && std.IsDeletedStudent == false)
-                    .AsNoTracking()
-                    .Select(std => new
+                    // Aggregate the large child tables once. The former navigation projection generated
+                    // repeated correlated AVG/COUNT subqueries per student and timed out under load.
+                    var gradeAverages = await _context.Grades.AsNoTracking()
+                        .Where(g => g.IdSchool == school)
+                        .GroupBy(g => g.IdStudent)
+                        .Select(group => new
+                        {
+                            IdStudent = group.Key,
+                            Average = group.Average(g => (double)g.Total)
+                        })
+                        .ToDictionaryAsync(item => item.IdStudent, item => item.Average);
+
+                    var attendanceTotals = await _context.Attendances.AsNoTracking()
+                        .Where(a => a.IdSchool == school)
+                        .GroupBy(a => a.IdStudent)
+                        .Select(group => new
+                        {
+                            IdStudent = group.Key,
+                            TotalDays = group.Count(),
+                            AttendedDays = group.Count(a => a.AttendanceStatus == "1" || a.AttendanceStatus == "m")
+                        })
+                        .ToDictionaryAsync(item => item.IdStudent);
+
+                    var studentRows = await _context.Students.AsNoTracking()
+                        .Where(std => std.IdSchool == school && !std.IsDeletedStudent)
+                        .Select(std => new
+                        {
+                            IdStudent = std.Id,
+                            NameStudent = std.Name,
+                            NameClass = std.IdClassNavigation == null ? "فارغ"
+                                : std.IdClassNavigation.IsDeleted
+                                    ? (std.IdClassNavigation.Name ?? "") + " (صف محذوف)"
+                                    : std.IdClassNavigation.Name
+                        }).ToListAsync();
+
+                    students = studentRows.Select(student => new StudentInSchool
                     {
-                        idStudent = _encryptionHelper.EncryptInt(std.Id),
-                        nameStudent = std.Name,
-
-                        nameClass = std.IdClassNavigation == null ? "فارغ"
-                            : std.IdClassNavigation.IsDeleted == true ? std.IdClassNavigation.Name + "(صف محذوف)"
-                            : std.IdClassNavigation.Name,
-
-                        Average = std.Grades.Select(g => g.Total).Average() == null ? 0 : std.Grades.Select(g => g.Total).Average(),
-
-                        totalDays = std.Attendances.Count(),
-
-                        attendancesDays = std.Attendances.Count(d => d.AttendanceStatus == "1" || d.AttendanceStatus == "m")
-
-                    })
-                    .Select(Student => new StudentInSchool
-                    {
-                        idStudent = Student.idStudent,
-                        nameStudent = Student.nameStudent,
-                        nameClass = Student.nameClass,
-                        average = $"{Student.Average}",
-                        days = (Student.attendancesDays == 0) ?
-                                $"0 / {(Student.totalDays == 0 ? 0 : Student.totalDays)}"
-                                : $"{Student.attendancesDays} / {(Student.totalDays == 0 ? 0 : Student.totalDays)}"
+                        idStudent = student.IdStudent,
+                        nameStudent = student.NameStudent,
+                        nameClass = student.NameClass,
+                        average = (gradeAverages.TryGetValue(student.IdStudent, out var average) ? average : 0d)
+                            .ToString("0.##", CultureInfo.InvariantCulture),
+                        days = attendanceTotals.TryGetValue(student.IdStudent, out var attendance)
+                            ? $"{attendance.AttendedDays} / {attendance.TotalDays}"
+                            : "0 / 0"
                     }).ToList();
 
                     var options = new DistributedCacheEntryOptions()
@@ -144,13 +161,14 @@ namespace SchoolSystem.Controllers
                 }
 
                 AllStudent = students.AsQueryable();
+                int TotalStudents = students.Count;
 
                 if (!string.IsNullOrWhiteSpace(searchValue))
                 {
                     AllStudent = SearchInStudents(searchValue, AllStudent);
                 }
 
-                int TotalStudents = AllStudent.Count();
+                int TotalFilterStudents = AllStudent.Count();
     
 
                 // الترتيب
@@ -176,13 +194,6 @@ namespace SchoolSystem.Controllers
 
 
                 //الحصول على القيم بعد الفلترة
-                int TotalFilterStudents = data.Count();
-
-                if (TotalFilterStudents >= TotalStudents)
-                {
-                    TotalFilterStudents = TotalStudents;
-                }
-
                 //ارسال البيانات للعرض
                 var student = data.Select(std =>
                 new StudentInSchool
@@ -278,7 +289,7 @@ namespace SchoolSystem.Controllers
             }
         }
 
-        [AuthorizeRoles("admin")]
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
         [HttpGet("MenegarTeacher")]
         
         public async Task<IActionResult> ManagerMenegarTeacher(
@@ -290,7 +301,7 @@ namespace SchoolSystem.Controllers
             try
             {
                 // التحقق من صلاحية المستخدم
-                var (isValid, school, Message) = await _sessionValidatorService.ValidateAdminSessionAsync(HttpContext, "MenegarApi/ManagerMenegarTeacher");
+                var (isValid, school, Message) = await _sessionValidatorService.ValidateManagerSessionAsync(HttpContext, "MenegarApi/ManagerMenegarTeacher");
             
                 if (!isValid)
                 {
@@ -321,6 +332,8 @@ namespace SchoolSystem.Controllers
 
                 string teachersKey = $"Teachers_School_{school}";
                 var cachedData = await _cache.GetStringAsync(teachersKey);
+                Response.Headers["X-Cache"] = string.IsNullOrEmpty(cachedData) ? "MISS" : "HIT";
+                Response.Headers["X-Cache-Key"] = teachersKey;
                 List<TeachersInSchool> teachers;
                 IQueryable<TeachersInSchool> AllTeachers;
 
@@ -332,7 +345,7 @@ namespace SchoolSystem.Controllers
                     .AsNoTracking()
                     .Select(t => new TeachersInSchool
                     {
-                        idTeacher = _encryptionHelper.EncryptInt(t.Id),
+                        idTeacher = t.Id,
                         nameTeacher = t.Name,
                         phoneTeacher = t.Phone,
                         emailAddressTeacher = t.Email
@@ -360,6 +373,7 @@ namespace SchoolSystem.Controllers
                 }
 
                 AllTeachers = teachers.AsQueryable();
+                var TotalTeachers = teachers.Count;
 
 
                // البحث
@@ -370,7 +384,7 @@ namespace SchoolSystem.Controllers
                 }
 
                 // إجمالي عدد السجلات بعد الفلترة
-                var TotalTeachers = AllTeachers.Count();
+                var TotalFilterTeacher = AllTeachers.Count();
 
                 // الترتيب
                 AllTeachers = (orderColumnIndex, orderDir) switch
@@ -390,13 +404,6 @@ namespace SchoolSystem.Controllers
                         .Take(length)
                         .ToList();
 
-
-                // إجمالي عدد السجلات المعروضة في الصفحة
-                var TotalFilterTeacher = data.Count();
-                if (TotalFilterTeacher >= TotalTeachers)
-                {
-                    TotalFilterTeacher = TotalTeachers;
-                }
 
                 // ارسال بيانات للعرض
                 var teacher = data.
@@ -445,7 +452,7 @@ namespace SchoolSystem.Controllers
         }
 
 
-        [AuthorizeRoles("admin")]
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
         [HttpGet("MenegarClass")]
         public async Task<IActionResult> ManagerMenegarClass(
             [FromQuery] int draw,
@@ -456,7 +463,7 @@ namespace SchoolSystem.Controllers
             try
             {
                 // التحقق من صلاحية المستخدم
-                var (isValid, school, Message) = await _sessionValidatorService.ValidateAdminSessionAsync(HttpContext, "MenegarApi/ManagerMenegarClass");
+                var (isValid, school, Message) = await _sessionValidatorService.ValidateManagerSessionAsync(HttpContext, "MenegarApi/ManagerMenegarClass");
             
                 if (!isValid)
                 {
@@ -489,7 +496,7 @@ namespace SchoolSystem.Controllers
                     .AsNoTracking()
                     .Select(s => new StudentsTeachersInClassAtSchool
                     {
-                        idClass = _encryptionHelper.EncryptInt(s.Id),
+                        idClass = s.Id,
                         nameClass = s.Name,
                         numberOfStudents = s.Students.Where(std => std.IdClass == s.Id && s.IdSchool == school && std.IsDeletedStudent == false)
                         .Select(sc => sc.Id).Distinct().Count(),
@@ -498,13 +505,15 @@ namespace SchoolSystem.Controllers
 
                     });
 
+                var TotalClasses = await Std_Teach_InClass.CountAsync();
+
                 // البحث
                 if (!string.IsNullOrWhiteSpace(searchValue))
                 {
                     Std_Teach_InClass = SearchInDataClass(searchValue, Std_Teach_InClass);
                 }
 
-                var TotalClasses = Std_Teach_InClass.Count();
+                var TotalFilterClasses = await Std_Teach_InClass.CountAsync();
 
                 // الترتيب
                 Std_Teach_InClass = (orderColumnIndex, orderDir) switch
@@ -518,17 +527,10 @@ namespace SchoolSystem.Controllers
                     _ => Std_Teach_InClass.OrderBy(s => s.nameClass)
                 };
 
-                var theClasses = Std_Teach_InClass
+                var theClasses = await Std_Teach_InClass
                         .Skip(start)
                         .Take(length)
-                        .ToList();
-
-                // إجمالي عدد السجلات المعروضة في الصفحة
-                var TotalFilterClasses = theClasses.Count();
-                if (TotalFilterClasses >= TotalClasses)
-                {
-                    TotalFilterClasses = TotalClasses;
-                }
+                        .ToListAsync();
 
                 var Student_Teacher_InClass = theClasses.
                 Select(s => new StudentsTeachersInClassAtSchool
@@ -576,10 +578,10 @@ namespace SchoolSystem.Controllers
 
 
         [HttpGet]
-        [AuthorizeRoles("admin")]
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
         [HttpGet("MenegarStudentInClass")]
         public async Task<IActionResult> ManagerMenegarStudentInClass(
-            string idClass,
+            Guid idClass,
             [FromQuery] int draw,
             [FromQuery] int start,
             [FromQuery] int length,
@@ -588,17 +590,17 @@ namespace SchoolSystem.Controllers
             try
             {
                 // التحقق من صلاحية المستخدم
-                var (isValid, school, Message) = await _sessionValidatorService.ValidateAdminSessionAsync(HttpContext, "MenegarApi/ManagerMenegarStudentInClass");
+                var (isValid, school, Message) = await _sessionValidatorService.ValidateManagerSessionAsync(HttpContext, "MenegarApi/ManagerMenegarStudentInClass");
             
                 if (!isValid)
                 {
                     return Unauthorized(new ApiResponse { Success = isValid, Message = Message });
                 }
 
-                int Id;
+                Guid Id;
                 try
                 {
-                    Id = _encryptionHelper.DecryptInt(idClass);
+                    Id = idClass;
                 }
                 catch (Exception ex)
                 {
@@ -628,7 +630,7 @@ namespace SchoolSystem.Controllers
                     .AsNoTracking()
                     .Select(s => new StudentsInClassAtSchool
                     {
-                        idStudent = _encryptionHelper.EncryptInt(s.Id),
+                        idStudent = s.Id,
                         nameStudent = s.Name,
                         nameClass = s.IdClassNavigation != null ? s.IdClassNavigation.Name : "غير معروف",
                         avg = s.Grades.Select(g => g.Total).Average() == null ? "0%" : s.Grades.Select(g => g.Total).Average() + "%"
@@ -672,19 +674,11 @@ namespace SchoolSystem.Controllers
 
                 }).ToList();
 
-                // إجمالي عدد السجلات المعروضة في الصفحة
-                var TotalFilterStudentInClasses = studentClass.Count();
-
-                if (TotalFilterStudentInClasses >= TotalStudentInClasses)
-                {
-                    TotalFilterStudentInClasses = TotalStudentInClasses;
-                }
-
                 var result = new
                 {
                     draw,
-                    recordsTotal = TotalStudentInClasses,
-                    recordsFiltered = TotalFilterStudentInClasses,
+                    recordsTotal = totalRecords,
+                    recordsFiltered = TotalStudentInClasses,
                     data = StudentInClass
                 };
 
@@ -768,10 +762,10 @@ namespace SchoolSystem.Controllers
 
 
         [HttpGet]
-        [AuthorizeRoles("admin")]
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
         [HttpGet("MenegarTeacherInClass")]
         public async Task<JsonResult> ManagerMenegarTeacherInClass(
-            string idClass,
+            Guid idClass,
             [FromQuery] int draw,
             [FromQuery] int start,
             [FromQuery] int length = 10,
@@ -780,11 +774,11 @@ namespace SchoolSystem.Controllers
         {
             try
             {
-                int Id;
+                Guid Id;
 
 
                 // التحقق من صلاحية المستخدم و التلاعب بالبيانات
-                var (IsValid, IdSchool, Message) = await _sessionValidatorService.ValidateAdminSessionAsync(HttpContext, "Lectuer/ManagerMenegarClass");
+                var (IsValid, IdSchool, Message) = await _sessionValidatorService.ValidateManagerSessionAsync(HttpContext, "Lectuer/ManagerMenegarClass");
                 if (!IsValid)
                 {
                     return Json(new { success = false, message = Message});
@@ -792,7 +786,7 @@ namespace SchoolSystem.Controllers
 
                 try
                 {
-                    Id = _encryptionHelper.DecryptInt(idClass);
+                    Id = idClass;
 
                 }
                 catch (Exception ex)
@@ -815,7 +809,9 @@ namespace SchoolSystem.Controllers
 
                 // إجمالي عدد السجلات بدون فلترة
                 var totalRecords = await _context.TeacherLectuerClasses
-                .Where(std => std.IdSchool == IdSchool && std.IdClass == Id)
+                .Where(std => std.IdSchool == IdSchool && std.IdClass == Id &&
+                    std.IsDeletedTeacher == false && std.IdTeacherNavigation != null &&
+                    std.IdTeacherNavigation.IsDeleted == false)
                 .CountAsync();
 
                 // الاستعلام الأساسي مع تحسين الأداء
@@ -824,9 +820,9 @@ namespace SchoolSystem.Controllers
                     .Select(s => new
                     {
                         Id = s.Id,
-                        IdTeacher = s.IdTeacherNavigation != null ? s.IdTeacherNavigation.Id : 0,
-                        IdClass = s.IdClassNavigation != null ? s.IdClassNavigation.Id : 0,
-                        IdLectuer = s.IdClassNavigation != null ? s.IdClassNavigation.Id : 0,
+                        IdTeacher = s.IdTeacherNavigation != null ? s.IdTeacherNavigation.Id : Guid.Empty,
+                        IdClass = s.IdClassNavigation != null ? s.IdClassNavigation.Id : Guid.Empty,
+                        IdLectuer = s.IdLectuerNavigation != null ? s.IdLectuerNavigation.Id : Guid.Empty,
                         TeacherName = s.IdTeacherNavigation != null ? s.IdTeacherNavigation.Name : "Unknown",
                         LectuerName = s.IdLectuerNavigation != null ? s.IdLectuerNavigation.Name : "Unknown",
                         ClassroomName = s.IdClassNavigation != null ? s.IdClassNavigation.Name : "Unknown"
@@ -899,7 +895,7 @@ namespace SchoolSystem.Controllers
         public JsonResult GetStudentCountPerClass()
         {
             Console.WriteLine("---------------------------------------");
-            var data = _context.TheClasses.Where(c => c.IdSchool == HttpContext.Session.GetInt32("School") && c.IsDeleted == false )
+            var data = _context.TheClasses.Where(c => c.IdSchool == HttpContext.Session.GetGuid("School") && c.IsDeleted == false )
                 .Select(c => new {
                     ClassName = c.Name,
                     StudentCount = c.Students.Where(sc => sc.IsDeletedStudent == false).Count()
@@ -914,7 +910,7 @@ namespace SchoolSystem.Controllers
         public JsonResult GetTeacherCountPerSubject()
         {
             Console.WriteLine("---------------------------------------123");
-            var data = _context.TeacherLectuerClasses.Where(t => t.IdSchool == HttpContext.Session.GetInt32("School") && t.IdLectuerNavigation.IsDeleted == false)
+            var data = _context.TeacherLectuerClasses.Where(t => t.IdSchool == HttpContext.Session.GetGuid("School") && t.IdLectuerNavigation.IsDeleted == false)
                 .Include(t => t.IdLectuerNavigation) // تأكد من تضمين المادة
                 .GroupBy(t => t.IdLectuerNavigation.Name)
                 .Select(g => new
@@ -934,8 +930,8 @@ namespace SchoolSystem.Controllers
             return Json(data);
         }
 
-        [AuthorizeRoles("admin")]
-        private bool MenegarExists(int id)
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
+        private bool MenegarExists(Guid id)
         {
             return _context.Menegars.Any(e => e.Id == id);
         }

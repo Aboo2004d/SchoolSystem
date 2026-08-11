@@ -13,12 +13,14 @@ public sealed class ApplicationUser : IdentityUser<Guid>
 public static class RoleNames
 {
     public const string Admin = "Admin";
+    public const string Manager = "Manager";
     public const string Teacher = "Teacher";
     public const string Student = "Student";
 
     public static string? Normalize(string? role) => role?.Trim().ToLowerInvariant() switch
     {
         "admin" => Admin,
+        "manager" or "menegar" => Manager,
         "teacher" => Teacher,
         "student" => Student,
         _ => null

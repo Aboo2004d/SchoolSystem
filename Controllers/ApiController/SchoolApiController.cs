@@ -6,9 +6,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using SchoolSystem.Data;
+using SchoolSystem.Filters;
 
 namespace SchoolSystem.Controllers
 {
+    [AuthorizeRoles(RoleNames.Admin)]
     public class SchoolApiController : Controller
     {
         private readonly SystemSchoolDbContext _context;
@@ -25,7 +27,7 @@ namespace SchoolSystem.Controllers
         }
 
         // GET: School/Details/5
-        public async Task<IActionResult> Details(int? id)
+        public async Task<IActionResult> Details(Guid? id)
         {
             if (id == null)
             {
@@ -65,7 +67,7 @@ namespace SchoolSystem.Controllers
         }
 
         // GET: School/Edit/5
-        public async Task<IActionResult> Edit(int? id)
+        public async Task<IActionResult> Edit(Guid? id)
         {
             if (id == null)
             {
@@ -85,7 +87,7 @@ namespace SchoolSystem.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,Condition,TheType")] StatusSchool statusSchool)
+        public async Task<IActionResult> Edit(Guid id, [Bind("Id,Condition,TheType")] StatusSchool statusSchool)
         {
             if (id != statusSchool.Id)
             {
@@ -116,7 +118,7 @@ namespace SchoolSystem.Controllers
         }
 
         // GET: School/Delete/5
-        public async Task<IActionResult> Delete(int? id)
+        public async Task<IActionResult> Delete(Guid? id)
         {
             if (id == null)
             {
@@ -136,7 +138,7 @@ namespace SchoolSystem.Controllers
         // POST: School/Delete/5
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
+        public async Task<IActionResult> DeleteConfirmed(Guid id)
         {
             var statusSchool = await _context.StatusSchools.FindAsync(id);
             if (statusSchool != null)
@@ -148,7 +150,7 @@ namespace SchoolSystem.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        private bool StatusSchoolExists(int id)
+        private bool StatusSchoolExists(Guid id)
         {
             return _context.StatusSchools.Any(e => e.Id == id);
         }

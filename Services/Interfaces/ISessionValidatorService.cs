@@ -1,6 +1,6 @@
 public interface ISessionValidatorService
 {
-    Task<(bool IsValid, int IdTeacher, int IdSchool , bool status)> ValidateTeacherSessionAsync(HttpContext httpContext, int teacherId, string sours);
-    Task<(bool IsValid, int IdTeacher, int IdSchool , bool status)> ValidateStudentSessionAsync(HttpContext httpContext, int studentId, string sours);
-    Task<(bool IsValid, int IdSchool, string Message)> ValidateAdminSessionAsync(HttpContext httpContext, string sours);
+    Task<(bool IsValid, Guid IdTeacher, Guid IdSchool , bool status)> ValidateTeacherSessionAsync(HttpContext httpContext, Guid teacherId, string sours);
+    Task<(bool IsValid, Guid IdTeacher, Guid IdSchool , bool status)> ValidateStudentSessionAsync(HttpContext httpContext, Guid studentId, string sours);
+    Task<(bool IsValid, Guid IdSchool, string Message)> ValidateManagerSessionAsync(HttpContext httpContext, string sours);
 }

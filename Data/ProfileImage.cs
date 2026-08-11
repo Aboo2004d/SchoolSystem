@@ -1,11 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace SchoolSystem.Data;
 
 public partial class ProfileImage
 {
-    public int Id { get; set; }
+    public Guid Id { get; set; }
 
     public string? UserName { get; set; }
 

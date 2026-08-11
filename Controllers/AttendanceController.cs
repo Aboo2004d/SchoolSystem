@@ -37,7 +37,7 @@ namespace SchoolSystem.Controllers
         [HttpGet]
         [AuthorizeRoles("Teacher")]
         public async Task<JsonResult> DataAttendance(
-            int teacherId,
+            Guid teacherId,
             [FromQuery] int draw,
             [FromQuery] int start,
             [FromQuery] int length = 10,
@@ -155,7 +155,7 @@ namespace SchoolSystem.Controllers
 
         [HttpGet]
         [AuthorizeRoles("Teacher")]
-        public async Task<IActionResult> ViewAttendance(int teacherId)
+        public async Task<IActionResult> ViewAttendance(Guid teacherId)
         {
             // التحقق من صلاحية المستخدم و التلاعب بالبيانات
             var (IsValid, IdTeacher, IdSchool,status) = await _sessionValidatorService.ValidateTeacherSessionAsync(HttpContext, teacherId, "Grades/DataGrades");
@@ -173,14 +173,14 @@ namespace SchoolSystem.Controllers
         // GET: Attendance/Create
         [HttpGet]
         [AuthorizeRoles("Teacher")]
-        public async Task<IActionResult> Create(int? idLectuer, int? idTeacher, int? idClass)
+        public async Task<IActionResult> Create(Guid? idLectuer, Guid? idTeacher, Guid? idClass)
         {
-            idTeacher = HttpContext.Session.GetInt32("Id") ?? 0;
+            idTeacher = HttpContext.Session.GetGuid("Id") ?? Guid.Empty;
             try{
                 if (idClass == null || idLectuer == null)
                 {
                     
-                    var (IsValid, IdTeacher, IdSchool, status) = await _sessionValidatorService.ValidateTeacherSessionAsync(HttpContext, idTeacher ?? 0, "Attendance/Create");
+                    var (IsValid, IdTeacher, IdSchool, status) = await _sessionValidatorService.ValidateTeacherSessionAsync(HttpContext, idTeacher ?? Guid.Empty, "Attendance/Create");
                     if (!status)
                     {
                         return RedirectToAction("Login", "Account");
@@ -235,7 +235,7 @@ namespace SchoolSystem.Controllers
                     return View(nameof(Index), new { idTeacher = idTeacher });
                 }
             }catch(Exception ex){
-                if(idTeacher != 0){
+                if(idTeacher != Guid.Empty){
                     await _logger.LogAsync(ex,"Attendance/Create");
                     _notyf.Error("Data is not Found.");
                     return View(nameof(Index),new{idTeacher = idTeacher});
@@ -291,9 +291,9 @@ namespace SchoolSystem.Controllers
         }
 
         [AuthorizeRoles("Teacher")]
-        public async Task<IActionResult> GetLectuerForTeacher(int teacherId)
+        public async Task<IActionResult> GetLectuerForTeacher(Guid teacherId)
         {
-            if(teacherId != HttpContext.Session.GetInt32("Id"))
+            if(teacherId != HttpContext.Session.GetGuid("Id"))
             {
                 _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة");
                 await _logger.LogAsync(new Exception("التلاعب بالبيانات المرسلة"), "Attendance/GetLectuerForTeacher");
@@ -307,16 +307,16 @@ namespace SchoolSystem.Controllers
                 .Where(ts => ts.IdTeacher == teacherId && ts.IdLectuer != lectuer.Result)
                 .Include(ts => ts.IdLectuerNavigation)
                 .Select(ts => new {
-                    id = ts.IdLectuerNavigation!=null? ts.IdLectuerNavigation.Id:0,
+                    id = ts.IdLectuerNavigation != null ? ts.IdLectuerNavigation.Id : Guid.Empty,
                     name = ts.IdLectuerNavigation!=null? ts.IdLectuerNavigation.Name:"غير معرف"
                 }).ToListAsync();
 
             return Json(subjects);
         }
 
-        public async Task<IActionResult> GetClassForSubject(int teacherId, int subjectId)
+        public async Task<IActionResult> GetClassForSubject(Guid teacherId, Guid subjectId)
         {
-            if(teacherId != HttpContext.Session.GetInt32("Id"))
+            if(teacherId != HttpContext.Session.GetGuid("Id"))
             {
                 _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة");
                 await _logger.LogAsync(new Exception("التلاعب بالبيانات المرسلة"), "Attendance/GetClassForSubject");
@@ -331,7 +331,7 @@ namespace SchoolSystem.Controllers
                 .Where(tg => tg.IdTeacher == teacherId && tg.IdClass != TheClass.Result)
                 .Include(tg => tg.IdClassNavigation)
                 .Select(tg => new {
-                    id = tg.IdClassNavigation!=null? tg.IdClassNavigation.Id:0,
+                    id = tg.IdClassNavigation != null ? tg.IdClassNavigation.Id : Guid.Empty,
                     name = tg.IdClassNavigation!=null? tg.IdClassNavigation.Name:"غير معرف"
                 }).ToListAsync();
 
@@ -345,10 +345,10 @@ namespace SchoolSystem.Controllers
             return Json(grades);
         }
 
-        [AuthorizeRoles("admin", "Student")]
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager, RoleNames.Student)]
         [HttpGet]
         public async Task<JsonResult> AttendancesStudentData(
-            int studentid,
+            Guid studentid,
             [FromQuery] int draw,
             [FromQuery] int start,
             [FromQuery] int length = 10,
@@ -467,8 +467,8 @@ namespace SchoolSystem.Controllers
         }
 
 
-        [AuthorizeRoles("admin", "Student")]
-        public async Task<IActionResult> AttendancesStudent(int studentid)
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager, RoleNames.Student)]
+        public async Task<IActionResult> AttendancesStudent(Guid studentid)
         {
             if (HttpContext.Session.GetString("Role") == "admin")
             {
@@ -494,7 +494,7 @@ namespace SchoolSystem.Controllers
                 }
             }
             Student? student =await _context.Students.Where(s => s.Id == studentid).Include(s=>s.IdClassNavigation).SingleOrDefaultAsync();
-            ViewBag.StdClass = student?.IdClassNavigation?.Name ?? "Null";
+            ViewBag.StdClass = student?.IdClassNavigation?.Name ?? string.Empty;
             ViewBag.Role = HttpContext.Session.GetString("Role");
             ViewBag.StdId = Request.Query["studentid"];
             return View();
@@ -502,7 +502,7 @@ namespace SchoolSystem.Controllers
         
         // GET: Attendance/Edit/5
         [AuthorizeRoles("Teacher")]
-        public async Task<IActionResult> Edit(int? id)
+        public async Task<IActionResult> Edit(Guid? id)
         {
             try{
                 if (id == null)
@@ -565,7 +565,7 @@ namespace SchoolSystem.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [AuthorizeRoles("Teacher")]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,AttendanceStatus,DateAndTime,Excuse,IdTeacher,IdLectuer,IdStudent,IdClass")] Attendance attendance)
+        public async Task<IActionResult> Edit(Guid id, [Bind("Id,AttendanceStatus,DateAndTime,Excuse,IdTeacher,IdLectuer,IdStudent,IdClass")] Attendance attendance)
         {
             
             if (id != attendance.Id)
@@ -613,7 +613,7 @@ namespace SchoolSystem.Controllers
         }
 
         // GET: Attendance/Delete/5
-        public async Task<IActionResult> Delete(int? id)
+        public async Task<IActionResult> Delete(Guid? id)
         {
             if (id == null)
             {
@@ -637,12 +637,12 @@ namespace SchoolSystem.Controllers
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
         [AuthorizeRoles("Teacher")]
-        public async Task<IActionResult> DeleteConfirmed(int id) {
+        public async Task<IActionResult> DeleteConfirmed(Guid id) {
             try{
                 var attendance = await _context.Attendances.FindAsync(id);
                 if (attendance != null)
                 {
-                    int teacher = attendance.IdTeacher??0;
+                    Guid teacher = attendance.IdTeacher ?? Guid.Empty;
                     _context.Attendances.Remove(attendance);
                     await _context.SaveChangesAsync();
                     _notyf.Success("The deletion process was completed successfully.");
@@ -650,8 +650,8 @@ namespace SchoolSystem.Controllers
                 }
                 else
                 {
-                    int TeacherId = HttpContext.Session.GetInt32("Id")??0;
-                    if(TeacherId != 0){
+                    Guid TeacherId = HttpContext.Session.GetGuid("Id") ?? Guid.Empty;
+                    if (TeacherId != Guid.Empty) {
                         _notyf.Error("Data is not Found.");
                         return View(nameof(Index),new{idTeacher = TeacherId});
                     }
@@ -662,8 +662,8 @@ namespace SchoolSystem.Controllers
                     return RedirectToAction("Index","Home");
                 }
             }catch(Exception ex){
-                int TeacherId = HttpContext.Session.GetInt32("Id")??0;
-                if(TeacherId != 0){
+                Guid TeacherId = HttpContext.Session.GetGuid("Id") ?? Guid.Empty;
+                if (TeacherId != Guid.Empty) {
                     _notyf.Error("Data is not Found.");
                     await _logger.LogAsync(ex, "Attendance/DeleteConfirmed");
                     return View(nameof(Index),new{idTeacher = TeacherId});
@@ -677,7 +677,7 @@ namespace SchoolSystem.Controllers
             
         }
 
-        private bool AttendanceExists(int id)
+        private bool AttendanceExists(Guid id)
         {
             return _context.Attendances.Any(e => e.Id == id);
         }

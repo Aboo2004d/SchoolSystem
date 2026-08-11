@@ -1,11 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace SchoolSystem.Data;
 
 public partial class Grade
 {
-    public int GradesId { get; set; }
+    public Guid GradesId { get; set; }
 
     public int? FirstMonth { get; set; }
 
@@ -17,17 +17,17 @@ public partial class Grade
 
     public int? Final { get; set; }
 
-    public int? IdStudent { get; set; }
+    public Guid? IdStudent { get; set; }
 
-    public int? IdTeacher { get; set; }
+    public Guid? IdTeacher { get; set; }
 
-    public int? IdLectuer { get; set; }
+    public Guid? IdLectuer { get; set; }
 
-    public int? IdClass { get; set; }
+    public Guid? IdClass { get; set; }
 
     public int? Total { get; set; }
 
-    public int? IdSchool { get; set; }
+    public Guid? IdSchool { get; set; }
 
     public bool IsDeletedGrades { get; set; }
 

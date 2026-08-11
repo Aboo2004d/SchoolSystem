@@ -3,6 +3,6 @@ namespace SchoolSystem.Models
 
     public partial class DeleteInSchool
     {
-        public string? id { get; set; }
+        public Guid? id { get; set; }
     }
 }

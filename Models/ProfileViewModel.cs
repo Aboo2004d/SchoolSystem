@@ -2,7 +2,7 @@ namespace SchoolSystem.Models
 {
     public class ProfileViewModel
     {
-        public int Id { get; set; }
+        public Guid Id { get; set; }
         public string Name { get; set; }
         public int IdNumber { get; set; }
         public DateOnly TheDate { get; set; }

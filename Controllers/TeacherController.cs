@@ -23,30 +23,28 @@ namespace SchoolSystem.Controllers
         private readonly INotyfService _notyf;
         private readonly IErrorLoggerService _logger;
         private readonly ISessionValidatorService _sessionValidatorService;
-        private readonly EncryptionHelper _encryptionHelper;
 
 
-        public TeacherController(SystemSchoolDbContext context, EncryptionHelper encryptionHelper, ISessionValidatorService sessionValidatorService, INotyfService notyf, IErrorLoggerService logger)
+        public TeacherController(SystemSchoolDbContext context, ISessionValidatorService sessionValidatorService, INotyfService notyf, IErrorLoggerService logger)
         {
             _logger = logger;
             _context = context;
             _notyf = notyf;
             _sessionValidatorService = sessionValidatorService;
-            _encryptionHelper = encryptionHelper;
         }
 
         // GET: Teacher
         [AuthorizeRoles("Teacher")]
         public async Task<IActionResult> Index()
         {
-            int IdSchool = HttpContext.Session.GetInt32("School")??0;
-            if(IdSchool != 0){
+            Guid IdSchool = HttpContext.Session.GetGuid("School") ?? Guid.Empty;
+            if(IdSchool != Guid.Empty){
                 string Role = HttpContext.Session.GetString("Role")??"null";
                 if (Role == "Teacher")
                 {
-                    int Id = HttpContext.Session.GetInt32("Id")??0;
+                    Guid Id = HttpContext.Session.GetGuid("Id") ?? Guid.Empty;
                     Console.WriteLine($"Id: {Id}");
-                    if (Id != 0)
+                    if (Id != Guid.Empty)
                     {
                         Teacher? teacher = await _context.Teachers.Where(t => t.Id == Id && t.IdSchool == IdSchool).FirstOrDefaultAsync();
                         if (teacher != null)
@@ -54,7 +52,7 @@ namespace SchoolSystem.Controllers
                             Console.WriteLine($"Id Teacher123: {teacher.Id}");
                             TeacherViewModel teacherViewModel = new TeacherViewModel
                             {
-                                Id = _encryptionHelper.EncryptInt(teacher.Id)
+                                Id = teacher.Id
                             };
                             return View(teacherViewModel);
                         }
@@ -71,8 +69,8 @@ namespace SchoolSystem.Controllers
         }
 
         // GET: Teacher/Details/5
-        [AuthorizeRoles("admin")]
-        public async Task<IActionResult> Details(string? id)
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
+        public async Task<IActionResult> Details(Guid? id)
         {
             if (id == null)
             {
@@ -80,21 +78,21 @@ namespace SchoolSystem.Controllers
                 return NotFound();
             }
 
-            ViewBag.Id = id;
+            ViewBag.Id = id ?? Guid.Empty;
             return View();
         }
 
         // GET: Teacher/Create
-        [AuthorizeRoles("admin")]
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
         public IActionResult Create()
         {
             return View();
         }
 
         // GET: Teacher/Edit/5
-        [AuthorizeRoles("admin")]
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
         [HttpGet]        
-        public async Task<IActionResult> Edit(string? id)
+        public async Task<IActionResult> Edit(Guid? id)
         {
             if (id == null)
             {
@@ -102,11 +100,11 @@ namespace SchoolSystem.Controllers
                 return NotFound();
             }
 
-            ViewBag.Id = id;
+            ViewBag.Id = id ?? Guid.Empty;
             return View();
         }
 
-        public async Task<IActionResult> ManagerTeacher([FromQuery]int teacherId)
+        public async Task<IActionResult> ManagerTeacher([FromQuery]Guid teacherId)
         {
             try{
                 var students = await _context.StudentLectuerTeachers
@@ -134,13 +132,13 @@ namespace SchoolSystem.Controllers
 
         [HttpGet]
         [AuthorizeRoles("Teacher")]
-        public async Task<IActionResult> Students(string? teacherId)
+        public async Task<IActionResult> Students(Guid? teacherId)
         {
-            int Id;
+            Guid Id;
 
             try
             {
-                Id = _encryptionHelper.DecryptInt(teacherId??"0");
+                Id = teacherId ?? Guid.Empty;
 
             }
             catch (Exception ex)
@@ -164,9 +162,9 @@ namespace SchoolSystem.Controllers
             return View();
         }
 
-        [AuthorizeRoles("admin")]
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
         [HttpGet]
-        public async Task<IActionResult> ManagementClassLectuerForTeachers(string? idTeacher)
+        public async Task<IActionResult> ManagementClassLectuerForTeachers(Guid? idTeacher)
         {
             if (idTeacher == null)
             {
@@ -179,13 +177,13 @@ namespace SchoolSystem.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetStudentCountPerGrades(string? idTeacher)
+        public async Task<IActionResult> GetStudentCountPerGrades(Guid? idTeacher)
         {
-            int Id;
+            Guid Id;
 
             try
             {
-                Id = _encryptionHelper.DecryptInt(idTeacher??"0");
+                Id = idTeacher ?? Guid.Empty;
 
             }
             catch (Exception ex)
@@ -196,7 +194,7 @@ namespace SchoolSystem.Controllers
             }
 
             Console.WriteLine($"Id Teacher: {idTeacher}");
-            var schoolId = HttpContext.Session.GetInt32("School");
+            var schoolId = HttpContext.Session.GetGuid("School");
             Console.WriteLine($"Id School: {schoolId}");
             var data = _context.Grades
                 .Where(g =>
@@ -230,13 +228,13 @@ namespace SchoolSystem.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetStudentCountPerAttendance(string? idTeacher)
+        public async Task<IActionResult> GetStudentCountPerAttendance(Guid? idTeacher)
         {
-            int Id;
+            Guid Id;
 
             try
             {
-                Id = _encryptionHelper.DecryptInt(idTeacher??"0");
+                Id = idTeacher ?? Guid.Empty;
 
             }
             catch (Exception ex)
@@ -246,7 +244,7 @@ namespace SchoolSystem.Controllers
                 return RedirectToAction("ManagerMenegarTeacherView","Menegar");
             }
 
-            var schoolId = HttpContext.Session.GetInt32("School");
+            var schoolId = HttpContext.Session.GetGuid("School");
 
             var data = _context.Attendances
                 .Where(g => g.IdSchool == schoolId
@@ -269,14 +267,14 @@ namespace SchoolSystem.Controllers
         }
 
         // شهادة قيد لطالب
-        [AuthorizeRoles("Teacher","admin")]
-        public async Task<IActionResult> DownloadTeacherCertificate(string? idTeacher)
+        [AuthorizeRoles(RoleNames.Teacher, RoleNames.Admin, RoleNames.Manager)]
+        public async Task<IActionResult> DownloadTeacherCertificate(Guid? idTeacher)
         {
-            int Id;
+            Guid Id;
 
             try
             {
-                Id = _encryptionHelper.DecryptInt(idTeacher??"0");
+                Id = idTeacher ?? Guid.Empty;
 
             }
             catch (Exception ex)
@@ -288,7 +286,7 @@ namespace SchoolSystem.Controllers
             try
             {
                 Teacher? teacher = _context.Teachers
-                .Where(s => s.Id == Id && s.IsDeleted == false && s.IdSchool == HttpContext.Session.GetInt32("School"))
+                .Where(s => s.Id == Id && s.IsDeleted == false && s.IdSchool == HttpContext.Session.GetGuid("School"))
                 .Include(s => s.IdSchoolNavigation).SingleOrDefault();
                 if (teacher == null)
                 {
@@ -319,7 +317,7 @@ namespace SchoolSystem.Controllers
             }
         }
         
-        private bool TeacherExists(int id)
+        private bool TeacherExists(Guid id)
         {
             return _context.Teachers.Any(e => e.Id == id);
         }

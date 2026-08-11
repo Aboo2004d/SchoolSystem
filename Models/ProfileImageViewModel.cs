@@ -1,8 +1,8 @@
-﻿namespace SchoolSystem.Models
+namespace SchoolSystem.Models
 {
     public partial class ProfileImageViewModel
     {
-        public int Id { get; set; }
+        public Guid Id { get; set; }
 
         public string? UserName { get; set; }
 

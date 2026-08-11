@@ -13,7 +13,7 @@ public class ErrorLogsController : Controller
         _context = context;
     }
 
-    [AuthorizeRoles("admin")]
+    [AuthorizeRoles(RoleNames.Admin)]
     public async Task<IActionResult> Index(int page = 1, int pageSize = 20)
     {
         var totalLogs = await _context.ErrorLogs.CountAsync();

@@ -1,18 +1,18 @@
-﻿namespace SchoolSystem.Models
+namespace SchoolSystem.Models
 {
 
     public partial class StudentClass
     {
-        public int Id { get; set; }
+        public Guid Id { get; set; }
 
-        public int? IdStudent { get; set; }
+        public Guid? IdStudent { get; set; }
 
-        public int? IdClass { get; set; }
+        public Guid? IdClass { get; set; }
 
-        public int? IdSchool { get; set; }
+        public Guid? IdSchool { get; set; }
 
-        public int? IdTeacher { get; set; }
+        public Guid? IdTeacher { get; set; }
 
-        public int? IdLectuer { get; set; }
+        public Guid? IdLectuer { get; set; }
     }
 }

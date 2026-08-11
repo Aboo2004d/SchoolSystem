@@ -12,9 +12,9 @@ namespace SchoolSystem.Models{
 
         public string Area { get; set; }
 
-        public int? School { get; set; }
+        public Guid? School { get; set; }
         public string Role { get; set; }
-        public int IdUser { get; set; }
+        public Guid IdUser { get; set; }
 
         public DateOnly TheDate{get;set;}
     }

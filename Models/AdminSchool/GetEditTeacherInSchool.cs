@@ -3,7 +3,7 @@ namespace SchoolSystem.Models.AdminSchool
 
     public partial class GetEditTeacherInSchool
     {
-        public string? idTeacher { get; set; }
+        public Guid? idTeacher { get; set; }
 
         public string? nameTeacher { get; set; }
 

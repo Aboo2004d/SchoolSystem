@@ -24,33 +24,31 @@ namespace SchoolSystem.Controllers
         private readonly IErrorLoggerService _logger;
         private readonly SystemSchoolDbContext _context;
         private readonly ISessionValidatorService _sessionValidatorService;
-        private readonly EncryptionHelper _encryptionHelper;
 
 
-        public GradesController(SystemSchoolDbContext context, INotyfService notyf, EncryptionHelper encryptionHelper, IErrorLoggerService logger, ISessionValidatorService sessionValidatorService)
+        public GradesController(SystemSchoolDbContext context, INotyfService notyf, IErrorLoggerService logger, ISessionValidatorService sessionValidatorService)
         {
             _logger = logger;
             _context = context;
             _notyf = notyf;
             _sessionValidatorService = sessionValidatorService;
-            _encryptionHelper = encryptionHelper;
         }
         // GET: Grades
         [HttpGet]
         [AuthorizeRoles("Teacher")]
         public async Task<IActionResult> DataGrades(
-            string? teacherId,
+            Guid? teacherId,
             [FromQuery] int draw,
             [FromQuery] int start,
             [FromQuery] int length = 10,
             [FromQuery(Name = "search[value]")] string searchValue = "")
         {
 
-            int Id;
+            Guid Id;
 
             try
             {
-                Id = _encryptionHelper.DecryptInt(teacherId??"0");
+                Id = teacherId ?? Guid.Empty;
 
             }
             catch (Exception ex)
@@ -154,13 +152,13 @@ namespace SchoolSystem.Controllers
                 var students = data.
                 Select(s => new GradesViewModel
                 {
-                    Id = _encryptionHelper.EncryptInt(s.Id),
+                    Id = s.Id,
                     ClassroomName = s.ClassroomName,
                     StudentName = s.StudentName,
-                    IdClass = _encryptionHelper.EncryptInt(s.idClass??0),
-                    IdStudent = _encryptionHelper.EncryptInt(s.idStudent??0),
+                    IdClass = s.idClass ?? Guid.Empty,
+                    IdStudent = s.idStudent ?? Guid.Empty,
                     LectuerName = s.LectuerName,
-                    IdTeacher = _encryptionHelper.EncryptInt(s.idTeacher??0),
+                    IdTeacher = s.idTeacher ?? Guid.Empty,
                     FirstMonth = s.f_m,
                     SecondMonth = s.s_m,
                     Mid = s.mid,
@@ -191,13 +189,13 @@ namespace SchoolSystem.Controllers
 
         [HttpGet]
         [AuthorizeRoles("Teacher")]
-        public async Task<IActionResult> ViewGrades(string? teacherId)
+        public async Task<IActionResult> ViewGrades(Guid? teacherId)
         {
-            int Id;
+            Guid Id;
 
             try
             {
-                Id = _encryptionHelper.DecryptInt(teacherId??"0");
+                Id = teacherId ?? Guid.Empty;
 
             }
             catch (Exception ex)
@@ -221,7 +219,7 @@ namespace SchoolSystem.Controllers
 
         // GET: Grades/Details/5
         [HttpGet]
-        public async Task<IActionResult> Details(int? id)
+        public async Task<IActionResult> Details(Guid? id)
         {
             if (id == null)
             {
@@ -243,17 +241,17 @@ namespace SchoolSystem.Controllers
         [HttpGet]
         // GET: Grades/Create
         [AuthorizeRoles("Teacher")]
-        public async Task<IActionResult> Create(string? teacherId, string? subjectId, string? gradeId)
+        public async Task<IActionResult> Create(Guid? teacherId, Guid? subjectId, Guid? gradeId)
         {
             
-            int Id;
-            int IdLectuer;
-            int IdGrade;
+            Guid Id;
+            Guid IdLectuer;
+            Guid IdGrade;
             try
             {
-                Id = _encryptionHelper.DecryptInt(teacherId ?? "0");
-                IdLectuer = _encryptionHelper.DecryptInt(subjectId ?? "0");
-                IdGrade = _encryptionHelper.DecryptInt(gradeId ?? "0");
+                Id = teacherId ?? Guid.Empty;
+                IdLectuer = subjectId ?? Guid.Empty;
+                IdGrade = gradeId ?? Guid.Empty;
                 
 
             }
@@ -298,7 +296,7 @@ namespace SchoolSystem.Controllers
                 )
                 .ToList();
 
-            var studentIds = students.Select(s=>(int?)s.Id).ToList();
+            var studentIds = students.Select(s => (Guid?)s.Id).ToList();
 
             var existingGrades = _context.Grades
                 .Where(g => g.IdTeacher == Id && g.IdLectuer == IdLectuer && studentIds.Contains(g.IdStudent))
@@ -315,7 +313,7 @@ namespace SchoolSystem.Controllers
                 {
                     gradesViewModel = new GradesViewModel
                     {
-                        IdStudent = _encryptionHelper.EncryptInt(student.Id),
+                        IdStudent = student.Id,
                         IdTeacher = teacherId,
                         IdLectuer = subjectId,
                         IdClass = gradeId,
@@ -331,7 +329,7 @@ namespace SchoolSystem.Controllers
                 {
                     gradesViewModel = new GradesViewModel
                     {
-                        IdStudent = _encryptionHelper.EncryptInt(grade.IdStudent??0),
+                        IdStudent = grade.IdStudent ?? Guid.Empty,
                         IdTeacher = teacherId,
                         IdLectuer = subjectId,
                         IdClass = gradeId,
@@ -368,17 +366,17 @@ namespace SchoolSystem.Controllers
             {
                 foreach (var item in Grades)
                 {
-                    int IdTeacher;
-                    int IdLectuer;
-                    int IdClass;
-                    int IdStudent;
+                    Guid IdTeacher;
+                    Guid IdLectuer;
+                    Guid IdClass;
+                    Guid IdStudent;
                     try
                     {
 
-                        IdTeacher = _encryptionHelper.DecryptInt(item.TeacherId);
-                        IdLectuer = _encryptionHelper.DecryptInt(item.LectuerId);
-                        IdClass = _encryptionHelper.DecryptInt(item.ClassId);
-                        IdStudent = _encryptionHelper.DecryptInt(item.StudentId);
+                        IdTeacher = item.TeacherId;
+                        IdLectuer = item.LectuerId;
+                        IdClass = item.ClassId;
+                        IdStudent = item.StudentId;
                         
                     }
                     catch (Exception ex)
@@ -438,21 +436,21 @@ namespace SchoolSystem.Controllers
                 }
                 _context.SaveChanges();
                 _notyf.Success("تم اضافة العلامات للطلاب بنجاح");
-                return RedirectToAction("ViewGrades", new { teacherId = Grades.FirstOrDefault()?.TeacherId ?? "0" });
+                return RedirectToAction("ViewGrades", new { teacherId = Grades.FirstOrDefault()?.TeacherId ?? Guid.Empty });
 
             }
             catch (Exception ex)
             {
                 _notyf.Error("فشل تسجيل العلامات للطلاب\nحاول مرة اخرى لاحقا");
                 await _logger.LogAsync(ex, "Grades/SaveAll");
-                return RedirectToAction("ViewGrades", new { teacherId = Grades.FirstOrDefault()?.TeacherId ?? "0" });
+                return RedirectToAction("ViewGrades", new { teacherId = Grades.FirstOrDefault()?.TeacherId ?? Guid.Empty });
             }
         }
         
         [HttpGet]
-        [AuthorizeRoles("Student","admin")]
+        [AuthorizeRoles(RoleNames.Student, RoleNames.Admin, RoleNames.Manager)]
         public async Task<IActionResult> DataGradesStudent(
-            int studentid,
+            Guid studentid,
             [FromQuery] int draw,
             [FromQuery] int start,
             [FromQuery] int length = 10,
@@ -539,13 +537,13 @@ namespace SchoolSystem.Controllers
                 var students = data.
                 Select(s => new GradesViewModel
                 {
-                    Id = _encryptionHelper.EncryptInt(s.Id),
+                    Id = s.Id,
                     ClassroomName = s.ClassroomName,
                     StudentName = s.StudentName,
-                    IdClass = _encryptionHelper.EncryptInt(s.idClass??0),
-                    IdStudent = _encryptionHelper.EncryptInt(s.idStudent??0),
+                    IdClass = s.idClass ?? Guid.Empty,
+                    IdStudent = s.idStudent ?? Guid.Empty,
                     LectuerName = s.LectuerName,
-                    IdTeacher = _encryptionHelper.EncryptInt(s.idTeacher??0),
+                    IdTeacher = s.idTeacher ?? Guid.Empty,
                     FirstMonth = s.f_m,
                     SecondMonth = s.s_m,
                     Mid = s.mid,
@@ -575,8 +573,8 @@ namespace SchoolSystem.Controllers
 
 
         [HttpGet]
-        [AuthorizeRoles("Student","admin")]
-        public async Task<IActionResult> MarkStudent(int studentid)
+        [AuthorizeRoles(RoleNames.Student, RoleNames.Admin, RoleNames.Manager)]
+        public async Task<IActionResult> MarkStudent(Guid studentid)
         {
             if (HttpContext.Session.GetString("Role") == "admin")
             {
@@ -611,9 +609,9 @@ namespace SchoolSystem.Controllers
         // GET: Grades/Edit/5
         [HttpGet]
         [AuthorizeRoles("Teacher")]
-        public async Task<IActionResult> Edit(string? id)
+        public async Task<IActionResult> Edit(Guid? id)
         {
-            int Id = HttpContext.Session.GetInt32("Id")??0;
+            Guid Id = HttpContext.Session.GetGuid("Id") ?? Guid.Empty;
             if (id == null)
             {
                 _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة.");
@@ -622,11 +620,11 @@ namespace SchoolSystem.Controllers
                 
             }
 
-            int IdGrade;
+            Guid IdGrade;
             try
             {
 
-                IdGrade = _encryptionHelper.DecryptInt(id);
+                IdGrade = id ?? Guid.Empty;
                 
             }
             catch (Exception ex)
@@ -639,7 +637,7 @@ namespace SchoolSystem.Controllers
             var grade = await _context.Grades.FindAsync(IdGrade);
             if (grade == null)
             {
-                if(Id != 0){
+                if(Id != Guid.Empty){
                     _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة.");
                     await _logger.LogAsync(new Exception("التلاعب بالبيانات المرسلة"),"Grades/Edit");
                     return View(nameof(ViewGrades),new{teacherId =Id });
@@ -657,12 +655,12 @@ namespace SchoolSystem.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [AuthorizeRoles("Teacher")]
-        public async Task<IActionResult> Edit(int id, [Bind("GradesId,FirstMonth,Mid,SecondMonth,Activity,Final")] Grade grade)
+        public async Task<IActionResult> Edit(Guid id, [Bind("GradesId,FirstMonth,Mid,SecondMonth,Activity,Final")] Grade grade)
         {
-            int Id = HttpContext.Session.GetInt32("Id")??0;
+            Guid Id = HttpContext.Session.GetGuid("Id") ?? Guid.Empty;
             if  (id != grade.GradesId)
             {
-                if(Id != 0)
+                if(Id != Guid.Empty)
                 {
                     _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة.");
                     await _logger.LogAsync(new Exception("التلاعب بالبيانات المرسلة"),"Grades/Edit");
@@ -676,7 +674,7 @@ namespace SchoolSystem.Controllers
             var grades = await _context.Grades.FindAsync(id);
             if (grades == null)
             {
-                if(Id != 0)
+                if(Id != Guid.Empty)
                 {
                     _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة.");
                     await _logger.LogAsync(new Exception("التلاعب بالبيانات المرسلة"),"Grades/Edit");
@@ -702,9 +700,9 @@ namespace SchoolSystem.Controllers
                 {
                     if (_context.Grades.Any(g => g.GradesId == id))
                     {
-                        if (Id != 0)
+                        if (Id != Guid.Empty)
                         {
-                            if (Id != 0)
+                            if (Id != Guid.Empty)
                             {
                                 _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة.");
                                 await _logger.LogAsync(new Exception("التلاعب بالبيانات المرسلة"), "Grades/Edit");
@@ -715,7 +713,7 @@ namespace SchoolSystem.Controllers
                         await _logger.LogAsync(new Exception("دخول غير مصرح."), "Grades/Edit");
                         return RedirectToAction("Logout","Account");
                     }
-                    if (Id != 0)
+                    if (Id != Guid.Empty)
                     {
                         _notyf.Error("The transmitted data cannot be tampered with.");
                         await _logger.LogAsync(new Exception("Manipulation of transmitted data"), "Grades/Edit");
@@ -732,7 +730,7 @@ namespace SchoolSystem.Controllers
         }
 
         // GET: Grades/Delete/5
-        public async Task<IActionResult> Delete(int? id)
+        public async Task<IActionResult> Delete(Guid? id)
         {
             if (id == null)
             {
@@ -755,14 +753,14 @@ namespace SchoolSystem.Controllers
         // POST: Grades/Delete/5
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
+        public async Task<IActionResult> DeleteConfirmed(Guid id)
         {
             
             try{
                 var grade = await _context.Grades.FindAsync(id);
                 if (grade != null)
                 {
-                    int teacher = grade.IdTeacher??0;
+                    Guid teacher = grade.IdTeacher ?? Guid.Empty;
                     _context.Grades.Remove(grade);
                     await _context.SaveChangesAsync();
                     _notyf.Success("The deletion process was completed successfully.");
@@ -770,8 +768,8 @@ namespace SchoolSystem.Controllers
                 }
                 else
                 {
-                    int TeacherId = HttpContext.Session.GetInt32("Id")??0;
-                    if(TeacherId != 0){
+                    Guid TeacherId = HttpContext.Session.GetGuid("Id") ?? Guid.Empty;
+                    if (TeacherId != Guid.Empty) {
                         _notyf.Error("Data is not Found.");
                         return View(nameof(Index),new{idTeacher = TeacherId});
                     }
@@ -783,8 +781,8 @@ namespace SchoolSystem.Controllers
                 }
                 
             }catch(Exception ex){
-                int TeacherId = HttpContext.Session.GetInt32("Id")??0;
-                if(TeacherId != 0){
+                Guid TeacherId = HttpContext.Session.GetGuid("Id") ?? Guid.Empty;
+                if (TeacherId != Guid.Empty) {
                     _notyf.Error("Data is not Found.");
                     await _logger.LogAsync(ex, "Grades/Delete");
                     return View(nameof(Index),new{idTeacher = TeacherId});
@@ -801,12 +799,12 @@ namespace SchoolSystem.Controllers
 
         [HttpGet]
         [AuthorizeRoles("Teacher")]
-        public async Task<IActionResult> GetSubjectsForTeacher(string? teacherId)
+        public async Task<IActionResult> GetSubjectsForTeacher(Guid? teacherId)
         {
-            int Id;
+            Guid Id;
             try
             {
-                Id = _encryptionHelper.DecryptInt(teacherId ?? "0");
+                Id = teacherId ?? Guid.Empty;
             }
             catch (Exception ex)
             {
@@ -823,7 +821,7 @@ namespace SchoolSystem.Controllers
                 .Where(ts => ts.IdTeacher == Id)
                 .Include(l => l.IdLectuerNavigation)
                 .Select(ts => new {
-                    id = _encryptionHelper.EncryptInt(ts.IdLectuer??0),
+                    id = ts.IdLectuer ?? Guid.Empty,
                     name = ts.IdLectuerNavigation!=null? ts.IdLectuerNavigation.Name:"Null"
                 }).ToListAsync();
             Console.WriteLine($"Count Lectuer: {subjects.Count()}");
@@ -836,13 +834,13 @@ namespace SchoolSystem.Controllers
 
         [HttpGet]
         [AuthorizeRoles("Teacher")]
-        public async Task<IActionResult> GetGradesForSubject(string? teacherId, string subjectId)
+        public async Task<IActionResult> GetGradesForSubject(Guid? teacherId, Guid subjectId)
         {
 
-            int Id;
+            Guid Id;
             try
             {
-                Id = _encryptionHelper.DecryptInt(teacherId ?? "0");
+                Id = teacherId ?? Guid.Empty;
             }
             catch (Exception ex)
             {
@@ -859,7 +857,7 @@ namespace SchoolSystem.Controllers
                 .Where(tg => tg.IdTeacher == Id)
                 .Include(tg => tg.IdClassNavigation)
                 .Select(tg => new {
-                    id = _encryptionHelper.EncryptInt(tg.IdClass??0),
+                    id = tg.IdClass ?? Guid.Empty,
                     name = tg.IdClassNavigation!= null ? tg.IdClassNavigation.Name:"غير معرف"
                 }).Distinct().ToListAsync();
             if(grades.Count()<=0){
@@ -869,7 +867,7 @@ namespace SchoolSystem.Controllers
         }
 
        [AuthorizeRoles("Teacher")]
-        private bool GradeExists(int id)
+        private bool GradeExists(Guid id)
         {
             return _context.Grades.Any(e => e.GradesId == id);
         }

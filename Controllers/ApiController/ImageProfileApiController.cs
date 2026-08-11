@@ -23,7 +23,7 @@ public class ImageProfileApiController : Controller
     }
 
     [HttpPost]
-    [AuthorizeRoles("admin", "Student", "Teacher")]
+    [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager, RoleNames.Student, RoleNames.Teacher)]
     public async Task<IActionResult> UploadProfileImage(UploadProfileImageViewModel model)
     {
         if (model.ProfileImage == null || model.ProfileImage.Length == 0)

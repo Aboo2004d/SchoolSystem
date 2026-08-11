@@ -19,20 +19,18 @@ namespace SchoolSystem.Controllers
         private readonly SystemSchoolDbContext _context;
         private readonly INotyfService _notyf;
         private readonly IErrorLoggerService _logger;
-        private readonly EncryptionHelper _encryptionHelper;
         
 
-        public TheClassController(SystemSchoolDbContext context, EncryptionHelper encryptionHelper, INotyfService notyf,IErrorLoggerService logger)
+        public TheClassController(SystemSchoolDbContext context, INotyfService notyf,IErrorLoggerService logger)
         {
             _logger = logger;
             _context = context;
             _notyf = notyf;
-            _encryptionHelper = encryptionHelper;
         }
 
         /* // GET: TheClass/Details/5
-        [AuthorizeRoles("admin")]
-         public async Task<IActionResult> Details(int? id)
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
+         public async Task<IActionResult> Details(Guid? id)
          {
              if (id == null)
              {
@@ -48,7 +46,7 @@ namespace SchoolSystem.Controllers
 
              return View(theClass);
          }*/
-        [AuthorizeRoles("admin")]
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
         [HttpGet]
         public IActionResult Create()
         {
@@ -57,9 +55,9 @@ namespace SchoolSystem.Controllers
 
 
         // GET: TheClass/Edit/5
-        [AuthorizeRoles("admin")]
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
         [HttpGet]
-        public async Task<IActionResult> Edit(string? id)
+        public async Task<IActionResult> Edit(Guid? id)
         {
 
             if (id == null)
@@ -69,19 +67,19 @@ namespace SchoolSystem.Controllers
                 return RedirectToAction("ManagerMenegarClassView", "Menegar");
             }
 
-            ViewBag.Id = id;
+            ViewBag.Id = id ?? Guid.Empty;
             return View();
         }
 
         [HttpGet]
-        [AuthorizeRoles("admin")]
-        public async Task<IActionResult> CreateTeacherClass(string idClass)
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
+        public async Task<IActionResult> CreateTeacherClass(Guid idClass)
         {
-            int Id;
+            Guid Id;
 
             try
             {
-                Id = _encryptionHelper.DecryptInt(idClass);
+                Id = idClass;
 
             }
             catch (Exception ex)
@@ -103,12 +101,12 @@ namespace SchoolSystem.Controllers
             ViewBag.NameLectuer = nameClass.Name;
             List<Teacher> teacher = _context.Teachers.Where(s =>
             _context.TeacherLectuerClasses.Any(t => s.Id == t.IdTeacher && t.IdClass != null && Id != t.IdClass)
-            && s.IdSchool == HttpContext.Session.GetInt32("School")).ToList();
+            && s.IdSchool == HttpContext.Session.GetGuid("School")).ToList();
             ViewData["IdTeacher"] = new SelectList(teacher, "Id", "Name");
             return View();
         }
         
-        private bool TheClassExists(int id)
+        private bool TheClassExists(Guid id)
         {
             return _context.TheClasses.Any(e => e.Id == id);
         }

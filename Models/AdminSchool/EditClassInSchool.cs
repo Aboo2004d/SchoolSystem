@@ -2,7 +2,7 @@ namespace SchoolSystem.Models.AdminSchool
 {
     public partial class EditClassInSchool
     {
-        public string? idClass { get; set; }
+        public Guid? idClass { get; set; }
 
         public string? nameClass { get; set; }
     }

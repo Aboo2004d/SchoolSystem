@@ -6,23 +6,21 @@ using Microsoft.EntityFrameworkCore;
 using SchoolSystem.Data;
 using SchoolSystem.Models;
 
-[Authorize(Roles = RoleNames.Admin + "," + RoleNames.Teacher + "," + RoleNames.Student)]
+[Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager + "," + RoleNames.Teacher + "," + RoleNames.Student)]
 public class ProfileController : Controller
 {
     private readonly SystemSchoolDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly INotyfService _notyf;
-    private readonly EncryptionHelper _encryptionHelper;
 
     public ProfileController(SystemSchoolDbContext context, UserManager<ApplicationUser> userManager,
-        SignInManager<ApplicationUser> signInManager, INotyfService notyf, EncryptionHelper encryptionHelper)
+        SignInManager<ApplicationUser> signInManager, INotyfService notyf)
     {
         _context = context;
         _userManager = userManager;
         _signInManager = signInManager;
         _notyf = notyf;
-        _encryptionHelper = encryptionHelper;
     }
 
     public async Task<IActionResult> IndexProfile()
@@ -32,11 +30,11 @@ public class ProfileController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Edit(string id)
+    public async Task<IActionResult> Edit(Guid id)
     {
-        if (!TryDecrypt(id, out var requestedId)) return BadRequest();
         var data = await LoadCurrentProfileAsync();
-        if (data is null || data.Value.profile.Id != requestedId) return Forbid();
+        if (id == Guid.Empty) return BadRequest();
+        if (data is null || data.Value.profile.Id != id) return Forbid();
         var p = data.Value.profile;
         return View(new EditProfileViewModel
         {
@@ -49,11 +47,11 @@ public class ProfileController : Controller
     [HttpPost]
     public async Task<IActionResult> Edit(EditProfileViewModel model)
     {
-        if (!ModelState.IsValid || !TryDecrypt(model.Id, out var requestedId)) return View(model);
+        if (!ModelState.IsValid || model.Id == Guid.Empty) return View(model);
         var user = await _userManager.GetUserAsync(User);
         if (user is null || !user.IsActive) return Challenge();
         var role = (await _userManager.GetRolesAsync(user)).SingleOrDefault();
-        if (!await UpdateLinkedProfileAsync(user.Id, role, requestedId, model)) return Forbid();
+        if (!await UpdateLinkedProfileAsync(user.Id, role, model.Id, model)) return Forbid();
 
         var oldName = user.UserName;
         var userNameResult = await _userManager.SetUserNameAsync(user, model.UserName);
@@ -77,9 +75,10 @@ public class ProfileController : Controller
         if (user is null || !user.IsActive) return null;
         var role = (await _userManager.GetRolesAsync(user)).SingleOrDefault();
         string? name = null, phone = null, email = null, city = null, area = null, school = null, className = null;
-        int id = 0, idNumber = 0;
+        Guid id = Guid.Empty;
+        int idNumber = 0;
         DateOnly date = default;
-        if (role == RoleNames.Admin)
+        if (role is RoleNames.Admin or RoleNames.Manager)
         {
             var p = await _context.Menegars.Include(x => x.IdSchoolNavigation).AsNoTracking().SingleOrDefaultAsync(x => x.ApplicationUserId == user.Id);
             if (p is null) return null;
@@ -111,9 +110,9 @@ public class ProfileController : Controller
         }, role);
     }
 
-    private async Task<bool> UpdateLinkedProfileAsync(Guid userId, string? role, int requestedId, EditProfileViewModel model)
+    private async Task<bool> UpdateLinkedProfileAsync(Guid userId, string? role, Guid requestedId, EditProfileViewModel model)
     {
-        if (role == RoleNames.Admin)
+        if (role is RoleNames.Admin or RoleNames.Manager)
         {
             var p = await _context.Menegars.SingleOrDefaultAsync(x => x.ApplicationUserId == userId && x.Id == requestedId);
             if (p is null) return false;
@@ -135,12 +134,6 @@ public class ProfileController : Controller
             return true;
         }
         return false;
-    }
-
-    private bool TryDecrypt(string? value, out int id)
-    {
-        try { id = _encryptionHelper.DecryptInt(value ?? string.Empty); return id > 0; }
-        catch { id = 0; return false; }
     }
 
     private void AddErrors(IdentityResult result)

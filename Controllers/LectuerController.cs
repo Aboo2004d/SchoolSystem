@@ -18,30 +18,28 @@ namespace SchoolSystem.Controllers
         private readonly INotyfService _notyf;
         private readonly IErrorLoggerService _logger;
         private readonly ISessionValidatorService _sessionValidatorService;
-        private readonly EncryptionHelper _encryptionHelper;
 
 
-        public LectuerController(SystemSchoolDbContext context, EncryptionHelper encryptionHelper, ISessionValidatorService sessionValidatorService, INotyfService notyf, IErrorLoggerService logger)
+        public LectuerController(SystemSchoolDbContext context, ISessionValidatorService sessionValidatorService, INotyfService notyf, IErrorLoggerService logger)
         {
             _logger = logger;
             _context = context;
             _notyf = notyf;
             _sessionValidatorService = sessionValidatorService;
-            _encryptionHelper = encryptionHelper;
         }
 
         
 
         [HttpGet]
-        [AuthorizeRoles("admin")]
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
         public IActionResult LectuerView()
         {
             return View();
         }
 
         // GET: Lectuer/Details/5
-        [AuthorizeRoles("admin")]
-        public async Task<IActionResult> Details(int? id)
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
+        public async Task<IActionResult> Details(Guid? id)
         {
             if (id == null)
             {
@@ -59,7 +57,7 @@ namespace SchoolSystem.Controllers
         }
 
         // GET: Lectuer/Create
-        [AuthorizeRoles("admin")]
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
         [HttpGet]
         public IActionResult Create()
         {
@@ -71,8 +69,8 @@ namespace SchoolSystem.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         
         [HttpGet]
-        [AuthorizeRoles("admin")]
-        public async Task<IActionResult> CreateTeacherLectuer(string idLectuer)
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
+        public async Task<IActionResult> CreateTeacherLectuer(Guid idLectuer)
         {
             if (idLectuer == null)
             {
@@ -84,15 +82,15 @@ namespace SchoolSystem.Controllers
         }
         
         // GET: Lectuer/Edit/5
-        [AuthorizeRoles("admin")]
-        public  IActionResult Edit(string? id)
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
+        public  IActionResult Edit(Guid? id)
         {
             if (id == null)
             {
                 return NotFound();
             }
 
-            ViewBag.Id = id;
+            ViewBag.Id = id ?? Guid.Empty;
 
             return View();
         }
@@ -102,7 +100,7 @@ namespace SchoolSystem.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [AuthorizeRoles("admin")]
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
         public async Task<IActionResult> Edit(LectuerDataViewModel lectuer)
         {
             if (lectuer.Id == null)
@@ -111,11 +109,11 @@ namespace SchoolSystem.Controllers
                 return RedirectToAction(nameof(Edit));
             }
 
-            int Id;
+            Guid Id;
 
             try
             {
-                Id = _encryptionHelper.DecryptInt(lectuer.Id);
+                Id = lectuer.Id;
 
             }
             catch (Exception ex)
@@ -157,7 +155,7 @@ namespace SchoolSystem.Controllers
         }
 
         // GET: Lectuer/Delete/5
-        public async Task<IActionResult> Delete(int? id)
+        public async Task<IActionResult> Delete(Guid? id)
         {
             if (id == null)
             {
@@ -177,14 +175,14 @@ namespace SchoolSystem.Controllers
         // POST: Lectuer/Delete/5
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
-        [AuthorizeRoles("admin")]
-        public async Task<IActionResult> DeleteConfirmed(string id)
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
+        public async Task<IActionResult> DeleteConfirmed(Guid id)
         {
-            int Id;
+            Guid Id;
 
             try
             {
-                Id = _encryptionHelper.DecryptInt(id);
+                Id = id;
 
             }
             catch (Exception ex)
@@ -206,18 +204,18 @@ namespace SchoolSystem.Controllers
         }
 
         // GET: Lectuer/Delete/5
-        public async Task<IActionResult> DeleteTeacherLectuer(string? id)
+        public async Task<IActionResult> DeleteTeacherLectuer(Guid? id)
         {
             if (id == null)
             {
                 return NotFound();
             }
 
-            int Id;
+            Guid Id;
 
             try
             {
-                Id = _encryptionHelper.DecryptInt(id);
+                Id = id.Value;
 
             }
             catch (Exception ex)
@@ -241,14 +239,14 @@ namespace SchoolSystem.Controllers
         // POST: Lectuer/Delete/5
         [HttpPost, ActionName("DeleteTeacherLectuer")]
         [ValidateAntiForgeryToken]
-        [AuthorizeRoles("admin")]
-        public async Task<IActionResult> DeleteTeacherLectuerConfirmed(string id)
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
+        public async Task<IActionResult> DeleteTeacherLectuerConfirmed(Guid id)
         {
-            int Id;
+            Guid Id;
 
             try
             {
-                Id = _encryptionHelper.DecryptInt(id);
+                Id = id;
 
             }
             catch (Exception ex)
@@ -267,13 +265,13 @@ namespace SchoolSystem.Controllers
             }
             await _context.SaveChangesAsync();
 
-            return RedirectToAction("TeacherLectuerView",new{idLectuer = _encryptionHelper.EncryptInt(teacherLectuer.IdLectuer??0)});
+            return RedirectToAction("TeacherLectuerView",new{idLectuer = teacherLectuer.IdLectuer ?? Guid.Empty});
         }
 
 
-        [AuthorizeRoles("admin")]
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
         public async Task<IActionResult> TeacherLectuer(
-            string idLectuer,
+            Guid idLectuer,
             [FromQuery] int draw,
             [FromQuery] int start,
             [FromQuery] int length = 10,
@@ -281,11 +279,11 @@ namespace SchoolSystem.Controllers
 
         {
             Console.WriteLine("------------------------------------");
-            int Id;
+            Guid Id;
             Console.WriteLine($"IdLectuer: {idLectuer}");
             try
             {
-                Id = _encryptionHelper.DecryptInt(idLectuer);
+                Id = idLectuer;
 
             }
             catch (Exception ex)
@@ -298,7 +296,7 @@ namespace SchoolSystem.Controllers
             try
             {
                 // التحقق من صلاحية المستخدم و التلاعب بالبيانات
-                var (IsValid, IdSchool, Message) = await _sessionValidatorService.ValidateAdminSessionAsync(HttpContext, "Lectuer/TeacherLectuer");
+                var (IsValid, IdSchool, Message) = await _sessionValidatorService.ValidateManagerSessionAsync(HttpContext, "Lectuer/TeacherLectuer");
                 if (!IsValid)
                 {
                     return Json(new { success = false, message = Message, error = "Unauthorized access. Session expired." });
@@ -373,7 +371,7 @@ namespace SchoolSystem.Controllers
                 var teachersLectuer = data.
                 Select(s => new LectuerInTeacherViewModel
                 {
-                    Id = _encryptionHelper.EncryptInt(s.Id),
+                    Id = s.Id,
                     LectureName = s.LectureName,
                     IdLectuer = s.IdLectuer,
                     TeacherName = s.TeacherName,
@@ -401,16 +399,16 @@ namespace SchoolSystem.Controllers
 
 
         [HttpGet]
-        [AuthorizeRoles("admin")]
-        public async Task<IActionResult> TeacherLectuerView(string idLectuer)
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
+        public async Task<IActionResult> TeacherLectuerView(Guid idLectuer)
         {
             Console.WriteLine("------------------------------------");
-            int Id;
+            Guid Id;
             Console.WriteLine($"IdLectuer: {idLectuer}");
 
             try
             {
-                Id = _encryptionHelper.DecryptInt(idLectuer);
+                Id = idLectuer;
 
             }
             catch (Exception ex)
@@ -421,14 +419,15 @@ namespace SchoolSystem.Controllers
             }
 
             // التحقق من صلاحية المستخدم و التلاعب بالبيانات
-            var (IsValid, IdSchool, Message) = await _sessionValidatorService.ValidateAdminSessionAsync(HttpContext, "Lectuer/TeacherLectuer");
+            var (IsValid, IdSchool, Message) = await _sessionValidatorService.ValidateManagerSessionAsync(HttpContext, "Lectuer/TeacherLectuer");
             if (!IsValid)
             {
                 
 
                 return View(nameof(LectuerView));
             }
-            Lectuer? lectuer = await _context.Lectuers.SingleOrDefaultAsync(c => c.Id == Id);
+            Lectuer? lectuer = await _context.Lectuers.AsNoTracking()
+                .SingleOrDefaultAsync(c => c.Id == Id && c.IdSchool == IdSchool && !c.IsDeleted);
             if (lectuer == null)
             {
                 errorOperation("لا يمكن التلاعب بالبيانات المرسلة", "Lectuer/CreateTeacherLectuer", new Exception("تلاعب بالبيانات المرسلة"));
@@ -440,9 +439,9 @@ namespace SchoolSystem.Controllers
             return View();
         }
 
-        [AuthorizeRoles("admin")]
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
         public async Task<IActionResult> StudentLectuer(
-            string idLectuer,
+            Guid idLectuer,
             [FromQuery] int draw,
             [FromQuery] int start,
             [FromQuery] int length = 10,
@@ -450,11 +449,11 @@ namespace SchoolSystem.Controllers
 
         {
             Console.WriteLine("------------------------------------");
-            int Id;
+            Guid Id;
             Console.WriteLine($"IdLectuer: {idLectuer}");
             try
             {
-                Id = _encryptionHelper.DecryptInt(idLectuer);
+                Id = idLectuer;
                 Console.WriteLine($"Id: {Id}");
 
             }
@@ -468,7 +467,7 @@ namespace SchoolSystem.Controllers
             try
             {
                 // التحقق من صلاحية المستخدم و التلاعب بالبيانات
-                var (IsValid, IdSchool, Message) = await _sessionValidatorService.ValidateAdminSessionAsync(HttpContext, "Lectuer/StudentLectuer");
+                var (IsValid, IdSchool, Message) = await _sessionValidatorService.ValidateManagerSessionAsync(HttpContext, "Lectuer/StudentLectuer");
                 if (!IsValid)
                 {
                     return Json(new { success = false, message = Message, error = "Unauthorized access. Session expired." });
@@ -557,7 +556,7 @@ namespace SchoolSystem.Controllers
                 var studentsLectuer = data.
                 Select(s => new LectuerInStudentViewModel
                 {
-                    Id = _encryptionHelper.EncryptInt(s.Id),
+                    Id = s.Id,
                     LectureName = s.LectureName,
                     IdLectuer = s.IdLectuer,
                     TeacherName = s.TeacherName,
@@ -587,15 +586,15 @@ namespace SchoolSystem.Controllers
 
 
         [HttpGet]
-        [AuthorizeRoles("admin")]
-        public async Task<IActionResult> StudentLectuerView(string idLectuer)
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
+        public async Task<IActionResult> StudentLectuerView(Guid idLectuer)
         {
 
-            int Id;
+            Guid Id;
 
             try
             {
-                Id = _encryptionHelper.DecryptInt(idLectuer);
+                Id = idLectuer;
 
             }
             catch (Exception ex)
@@ -606,13 +605,14 @@ namespace SchoolSystem.Controllers
             }
 
             // التحقق من صلاحية المستخدم و التلاعب بالبيانات
-            var (IsValid, IdSchool, Message) = await _sessionValidatorService.ValidateAdminSessionAsync(HttpContext, "Lectuer/TeacherLectuer");
+            var (IsValid, IdSchool, Message) = await _sessionValidatorService.ValidateManagerSessionAsync(HttpContext, "Lectuer/TeacherLectuer");
             if (!IsValid)
             {
                 
                 return View(nameof(LectuerView));
             }
-            Lectuer? lectuer = await _context.Lectuers.SingleOrDefaultAsync(c => c.Id == Id);
+            Lectuer? lectuer = await _context.Lectuers.AsNoTracking()
+                .SingleOrDefaultAsync(c => c.Id == Id && c.IdSchool == IdSchool && !c.IsDeleted);
             if (lectuer == null)
             {
                 errorOperation("لا يمكن التلاعب بالبيانات المرسلة", "Lectuer/StudentLectuerView", new Exception("تلاعب بالبيانات المرسلة"));
@@ -625,8 +625,8 @@ namespace SchoolSystem.Controllers
         }
 
 
-        [AuthorizeRoles("admin")]
-        private bool LectuerExists(int id)
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
+        private bool LectuerExists(Guid id)
         {
             return _context.Lectuers.Any(e => e.Id == id);
         }

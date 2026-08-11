@@ -12,8 +12,8 @@ using SchoolSystem.Data;
 namespace SchoolSystem.Migrations
 {
     [DbContext(typeof(SystemSchoolDbContext))]
-    [Migration("20260811082922_InitialIdentity")]
-    partial class InitialIdentity
+    [Migration("20260811105639_InitialGuidIdentity")]
+    partial class InitialGuidIdentity
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -227,12 +227,10 @@ namespace SchoolSystem.Migrations
 
             modelBuilder.Entity("SchoolSystem.Data.Attendance", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
+                        .HasColumnType("uniqueidentifier")
                         .HasColumnName("id");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("AttendanceStatus")
                         .IsRequired()
@@ -249,20 +247,20 @@ namespace SchoolSystem.Migrations
                     b.Property<string>("Excuse")
                         .HasColumnType("text");
 
-                    b.Property<int?>("IdClass")
-                        .HasColumnType("int");
+                    b.Property<Guid?>("IdClass")
+                        .HasColumnType("uniqueidentifier");
 
-                    b.Property<int?>("IdLectuer")
-                        .HasColumnType("int");
+                    b.Property<Guid?>("IdLectuer")
+                        .HasColumnType("uniqueidentifier");
 
-                    b.Property<int?>("IdSchool")
-                        .HasColumnType("int");
+                    b.Property<Guid?>("IdSchool")
+                        .HasColumnType("uniqueidentifier");
 
-                    b.Property<int?>("IdStudent")
-                        .HasColumnType("int");
+                    b.Property<Guid?>("IdStudent")
+                        .HasColumnType("uniqueidentifier");
 
-                    b.Property<int?>("IdTeacher")
-                        .HasColumnType("int");
+                    b.Property<Guid?>("IdTeacher")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<bool>("IsDeletedAttendance")
                         .HasColumnType("bit");
@@ -306,11 +304,9 @@ namespace SchoolSystem.Migrations
 
             modelBuilder.Entity("SchoolSystem.Data.Branch", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("BranchCode")
                         .IsRequired()
@@ -332,11 +328,9 @@ namespace SchoolSystem.Migrations
 
             modelBuilder.Entity("SchoolSystem.Data.ErrorLog", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime>("LoggedAt")
                         .ValueGeneratedOnAdd()
@@ -362,11 +356,9 @@ namespace SchoolSystem.Migrations
 
             modelBuilder.Entity("SchoolSystem.Data.Gender", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("TheType")
                         .IsRequired()
@@ -381,12 +373,10 @@ namespace SchoolSystem.Migrations
 
             modelBuilder.Entity("SchoolSystem.Data.Grade", b =>
                 {
-                    b.Property<int>("GradesId")
+                    b.Property<Guid>("GradesId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
+                        .HasColumnType("uniqueidentifier")
                         .HasColumnName("GradesID");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("GradesId"));
 
                     b.Property<int?>("Activity")
                         .ValueGeneratedOnAdd()
@@ -403,20 +393,20 @@ namespace SchoolSystem.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(0);
 
-                    b.Property<int?>("IdClass")
-                        .HasColumnType("int");
+                    b.Property<Guid?>("IdClass")
+                        .HasColumnType("uniqueidentifier");
 
-                    b.Property<int?>("IdLectuer")
-                        .HasColumnType("int");
+                    b.Property<Guid?>("IdLectuer")
+                        .HasColumnType("uniqueidentifier");
 
-                    b.Property<int?>("IdSchool")
-                        .HasColumnType("int");
+                    b.Property<Guid?>("IdSchool")
+                        .HasColumnType("uniqueidentifier");
 
-                    b.Property<int?>("IdStudent")
-                        .HasColumnType("int");
+                    b.Property<Guid?>("IdStudent")
+                        .HasColumnType("uniqueidentifier");
 
-                    b.Property<int?>("IdTeacher")
-                        .HasColumnType("int");
+                    b.Property<Guid?>("IdTeacher")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<bool>("IsDeletedClass")
                         .HasColumnType("bit");
@@ -477,15 +467,13 @@ namespace SchoolSystem.Migrations
 
             modelBuilder.Entity("SchoolSystem.Data.Lectuer", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
+                        .HasColumnType("uniqueidentifier")
                         .HasColumnName("id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int?>("IdSchool")
-                        .HasColumnType("int");
+                    b.Property<Guid?>("IdSchool")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
@@ -511,12 +499,10 @@ namespace SchoolSystem.Migrations
 
             modelBuilder.Entity("SchoolSystem.Data.Menegar", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
+                        .HasColumnType("uniqueidentifier")
                         .HasColumnName("id");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<Guid?>("ApplicationUserId")
                         .HasColumnType("uniqueidentifier");
@@ -537,8 +523,8 @@ namespace SchoolSystem.Migrations
                     b.Property<int?>("IdNumber")
                         .HasColumnType("int");
 
-                    b.Property<int?>("IdSchool")
-                        .HasColumnType("int");
+                    b.Property<Guid?>("IdSchool")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
@@ -578,11 +564,9 @@ namespace SchoolSystem.Migrations
 
             modelBuilder.Entity("SchoolSystem.Data.ProfileImage", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Email")
                         .HasMaxLength(100)
@@ -607,20 +591,18 @@ namespace SchoolSystem.Migrations
 
             modelBuilder.Entity("SchoolSystem.Data.School", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("uniqueidentifier");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    b.Property<Guid?>("IdGender")
+                        .HasColumnType("uniqueidentifier");
 
-                    b.Property<int?>("IdGender")
-                        .HasColumnType("int");
+                    b.Property<Guid?>("IdStage")
+                        .HasColumnType("uniqueidentifier");
 
-                    b.Property<int?>("IdStage")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("IdStatusSchool")
-                        .HasColumnType("int");
+                    b.Property<Guid?>("IdStatusSchool")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
@@ -650,11 +632,9 @@ namespace SchoolSystem.Migrations
 
             modelBuilder.Entity("SchoolSystem.Data.StageClass", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Code")
                         .IsRequired()
@@ -685,11 +665,9 @@ namespace SchoolSystem.Migrations
 
             modelBuilder.Entity("SchoolSystem.Data.StatusSchool", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<bool?>("Condition")
                         .HasColumnType("bit")
@@ -707,12 +685,10 @@ namespace SchoolSystem.Migrations
 
             modelBuilder.Entity("SchoolSystem.Data.Student", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
+                        .HasColumnType("uniqueidentifier")
                         .HasColumnName("id");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<Guid?>("ApplicationUserId")
                         .HasColumnType("uniqueidentifier");
@@ -730,14 +706,14 @@ namespace SchoolSystem.Migrations
                         .IsUnicode(false)
                         .HasColumnType("varchar(50)");
 
-                    b.Property<int?>("IdClass")
-                        .HasColumnType("int");
+                    b.Property<Guid?>("IdClass")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<int?>("IdNumber")
                         .HasColumnType("int");
 
-                    b.Property<int?>("IdSchool")
-                        .HasColumnType("int");
+                    b.Property<Guid?>("IdSchool")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<bool>("IsDeletedClass")
                         .HasColumnType("bit");
@@ -778,27 +754,25 @@ namespace SchoolSystem.Migrations
 
             modelBuilder.Entity("SchoolSystem.Data.StudentLectuerTeacher", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
+                        .HasColumnType("uniqueidentifier")
                         .HasColumnName("id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    b.Property<Guid?>("IdClass")
+                        .HasColumnType("uniqueidentifier");
 
-                    b.Property<int?>("IdClass")
-                        .HasColumnType("int");
+                    b.Property<Guid?>("IdLectuer")
+                        .HasColumnType("uniqueidentifier");
 
-                    b.Property<int?>("IdLectuer")
-                        .HasColumnType("int");
+                    b.Property<Guid?>("IdSchool")
+                        .HasColumnType("uniqueidentifier");
 
-                    b.Property<int?>("IdSchool")
-                        .HasColumnType("int");
+                    b.Property<Guid?>("IdStudent")
+                        .HasColumnType("uniqueidentifier");
 
-                    b.Property<int?>("IdStudent")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("IdTeacher")
-                        .HasColumnType("int");
+                    b.Property<Guid?>("IdTeacher")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<bool>("IsDeletedClass")
                         .HasColumnType("bit");
@@ -842,12 +816,10 @@ namespace SchoolSystem.Migrations
 
             modelBuilder.Entity("SchoolSystem.Data.Teacher", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
+                        .HasColumnType("uniqueidentifier")
                         .HasColumnName("id");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<Guid?>("ApplicationUserId")
                         .HasColumnType("uniqueidentifier");
@@ -868,8 +840,8 @@ namespace SchoolSystem.Migrations
                     b.Property<int?>("IdNumber")
                         .HasColumnType("int");
 
-                    b.Property<int?>("IdSchool")
-                        .HasColumnType("int");
+                    b.Property<Guid?>("IdSchool")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
@@ -909,24 +881,22 @@ namespace SchoolSystem.Migrations
 
             modelBuilder.Entity("SchoolSystem.Data.TeacherLectuerClass", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
+                        .HasColumnType("uniqueidentifier")
                         .HasColumnName("id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    b.Property<Guid?>("IdClass")
+                        .HasColumnType("uniqueidentifier");
 
-                    b.Property<int?>("IdClass")
-                        .HasColumnType("int");
+                    b.Property<Guid?>("IdLectuer")
+                        .HasColumnType("uniqueidentifier");
 
-                    b.Property<int?>("IdLectuer")
-                        .HasColumnType("int");
+                    b.Property<Guid?>("IdSchool")
+                        .HasColumnType("uniqueidentifier");
 
-                    b.Property<int?>("IdSchool")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("IdTeacher")
-                        .HasColumnType("int");
+                    b.Property<Guid?>("IdTeacher")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<bool>("IsDeletedClass")
                         .HasColumnType("bit");
@@ -965,21 +935,19 @@ namespace SchoolSystem.Migrations
 
             modelBuilder.Entity("SchoolSystem.Data.TheClass", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
+                        .HasColumnType("uniqueidentifier")
                         .HasColumnName("id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    b.Property<Guid?>("IdBranch")
+                        .HasColumnType("uniqueidentifier");
 
-                    b.Property<int?>("IdBranch")
-                        .HasColumnType("int");
+                    b.Property<Guid?>("IdSchool")
+                        .HasColumnType("uniqueidentifier");
 
-                    b.Property<int?>("IdSchool")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("IdStage")
-                        .HasColumnType("int");
+                    b.Property<Guid?>("IdStage")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");

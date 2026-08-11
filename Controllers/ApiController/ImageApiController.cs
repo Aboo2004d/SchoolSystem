@@ -20,8 +20,8 @@ namespace SchoolSystem.Controllers
                 return BadRequest("Invalid file name.");
             }
             // تحقق من تسجيل دخول المستخدم (يمكنك تخصيصها بحسب مشروعك)
-            int Id = HttpContext.Session.GetInt32("Id")??0;
-            if (Id == 0)
+            Guid Id = HttpContext.Session.GetGuid("Id") ?? Guid.Empty;
+            if (Id == Guid.Empty)
             {
                 return RedirectToAction("Login", "Account");
             }

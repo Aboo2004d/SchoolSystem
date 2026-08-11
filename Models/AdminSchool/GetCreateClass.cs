@@ -11,7 +11,7 @@ namespace SchoolSystem.Models.AdminSchool
 
     public class BranchClass
     {
-        public string idBranch { get; set; }
+        public Guid idBranch { get; set; }
         public string nameBranch { get; set; }
 
 

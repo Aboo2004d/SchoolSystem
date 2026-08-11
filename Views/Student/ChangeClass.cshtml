@@ -1,6 +1,6 @@
 @{
     ViewData["Title"] = "تغيير الصف";
-    string encryptedId = ViewBag.IdStudent; // تأكد أنك مرسل الـ id مشفرًا من Controller
+    string studentId = ViewBag.IdStudent as string ?? string.Empty;
 }
 
 <div class="container mt-5 mb-5">
@@ -13,7 +13,7 @@
                 <div class="card-body">
                     <form id="changeClassForm">
                         <div id="validationSummary" class="text-danger mb-3"></div>
-                        <input type="hidden" id="IdStudent" name="IdStudent" value="@encryptedId" />
+                        <input type="hidden" id="IdStudent" name="IdStudent" value="@studentId" />
                         <input type="hidden" id="LastIdClass" name="LastIdClass" />
 
                         <div class="mb-3">
@@ -47,7 +47,7 @@
                 width: '100%'
             });
 
-            const idStudent = "@encryptedId";
+            const idStudent = "@studentId";
             const apiUrl = `/api/student/ChangeClass?idStudent=${idStudent}`;
             let lastIdClass = 0;
 

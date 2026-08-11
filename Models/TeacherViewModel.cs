@@ -1,9 +1,9 @@
-﻿namespace SchoolSystem.Models
+namespace SchoolSystem.Models
 {
 
     public partial class TeacherViewModel
     {
-        public string Id { get; set; }
+        public Guid Id { get; set; }
 
         public string? Name { get; set; }
 
@@ -20,7 +20,7 @@
         public string? Area { get; set; }
 
         public int? IdNumber { get; set; }
-        public int? IdSchool { get; set; }
+        public Guid? IdSchool { get; set; }
 
     }
 }

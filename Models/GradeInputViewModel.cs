@@ -2,10 +2,10 @@ namespace SchoolSystem.Models
 {
     public class GradeInputViewModel
     {
-        public string StudentId { get; set; }
-        public string TeacherId { get; set; }
-        public string LectuerId { get; set; }
-        public string ClassId { get; set; }
+        public Guid StudentId { get; set; }
+        public Guid TeacherId { get; set; }
+        public Guid LectuerId { get; set; }
+        public Guid ClassId { get; set; }
         public int? FirstMonth { get; set; }
         public int? Mid { get; set; }
         public int? SecondMonth { get; set; }

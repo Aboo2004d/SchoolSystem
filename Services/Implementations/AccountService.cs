@@ -52,7 +52,9 @@ public class AccountService : IAccountService
 
             switch (model.Role.Trim().ToLower())
             {
-                case "admin":
+                // The top-level Admin is provisioned only by the protected seeder; public registration
+                // may link an existing school-manager profile, never create/elevate an Admin.
+                case "manager":
                     Menegar? menegar =await _context.Menegars.FirstOrDefaultAsync(m => m.IdNumber == model.IdNumber );
                     if (menegar == null)
                     {

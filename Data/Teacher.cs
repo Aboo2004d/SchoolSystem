@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace SchoolSystem.Data;
@@ -8,7 +8,7 @@ public partial class Teacher
     public Guid? ApplicationUserId { get; set; }
     public virtual ApplicationUser? ApplicationUser { get; set; }
 
-    public int Id { get; set; }
+    public Guid Id { get; set; }
 
     public string? Name { get; set; }
 
@@ -16,7 +16,7 @@ public partial class Teacher
 
     public string? Email { get; set; }
 
-    public int? IdSchool { get; set; }
+    public Guid? IdSchool { get; set; }
 
     public DateOnly? TheDate { get; set; }
 

@@ -21,39 +21,39 @@ public sealed class SessionValidatorService : ISessionValidatorService
         _notyf = notyf;
     }
 
-    public async Task<(bool IsValid, int IdTeacher, int IdSchool, bool status)> ValidateTeacherSessionAsync(
-        HttpContext httpContext, int teacherId, string source)
+    public async Task<(bool IsValid, Guid IdTeacher, Guid IdSchool, bool status)> ValidateTeacherSessionAsync(
+        HttpContext httpContext, Guid teacherId, string source)
     {
         var user = await GetAuthorizedUserAsync(httpContext, RoleNames.Teacher, source);
-        if (user is null) return (false, 0, 0, false);
+        if (user is null) return (false, Guid.Empty, Guid.Empty, false);
         var profile = await _context.Teachers.AsNoTracking()
             .SingleOrDefaultAsync(x => x.ApplicationUserId == user.Id && !x.IsDeleted);
         if (profile is null || profile.Id != teacherId || !profile.IdSchool.HasValue)
-            return await RejectAsync(source, (false, 0, 0, true));
+            return await RejectAsync(source, (false, Guid.Empty, Guid.Empty, true));
         return (true, profile.Id, profile.IdSchool.Value, true);
     }
 
-    public async Task<(bool IsValid, int IdTeacher, int IdSchool, bool status)> ValidateStudentSessionAsync(
-        HttpContext httpContext, int studentId, string source)
+    public async Task<(bool IsValid, Guid IdTeacher, Guid IdSchool, bool status)> ValidateStudentSessionAsync(
+        HttpContext httpContext, Guid studentId, string source)
     {
         var user = await GetAuthorizedUserAsync(httpContext, RoleNames.Student, source);
-        if (user is null) return (false, 0, 0, false);
+        if (user is null) return (false, Guid.Empty, Guid.Empty, false);
         var profile = await _context.Students.AsNoTracking()
             .SingleOrDefaultAsync(x => x.ApplicationUserId == user.Id && !x.IsDeletedStudent);
         if (profile is null || profile.Id != studentId || !profile.IdSchool.HasValue)
-            return await RejectAsync(source, (false, 0, 0, true));
+            return await RejectAsync(source, (false, Guid.Empty, Guid.Empty, true));
         return (true, profile.Id, profile.IdSchool.Value, true);
     }
 
-    public async Task<(bool IsValid, int IdSchool, string Message)> ValidateAdminSessionAsync(
+    public async Task<(bool IsValid, Guid IdSchool, string Message)> ValidateManagerSessionAsync(
         HttpContext httpContext, string source)
     {
-        var user = await GetAuthorizedUserAsync(httpContext, RoleNames.Admin, source);
-        if (user is null) return (false, 0, "انتهت صلاحية تسجيل الدخول.");
+        var user = await GetAuthorizedUserAsync(httpContext, RoleNames.Manager, source);
+        if (user is null) return (false, Guid.Empty, "انتهت صلاحية تسجيل الدخول.");
         var profile = await _context.Menegars.AsNoTracking()
             .SingleOrDefaultAsync(x => x.ApplicationUserId == user.Id && !x.IsDeleted);
         if (profile is null || !profile.IdSchool.HasValue)
-            return await RejectAsync(source, (false, 0, "ملف المدير غير صالح."));
+            return await RejectAsync(source, (false, Guid.Empty, "ملف المدير غير صالح."));
         return (true, profile.IdSchool.Value, string.Empty);
     }
 

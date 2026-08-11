@@ -1,17 +1,17 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace SchoolSystem.Data;
 
 public partial class School
 {
-    public int Id { get; set; }
+    public Guid Id { get; set; }
 
     public string Name { get; set; } = null!;
 
-    public int? IdStatusSchool { get; set; }
+    public Guid? IdStatusSchool { get; set; }
 
-    public int? IdGender { get; set; }
+    public Guid? IdGender { get; set; }
 
     public bool IsDeleted { get; set; }
 
@@ -19,7 +19,7 @@ public partial class School
 
     public int? MaxClass { get; set; }
 
-    public int? IdStage { get; set; }
+    public Guid? IdStage { get; set; }
 
     public virtual ICollection<Attendance> Attendances { get; set; } = new List<Attendance>();
 

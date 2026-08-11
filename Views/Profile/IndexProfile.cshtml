@@ -1,7 +1,9 @@
 @model SchoolSystem.Models.ProfileViewModel
-@inject EncryptionHelper EncryptionHelper
 @{
     ViewData["Title"] = "معلوماتي";
+    var profileInitial = string.IsNullOrWhiteSpace(Model.Name)
+        ? string.Empty
+        : Model.Name.Trim().Substring(0, 1).ToUpperInvariant();
 }
 
 <div class="container mt-5">
@@ -13,22 +15,29 @@
             <div class="row justify-content-center">
                 <!-- صورة الملف الشخصي -->
                 <div class="profile-img-wrapper">
-                    <label for="photoInput">
+                    <label for="photoInput" class="profile-photo-label" title="تغيير الصورة الشخصية">
                         @if (!string.IsNullOrWhiteSpace(Model.PhotoPath) && Model.PhotoExists)
                         {
                             <img src="@Url.Action("GetImage", "Image", new { fileName = System.IO.Path.GetFileName(Model.PhotoPath) })"
                                 class="profile-img modern-shadow"
-                                alt="@Model.Name[0]" />
+                                alt="الصورة الشخصية لـ @Model.Name" />
                         }
                         else
                         {
                             <div class="profile-initial modern-shadow">
-                                @Model.Name?.FirstOrDefault().ToString().ToUpper()
+                                @if (!string.IsNullOrEmpty(profileInitial))
+                                {
+                                    <span>@profileInitial</span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-person-fill" aria-hidden="true"></i>
+                                }
                             </div>
                         }
 
                         <!-- زر تحميل الصورة -->
-                        <span class="upload-icon">
+                        <span class="upload-icon" aria-hidden="true">
                             <i class="bi bi-camera-fill"></i>
                         </span>
                     </label>
@@ -80,7 +89,7 @@
             </div>
         </div>
         <div class="card-footer d-flex justify-content-center gap-3 flex-wrap">
-            <a asp-action="Edit" class="btn btn-outline-primary" asp-route-id="@EncryptionHelper.EncryptInt(Model.Id)">تعديل المعلومات الشخصية</a>
+            <a asp-action="Edit" class="btn btn-outline-primary" asp-route-id="@Model.Id">تعديل المعلومات الشخصية</a>
             <a asp-controller="Account" asp-action="NewPassword" class="btn btn-outline-warning">تغيير كلمة المرور</a>
         </div>
 
@@ -119,7 +128,18 @@
             position: relative;
             width: 160px;
             height: 160px;
-            margin-bottom: 20px;
+            margin: 0 auto 28px;
+            flex: 0 0 160px;
+        }
+
+        .profile-photo-label {
+            position: relative;
+            display: block;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            border-radius: 50%;
+            cursor: pointer;
         }
 
         .profile-img, .profile-initial {
@@ -139,24 +159,37 @@
             color: white;
             font-size: 60px;
             font-weight: bold;
+            line-height: 1;
+        }
+
+        .profile-initial .bi-person-fill {
+            font-size: 72px;
         }
 
         .upload-icon {
             position: absolute;
-            bottom: 0;
-            right: 0;
+            bottom: 4px;
+            right: 4px;
+            width: 42px;
+            height: 42px;
             background-color: #ffffff;
+            border: 3px solid #ffffff;
             border-radius: 50%;
-            padding: 6px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            color: #000;
-            font-size: 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.25);
+            color: #0d6efd;
+            font-size: 19px;
+            line-height: 1;
             cursor: pointer;
-            transition: background-color 0.3s;
+            transition: transform 0.2s ease, background-color 0.2s ease;
         }
 
         .upload-icon:hover {
             background-color: #f0f0f0;
+            transform: scale(1.06);
         }
 
         input[type="file"] {
@@ -164,16 +197,23 @@
         }
         /* تحسين استجابة البطاقة على الشاشات الصغيرة */
         @@media (max-width: 576px) {
-            .profile-img-container {
+            .profile-img-wrapper {
                 width: 120px;
                 height: 120px;
+                flex-basis: 120px;
             }
-            .profile-img, .initial-circle {
-                width: 100%;
-                height: 100%;
-            }
-            .initial-circle {
+            .profile-initial {
                 font-size: 48px;
+            }
+            .profile-initial .bi-person-fill {
+                font-size: 54px;
+            }
+            .upload-icon {
+                width: 36px;
+                height: 36px;
+                right: 1px;
+                bottom: 1px;
+                font-size: 16px;
             }
             dl dt, dl dd {
                 font-size: 0.9rem;

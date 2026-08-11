@@ -3,7 +3,7 @@ namespace SchoolSystem.Models.AdminSchool
 
     public partial class PostEditStudentInSchool
     {
-        public string? idStudent { get; set; }
+        public Guid? idStudent { get; set; }
 
         public string? nameStudent { get; set; }
 
@@ -13,7 +13,7 @@ namespace SchoolSystem.Models.AdminSchool
 
         public DateOnly? theDate { get; set; }
 
-        public int? idClass { get; set; }
+        public Guid? idClass { get; set; }
 
         public string? city { get; set; }
 

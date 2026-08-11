@@ -1,9 +1,9 @@
 namespace SchoolSystem.Models{
     public class LectuerTeacherViewModel
     {
-        public string IdLectuer { get; set; }
-        public int IdTeacher { get; set; }
-        public string IdClass { get; set; }
+        public Guid IdLectuer { get; set; }
+        public Guid IdTeacher { get; set; }
+        public Guid IdClass { get; set; }
         
     }
 

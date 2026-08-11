@@ -24,33 +24,31 @@ namespace SchoolSystem.Controllers
         private readonly IErrorLoggerService _logger;
         private readonly SystemSchoolDbContext _context;
         private readonly ISessionValidatorService _sessionValidatorService;
-        private readonly EncryptionHelper _encryptionHelper;
 
 
-        public GradesApiController(SystemSchoolDbContext context, INotyfService notyf, EncryptionHelper encryptionHelper, IErrorLoggerService logger, ISessionValidatorService sessionValidatorService)
+        public GradesApiController(SystemSchoolDbContext context, INotyfService notyf, IErrorLoggerService logger, ISessionValidatorService sessionValidatorService)
         {
             _logger = logger;
             _context = context;
             _notyf = notyf;
             _sessionValidatorService = sessionValidatorService;
-            _encryptionHelper = encryptionHelper;
         }
         // GET: Grades
         [HttpGet]
         [AuthorizeRoles("Teacher")]
         public async Task<IActionResult> DataGrades(
-            string? teacherId,
+            Guid? teacherId,
             [FromQuery] int draw,
             [FromQuery] int start,
             [FromQuery] int length = 10,
             [FromQuery(Name = "search[value]")] string searchValue = "")
         {
 
-            int Id;
+            Guid Id;
 
             try
             {
-                Id = _encryptionHelper.DecryptInt(teacherId??"0");
+                Id = teacherId ?? Guid.Empty;
 
             }
             catch (Exception ex)
@@ -154,13 +152,13 @@ namespace SchoolSystem.Controllers
                 var students = data.
                 Select(s => new GradesViewModel
                 {
-                    Id = _encryptionHelper.EncryptInt(s.Id),
+                    Id = s.Id,
                     ClassroomName = s.ClassroomName,
                     StudentName = s.StudentName,
-                    IdClass = _encryptionHelper.EncryptInt(s.idClass??0),
-                    IdStudent = _encryptionHelper.EncryptInt(s.idStudent??0),
+                    IdClass = s.idClass ?? Guid.Empty,
+                    IdStudent = s.idStudent ?? Guid.Empty,
                     LectuerName = s.LectuerName,
-                    IdTeacher = _encryptionHelper.EncryptInt(s.idTeacher??0),
+                    IdTeacher = s.idTeacher ?? Guid.Empty,
                     FirstMonth = s.f_m,
                     SecondMonth = s.s_m,
                     Mid = s.mid,
@@ -191,9 +189,9 @@ namespace SchoolSystem.Controllers
 
         
         [HttpGet]
-        [AuthorizeRoles("Student","admin")]
+        [AuthorizeRoles(RoleNames.Student, RoleNames.Admin, RoleNames.Manager)]
         public async Task<IActionResult> DataGradesStudent(
-            int studentid,
+            Guid studentid,
             [FromQuery] int draw,
             [FromQuery] int start,
             [FromQuery] int length = 10,
@@ -280,13 +278,13 @@ namespace SchoolSystem.Controllers
                 var students = data.
                 Select(s => new GradesViewModel
                 {
-                    Id = _encryptionHelper.EncryptInt(s.Id),
+                    Id = s.Id,
                     ClassroomName = s.ClassroomName,
                     StudentName = s.StudentName,
-                    IdClass = _encryptionHelper.EncryptInt(s.idClass??0),
-                    IdStudent = _encryptionHelper.EncryptInt(s.idStudent??0),
+                    IdClass = s.idClass ?? Guid.Empty,
+                    IdStudent = s.idStudent ?? Guid.Empty,
                     LectuerName = s.LectuerName,
-                    IdTeacher = _encryptionHelper.EncryptInt(s.idTeacher??0),
+                    IdTeacher = s.idTeacher ?? Guid.Empty,
                     FirstMonth = s.f_m,
                     SecondMonth = s.s_m,
                     Mid = s.mid,
@@ -314,7 +312,7 @@ namespace SchoolSystem.Controllers
             }
         }
 
-        private bool GradeExists(int id)
+        private bool GradeExists(Guid id)
         {
             return _context.Grades.Any(e => e.GradesId == id);
         }

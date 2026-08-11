@@ -38,7 +38,7 @@ namespace SchoolSystem.Controllers
         [HttpGet]
         [AuthorizeRoles("Teacher")]
         public async Task<JsonResult> DataAttendance(
-            int teacherId,
+            Guid teacherId,
             [FromQuery] int draw,
             [FromQuery] int start,
             [FromQuery] int length = 10,
@@ -155,9 +155,9 @@ namespace SchoolSystem.Controllers
 
         [HttpGet]
         [AuthorizeRoles("Teacher")]
-        public async Task<IActionResult> GetLectuerForTeacher(int teacherId)
+        public async Task<IActionResult> GetLectuerForTeacher(Guid teacherId)
         {
-            if(teacherId != HttpContext.Session.GetInt32("Id"))
+            if(teacherId != HttpContext.Session.GetGuid("Id"))
             {
                 _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة");
                 await _logger.LogAsync(new Exception("التلاعب بالبيانات المرسلة"), "Attendance/GetLectuerForTeacher");
@@ -171,7 +171,7 @@ namespace SchoolSystem.Controllers
                 .Where(ts => ts.IdTeacher == teacherId && ts.IdLectuer != lectuer.Result)
                 .Include(ts => ts.IdLectuerNavigation)
                 .Select(ts => new {
-                    id = ts.IdLectuerNavigation!=null? ts.IdLectuerNavigation.Id:0,
+                    id = ts.IdLectuerNavigation != null ? ts.IdLectuerNavigation.Id : Guid.Empty,
                     name = ts.IdLectuerNavigation!=null? ts.IdLectuerNavigation.Name:"غير معرف"
                 }).ToListAsync();
 
@@ -180,9 +180,9 @@ namespace SchoolSystem.Controllers
 
         [HttpGet]
         [AuthorizeRoles("Teacher")]
-        public async Task<IActionResult> GetClassForSubject(int teacherId, int subjectId)
+        public async Task<IActionResult> GetClassForSubject(Guid teacherId, Guid subjectId)
         {
-            if (teacherId != HttpContext.Session.GetInt32("Id"))
+            if (teacherId != HttpContext.Session.GetGuid("Id"))
             {
                 _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة");
                 await _logger.LogAsync(new Exception("التلاعب بالبيانات المرسلة"), "Attendance/GetClassForSubject");
@@ -198,7 +198,7 @@ namespace SchoolSystem.Controllers
                 .Include(tg => tg.IdClassNavigation)
                 .Select(tg => new
                 {
-                    id = tg.IdClassNavigation != null ? tg.IdClassNavigation.Id : 0,
+                    id = tg.IdClassNavigation != null ? tg.IdClassNavigation.Id : Guid.Empty,
                     name = tg.IdClassNavigation != null ? tg.IdClassNavigation.Name : "غير معرف"
                 }).ToListAsync();
 
@@ -212,10 +212,10 @@ namespace SchoolSystem.Controllers
             return Json(grades);
         }
 
-        [AuthorizeRoles("admin", "Student")]
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager, RoleNames.Student)]
         [HttpGet]
         public async Task<JsonResult> AttendancesStudentData(
-            int studentid,
+            Guid studentid,
             [FromQuery] int draw,
             [FromQuery] int start,
             [FromQuery] int length = 10,
@@ -334,7 +334,7 @@ namespace SchoolSystem.Controllers
         }
 
 
-        private bool AttendanceExists(int id)
+        private bool AttendanceExists(Guid id)
         {
             return _context.Attendances.Any(e => e.Id == id);
         }

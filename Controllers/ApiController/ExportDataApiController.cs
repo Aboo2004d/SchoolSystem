@@ -11,23 +11,21 @@ public class ExportDataApiController : Controller
     private readonly SystemSchoolDbContext _context;
     private readonly INotyfService _notyf;
     private readonly IErrorLoggerService _logger;
-    private readonly EncryptionHelper _encryptionHelper;
 
-    public ExportDataApiController(SystemSchoolDbContext context, INotyfService notyf, IErrorLoggerService logger, EncryptionHelper encryptionHelper)
+    public ExportDataApiController(SystemSchoolDbContext context, INotyfService notyf, IErrorLoggerService logger)
     {
         _context = context;
         _notyf = notyf;
         _logger = logger;
-        _encryptionHelper = encryptionHelper;
     }
     [HttpGet]
-    [AuthorizeRoles("admin")]
+    [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
     public IActionResult ExportAllStudentInSchoolToExcel()
     {
         try
         {
             ExcelPackage.License.SetNonCommercialOrganization("وزارة التربية والتعليم العالي فلسطين");
-            var students = _context.Students.Where(s => s.IdSchool == HttpContext.Session.GetInt32("School"))
+            var students = _context.Students.Where(s => s.IdSchool == HttpContext.Session.GetGuid("School"))
             .Include(s => s.IdClassNavigation).Include(s => s.Grades)
             .Include(s => s.Attendances).Include(s => s.IdSchoolNavigation).ToList(); // جلب بيانات الطلاب من قاعدة البيانات
 
@@ -88,13 +86,13 @@ public class ExportDataApiController : Controller
     }
     
     [HttpGet]
-    [AuthorizeRoles("admin")]
+    [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
     public IActionResult ExportAllTeacherInSchoolToExcel()
     {
         try
         {
             ExcelPackage.License.SetNonCommercialOrganization("وزارة التربية والتعليم العالي فلسطين");
-            var teachers = _context.Teachers.Where(s => s.IdSchool == HttpContext.Session.GetInt32("School"))
+            var teachers = _context.Teachers.Where(s => s.IdSchool == HttpContext.Session.GetGuid("School"))
             .Include(s => s.IdSchoolNavigation).ToList(); // جلب بيانات المعلمين من قاعدة البيانات
 
             using var package = new ExcelPackage();
@@ -149,13 +147,13 @@ public class ExportDataApiController : Controller
 
     [HttpGet]
     [AuthorizeRoles("Teacher")]
-    public async Task<IActionResult> ExportAllStudentInTeacherToExcel(string? idTeacher)
+    public async Task<IActionResult> ExportAllStudentInTeacherToExcel(Guid? idTeacher)
     {
-        int Id;
+        Guid Id;
 
             try
             {
-                Id = _encryptionHelper.DecryptInt(idTeacher??"0");
+                Id = idTeacher ?? Guid.Empty;
 
             }
             catch (Exception ex)
@@ -169,7 +167,7 @@ public class ExportDataApiController : Controller
         {
             ExcelPackage.License.SetNonCommercialOrganization("وزارة التربية والتعليم العالي فلسطين");
             var studentsInTeacher = _context.StudentLectuerTeachers
-            .Where(s => s.IdSchool == HttpContext.Session.GetInt32("School") && s.IdTeacher == Id)
+            .Where(s => s.IdSchool == HttpContext.Session.GetGuid("School") && s.IdTeacher == Id)
             .Include(s => s.IdLectuerNavigation)
             .Include(s => s.IdStudentNavigation).Include(s => s.IdTeacherNavigation).ToList(); // جلب بيانات المعلمين من قاعدة البيانات
 
@@ -222,13 +220,13 @@ public class ExportDataApiController : Controller
     
     [HttpGet]
     [AuthorizeRoles("Teacher")]
-    public IActionResult ExportGradesStudentsToExcel(int idTeacher)
+    public IActionResult ExportGradesStudentsToExcel(Guid idTeacher)
     {
         try
         {
             ExcelPackage.License.SetNonCommercialOrganization("وزارة التربية والتعليم العالي فلسطين");
             var studentsGrades = _context.Grades
-            .Where(s => s.IdSchool == HttpContext.Session.GetInt32("School") && s.IdTeacher == idTeacher)
+            .Where(s => s.IdSchool == HttpContext.Session.GetGuid("School") && s.IdTeacher == idTeacher)
             .Include(s => s.IdLectuerNavigation)
             .Include(s => s.IdStudentNavigation).Include(s => s.IdTeacherNavigation).ToList(); // جلب بيانات المعلمين من قاعدة البيانات
 

@@ -1,9 +1,9 @@
 namespace SchoolSystem.Models{
     public class ChangeClassViewModel
     {
-        public string? IdStudent { get; set; }
-        public int? IdClass { get; set; }
-        public string? LastIdClass { get; set; }
+        public Guid? IdStudent { get; set; }
+        public Guid? IdClass { get; set; }
+        public Guid? LastIdClass { get; set; }
         
     }
 

@@ -23,16 +23,14 @@ namespace SchoolSystem.Controllers
         private readonly INotyfService _notyf;
         private readonly IErrorLoggerService _logger;
         private readonly ISessionValidatorService _sessionValidatorService;
-        private readonly EncryptionHelper _encryptionHelper;
 
 
-        public StudentController(SystemSchoolDbContext context, EncryptionHelper encryptionHelper, ISessionValidatorService sessionValidatorService, INotyfService notyf, IErrorLoggerService logger)
+        public StudentController(SystemSchoolDbContext context, ISessionValidatorService sessionValidatorService, INotyfService notyf, IErrorLoggerService logger)
         {
             _logger = logger;
             _context = context;
             _notyf = notyf;
             _sessionValidatorService = sessionValidatorService;
-            _encryptionHelper = encryptionHelper;
             
         }
 
@@ -42,7 +40,7 @@ namespace SchoolSystem.Controllers
         {
             // التحقق من صلاحية المستخدم و التلاعب بالبيانات
             var (IsValid, IdStudent, IdSchool,status) = await _sessionValidatorService
-            .ValidateStudentSessionAsync(HttpContext, HttpContext.Session.GetInt32("Id")??-1, "Attendance/DataAttendance");
+            .ValidateStudentSessionAsync(HttpContext, HttpContext.Session.GetGuid("Id")?? Guid.Empty, "Attendance/DataAttendance");
             if (!IsValid)
             {
                 _notyf.Error("انتهت الجلسة");
@@ -55,57 +53,68 @@ namespace SchoolSystem.Controllers
         }
 
         // GET: Student/Details/5
-        [AuthorizeRoles("admin")]
-        public IActionResult Details(string? id)
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
+        public IActionResult Details(Guid? id)
         {
             if (id == null)
             {
                 return NotFound();
             }
 
-            ViewBag.Id = id;
+            ViewBag.Id = id ?? Guid.Empty;
 
             return View();
         }
 
         // GET: Student/Create
-        [AuthorizeRoles("admin")]
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
         public IActionResult Create()
         {
-            ViewBag.Class = new SelectList(_context.TheClasses.Where(c => c.IdSchool == HttpContext.Session.GetInt32("School")), "Id", "Name");
+            ViewBag.Class = new SelectList(_context.TheClasses.Where(c => c.IdSchool == HttpContext.Session.GetGuid("School")), "Id", "Name");
             return View();
         }
 
         // GET: Student/Edit/5
-        [AuthorizeRoles("admin")]
-        public async Task<ActionResult> Edit(string? id)
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
+        public async Task<ActionResult> Edit(Guid? id)
         {
             if (id == null)
             {
                 await _logger.LogAsync(new Exception("التلاعب بالبيانات الطالب المرسلة"), "Student/Details");
                 return NotFound();
             }
-            ViewBag.Id = id;
+            ViewBag.Id = id ?? Guid.Empty;
             return View();
             
         }
         
         [HttpGet]
-        [AuthorizeRoles("admin")]
-        public async Task<IActionResult> ChangeClass(string? idStudent)
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
+        public async Task<IActionResult> ChangeClass(Guid? idStudent)
         {
             if (idStudent == null)
             {
                 await _logger.LogAsync(new Exception("ارسال معرف فارغ"), "StudentApi/ChangeClass");
                 return NotFound();
             }
-            ViewBag.IdStudent = idStudent;
+
+            var (isValid, school, _) = await _sessionValidatorService
+                .ValidateManagerSessionAsync(HttpContext, "Student/ChangeClass");
+            if (!isValid)
+                return Forbid();
+
+            var studentExists = await _context.Students.AsNoTracking().AnyAsync(student =>
+                student.Id == idStudent.Value && student.IdSchool == school && !student.IsDeletedStudent);
+            if (!studentExists)
+                return NotFound();
+
+            ViewBag.IdStudent = idStudent.Value.ToString("D");
 
             return View();
         }
 
         /*[HttpPost]
-        [AuthorizeRoles("admin")]
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ChangeClass(ManagerMenegarStudentInClassViewModel student)
         {
@@ -115,10 +124,10 @@ namespace SchoolSystem.Controllers
                 return RedirectToAction("ManagerMenegarClassView", "Menegar");
             }
 
-            int IdStudent;
+            Guid IdStudent;
             try
             {
-                IdStudent = _encryptionHelper.DecryptInt(student.IdStudent);
+                IdStudent = student.IdStudent;
             }
             catch (Exception ex)
             {
@@ -169,7 +178,7 @@ namespace SchoolSystem.Controllers
 
                 await _context.SaveChangesAsync();
                 _notyf.Success("تمت عملية التحديث بنجاح");
-                return RedirectToAction("ManagerMenegarStudentInClassView", "Menegar", new { idClass = student.LastIdClass ?? "0" });
+                return RedirectToAction("ManagerMenegarStudentInClassView", "Menegar", new { idClass = student.LastIdClass ?? Guid.Empty });
 
 
             }
@@ -177,13 +186,13 @@ namespace SchoolSystem.Controllers
             {
                 await _logger.LogAsync(ex, "Student/ChangeClass");
                 _notyf.Error("حدث خطأ غير متوقع يرجى المحاولة لاحقا.");
-                return RedirectToAction("ManagerMenegarStudentInClassView", "Menegar", new { idClass = student.LastIdClass ?? "0" });
+                return RedirectToAction("ManagerMenegarStudentInClassView", "Menegar", new { idClass = student.LastIdClass ?? Guid.Empty });
             }
 
         }
        */ // GET: Student/Delete/5
-        /*[AuthorizeRoles("admin")]
-        public async Task<IActionResult> Delete(string? id)
+        /*[AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
+        public async Task<IActionResult> Delete(Guid? id)
         {
             if (id == null)
             {
@@ -192,11 +201,11 @@ namespace SchoolSystem.Controllers
                 return RedirectToAction("ManagerMenegarStudentView","Menegar");
             }
 
-            int Id;
+            Guid Id;
 
             try
             {
-                Id = _encryptionHelper.DecryptInt(id);
+                Id = id ?? Guid.Empty;
 
             }
             catch (Exception ex)
@@ -222,9 +231,9 @@ namespace SchoolSystem.Controllers
         
         
         [AuthorizeRoles("Student")]
-        public JsonResult GetStudentCountPerGrades(int? idStudent)
+        public JsonResult GetStudentCountPerGrades(Guid? idStudent)
         {
-            var schoolId = HttpContext.Session.GetInt32("School");
+            var schoolId = HttpContext.Session.GetGuid("School");
 
             var data = _context.Grades
                 .Where(g => g.IdSchool == schoolId
@@ -243,9 +252,9 @@ namespace SchoolSystem.Controllers
         }
 
         [AuthorizeRoles("Student")]
-        public JsonResult GetStudentCountPerAttendance(int? idStudent)
+        public JsonResult GetStudentCountPerAttendance(Guid? idStudent)
         {
-            var schoolId = HttpContext.Session.GetInt32("School");
+            var schoolId = HttpContext.Session.GetGuid("School");
 
             var studentAttendances = _context.Attendances
                 .Where(g => g.IdSchool == schoolId
@@ -284,13 +293,13 @@ namespace SchoolSystem.Controllers
         }
 
         // شهادة قيد لطالب
-        [AuthorizeRoles("admin","Student")]
-        public IActionResult DownloadStudentCertificate(int? idStudent)
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager, RoleNames.Student)]
+        public IActionResult DownloadStudentCertificate(Guid? idStudent)
         {
             try
             {
                 Student? student = _context.Students
-                .Where(s => s.Id == idStudent && s.IsDeletedStudent == false && s.IdSchool == HttpContext.Session.GetInt32("School"))
+                .Where(s => s.Id == idStudent && s.IsDeletedStudent == false && s.IdSchool == HttpContext.Session.GetGuid("School"))
                 .Include(s => s.IdClassNavigation).Include(s => s.IdSchoolNavigation).SingleOrDefault();
                 if (student == null)
                 {
@@ -301,7 +310,7 @@ namespace SchoolSystem.Controllers
                 Menegar? menegar = _context.Menegars.SingleOrDefault(m => m.IdSchool == student.IdSchool);
 
                 var document = new StudentEnrollmentCertificate(
-                    student?.Name??"غير معرف", student?.IdNumber??0,
+                    student?.Name??"غير معرف", student?.IdNumber ?? 0,
                     student?.IdClassNavigation?.Name??"غير معرف",
                     student?.IdSchoolNavigation?.Name??"غير معرف",
                     menegar?.Name??"لم يتم اعتماده بعد.");
@@ -322,7 +331,7 @@ namespace SchoolSystem.Controllers
             }
         }
 
-        private bool StudentExists(int id)
+        private bool StudentExists(Guid id)
         {
             return _context.Students.Any(e => e.Id == id);
         }

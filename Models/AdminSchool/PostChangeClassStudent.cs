@@ -2,8 +2,8 @@ namespace SchoolSystem.Models.AdminSchool
 {
     public class PostChangeClassStudent
     {
-        public string? idStudent { get; set; }
-        public int? idClass { get; set; }
+        public Guid? idStudent { get; set; }
+        public Guid? idClass { get; set; }
 
     }
 }

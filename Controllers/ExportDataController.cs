@@ -13,21 +13,19 @@ public class ExportDataController : Controller
     private readonly SystemSchoolDbContext _context;
     private readonly INotyfService _notyf;
     private readonly IErrorLoggerService _logger;
-    private readonly EncryptionHelper _encryptionHelper;
 
-    public ExportDataController(SystemSchoolDbContext context, INotyfService notyf, IErrorLoggerService logger, EncryptionHelper encryptionHelper)
+    public ExportDataController(SystemSchoolDbContext context, INotyfService notyf, IErrorLoggerService logger)
     {
         _context = context;
         _notyf = notyf;
         _logger = logger;
-        _encryptionHelper = encryptionHelper;
     }
 
-    [Authorize(Roles = "admin")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager)]
     public async Task<IActionResult> ExportAllStudentInSchoolToExcel()
     {
-        var school = HttpContext.Session.GetInt32("School") ?? 0;
-        if (school == 0)
+        var school = HttpContext.Session.GetGuid("School") ?? Guid.Empty;
+        if (school == Guid.Empty)
         {
             await _logger.LogAsync(new Exception("انتهت صلاحية الدخول"), "StudentApi/Create");
             HttpContext.Session.Clear(); // مسح الجلسة
@@ -103,7 +101,7 @@ public class ExportDataController : Controller
         try
         {
             ExcelPackage.License.SetNonCommercialOrganization("وزارة التربية والتعليم العالي فلسطين");
-            var teachers = _context.Teachers.Where(s => s.IdSchool == HttpContext.Session.GetInt32("School"))
+            var teachers = _context.Teachers.Where(s => s.IdSchool == HttpContext.Session.GetGuid("School"))
             .Include(s => s.IdSchoolNavigation).ToList(); // جلب بيانات المعلمين من قاعدة البيانات
 
             using var package = new ExcelPackage();
@@ -156,13 +154,13 @@ public class ExportDataController : Controller
         }
     }
     
-    public async Task<IActionResult> ExportAllStudentInTeacherToExcel(string? idTeacher)
+    public async Task<IActionResult> ExportAllStudentInTeacherToExcel(Guid? idTeacher)
     {
-        int Id;
+        Guid Id;
 
             try
             {
-                Id = _encryptionHelper.DecryptInt(idTeacher??"0");
+                Id = idTeacher ?? Guid.Empty;
 
             }
             catch (Exception ex)
@@ -176,7 +174,7 @@ public class ExportDataController : Controller
         {
             ExcelPackage.License.SetNonCommercialOrganization("وزارة التربية والتعليم العالي فلسطين");
             var studentsInTeacher = _context.StudentLectuerTeachers
-            .Where(s => s.IdSchool == HttpContext.Session.GetInt32("School") && s.IdTeacher == Id)
+            .Where(s => s.IdSchool == HttpContext.Session.GetGuid("School") && s.IdTeacher == Id)
             .Include(s => s.IdLectuerNavigation)
             .Include(s => s.IdStudentNavigation).Include(s => s.IdTeacherNavigation).ToList(); // جلب بيانات المعلمين من قاعدة البيانات
 
@@ -227,13 +225,13 @@ public class ExportDataController : Controller
         }
     }
     
-    public IActionResult ExportGradesStudentsToExcel(int idTeacher)
+    public IActionResult ExportGradesStudentsToExcel(Guid idTeacher)
     {
         try
         {
             ExcelPackage.License.SetNonCommercialOrganization("وزارة التربية والتعليم العالي فلسطين");
             var studentsGrades = _context.Grades
-            .Where(s => s.IdSchool == HttpContext.Session.GetInt32("School") && s.IdTeacher == idTeacher)
+            .Where(s => s.IdSchool == HttpContext.Session.GetGuid("School") && s.IdTeacher == idTeacher)
             .Include(s => s.IdLectuerNavigation)
             .Include(s => s.IdStudentNavigation).Include(s => s.IdTeacherNavigation).ToList(); // جلب بيانات المعلمين من قاعدة البيانات
 

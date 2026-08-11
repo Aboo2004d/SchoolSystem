@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace SchoolSystem.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialIdentity : Migration
+    public partial class InitialGuidIdentity : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -55,8 +55,7 @@ namespace SchoolSystem.Migrations
                 name: "Branch",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     BranchName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     BranchCode = table.Column<string>(type: "char(1)", unicode: false, fixedLength: true, maxLength: 1, nullable: false)
                 },
@@ -69,8 +68,7 @@ namespace SchoolSystem.Migrations
                 name: "ErrorLogs",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     Message = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     StackTrace = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     Source = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: true),
@@ -85,8 +83,7 @@ namespace SchoolSystem.Migrations
                 name: "Gender",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     TheType = table.Column<string>(type: "nvarchar(7)", maxLength: 7, nullable: false)
                 },
                 constraints: table =>
@@ -98,8 +95,7 @@ namespace SchoolSystem.Migrations
                 name: "ProfileImage",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     UserName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
                     Email = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
                     ProfileImagePath = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
@@ -114,8 +110,7 @@ namespace SchoolSystem.Migrations
                 name: "StageClass",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     Code = table.Column<string>(type: "char(1)", unicode: false, fixedLength: true, maxLength: 1, nullable: false),
                     MinClass = table.Column<int>(type: "int", nullable: false),
                     MaxClass = table.Column<int>(type: "int", nullable: false),
@@ -130,8 +125,7 @@ namespace SchoolSystem.Migrations
                 name: "StatusSchool",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     condition = table.Column<bool>(type: "bit", nullable: true),
                     TheType = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true)
                 },
@@ -250,15 +244,14 @@ namespace SchoolSystem.Migrations
                 name: "School",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     Name = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
-                    IdStatusSchool = table.Column<int>(type: "int", nullable: true),
-                    IdGender = table.Column<int>(type: "int", nullable: true),
+                    IdStatusSchool = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    IdGender = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     IsDeleted = table.Column<bool>(type: "bit", nullable: false),
                     MinClass = table.Column<int>(type: "int", nullable: true),
                     MaxClass = table.Column<int>(type: "int", nullable: true),
-                    IdStage = table.Column<int>(type: "int", nullable: true)
+                    IdStage = table.Column<Guid>(type: "uniqueidentifier", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -284,10 +277,9 @@ namespace SchoolSystem.Migrations
                 name: "Lectuer",
                 columns: table => new
                 {
-                    id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                    id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     Name = table.Column<string>(type: "varchar(50)", unicode: false, maxLength: 50, nullable: false),
-                    IdSchool = table.Column<int>(type: "int", nullable: true),
+                    IdSchool = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     IsDeleted = table.Column<bool>(type: "bit", nullable: false),
                     IsDeletedSchool = table.Column<bool>(type: "bit", nullable: false)
                 },
@@ -305,13 +297,12 @@ namespace SchoolSystem.Migrations
                 name: "Menegar",
                 columns: table => new
                 {
-                    id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                    id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     ApplicationUserId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     Name = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
                     Phone = table.Column<string>(type: "varchar(50)", unicode: false, maxLength: 50, nullable: true),
                     Email = table.Column<string>(type: "varchar(50)", unicode: false, maxLength: 50, nullable: true),
-                    IdSchool = table.Column<int>(type: "int", nullable: true),
+                    IdSchool = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     TheDate = table.Column<DateOnly>(type: "date", nullable: true),
                     City = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
                     Area = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
@@ -339,13 +330,12 @@ namespace SchoolSystem.Migrations
                 name: "Teacher",
                 columns: table => new
                 {
-                    id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                    id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     ApplicationUserId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     Name = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
                     Phone = table.Column<string>(type: "varchar(50)", unicode: false, maxLength: 50, nullable: true),
                     Email = table.Column<string>(type: "varchar(50)", unicode: false, maxLength: 50, nullable: true),
-                    IdSchool = table.Column<int>(type: "int", nullable: true),
+                    IdSchool = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     TheDate = table.Column<DateOnly>(type: "date", nullable: true),
                     City = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
                     Area = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
@@ -373,16 +363,15 @@ namespace SchoolSystem.Migrations
                 name: "TheClass",
                 columns: table => new
                 {
-                    id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                    id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     Name = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
-                    IdSchool = table.Column<int>(type: "int", nullable: true),
+                    IdSchool = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     IsDeleted = table.Column<bool>(type: "bit", nullable: false),
                     IsDeletedSchool = table.Column<bool>(type: "bit", nullable: false),
-                    IdStage = table.Column<int>(type: "int", nullable: true),
+                    IdStage = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     NumberClass = table.Column<int>(type: "int", nullable: true),
                     Section = table.Column<int>(type: "int", nullable: true),
-                    IdBranch = table.Column<int>(type: "int", nullable: true)
+                    IdBranch = table.Column<Guid>(type: "uniqueidentifier", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -408,15 +397,14 @@ namespace SchoolSystem.Migrations
                 name: "Student",
                 columns: table => new
                 {
-                    id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                    id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     ApplicationUserId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     Name = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
                     Phone = table.Column<string>(type: "varchar(50)", unicode: false, maxLength: 50, nullable: true),
                     Email = table.Column<string>(type: "varchar(50)", unicode: false, maxLength: 50, nullable: true),
-                    IdSchool = table.Column<int>(type: "int", nullable: true),
+                    IdSchool = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     TheDate = table.Column<DateOnly>(type: "date", nullable: true),
-                    IdClass = table.Column<int>(type: "int", nullable: true),
+                    IdClass = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     City = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
                     Area = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
                     IdNumber = table.Column<int>(type: "int", nullable: true),
@@ -449,12 +437,11 @@ namespace SchoolSystem.Migrations
                 name: "TeacherLectuerClass",
                 columns: table => new
                 {
-                    id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    IdTeacher = table.Column<int>(type: "int", nullable: true),
-                    IdLectuer = table.Column<int>(type: "int", nullable: true),
-                    IdSchool = table.Column<int>(type: "int", nullable: true),
-                    IdClass = table.Column<int>(type: "int", nullable: true),
+                    id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    IdTeacher = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    IdLectuer = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    IdSchool = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    IdClass = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     IsDeletedTeacherLectuerClass = table.Column<bool>(type: "bit", nullable: false),
                     IsDeletedClass = table.Column<bool>(type: "bit", nullable: false),
                     IsDeletedLectuer = table.Column<bool>(type: "bit", nullable: false),
@@ -492,16 +479,15 @@ namespace SchoolSystem.Migrations
                 name: "Attendance",
                 columns: table => new
                 {
-                    id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                    id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     AttendanceStatus = table.Column<string>(type: "char(1)", unicode: false, fixedLength: true, maxLength: 1, nullable: false, defaultValue: "0"),
                     DateAndTime = table.Column<DateOnly>(type: "date", nullable: true),
                     Excuse = table.Column<string>(type: "text", nullable: true),
-                    IdTeacher = table.Column<int>(type: "int", nullable: true),
-                    IdLectuer = table.Column<int>(type: "int", nullable: true),
-                    IdStudent = table.Column<int>(type: "int", nullable: true),
-                    IdClass = table.Column<int>(type: "int", nullable: true),
-                    IdSchool = table.Column<int>(type: "int", nullable: true),
+                    IdTeacher = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    IdLectuer = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    IdStudent = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    IdClass = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    IdSchool = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     IsDeletedAttendance = table.Column<bool>(type: "bit", nullable: false),
                     IsDeletedClass = table.Column<bool>(type: "bit", nullable: false),
                     IsDeletedTeacher = table.Column<bool>(type: "bit", nullable: false),
@@ -545,19 +531,18 @@ namespace SchoolSystem.Migrations
                 name: "Grades",
                 columns: table => new
                 {
-                    GradesID = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                    GradesID = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     FirstMonth = table.Column<int>(type: "int", nullable: true, defaultValue: 0),
                     Mid = table.Column<int>(type: "int", nullable: true, defaultValue: 0),
                     SecondMonth = table.Column<int>(type: "int", nullable: true, defaultValue: 0),
                     Activity = table.Column<int>(type: "int", nullable: true, defaultValue: 0),
                     Final = table.Column<int>(type: "int", nullable: true, defaultValue: 0),
-                    IdStudent = table.Column<int>(type: "int", nullable: true),
-                    IdTeacher = table.Column<int>(type: "int", nullable: true),
-                    IdLectuer = table.Column<int>(type: "int", nullable: true),
-                    IdClass = table.Column<int>(type: "int", nullable: true),
+                    IdStudent = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    IdTeacher = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    IdLectuer = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    IdClass = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     Total = table.Column<int>(type: "int", nullable: true, computedColumnSql: "(((([FirstMonth]+[Mid])+[SecondMonth])+[Activity])+[Final])", stored: false),
-                    IdSchool = table.Column<int>(type: "int", nullable: true),
+                    IdSchool = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     IsDeletedGrades = table.Column<bool>(type: "bit", nullable: false),
                     IsDeletedClass = table.Column<bool>(type: "bit", nullable: false),
                     IsDeletedLectuer = table.Column<bool>(type: "bit", nullable: false),
@@ -601,13 +586,12 @@ namespace SchoolSystem.Migrations
                 name: "StudentLectuerTeacher",
                 columns: table => new
                 {
-                    id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    IdStudent = table.Column<int>(type: "int", nullable: true),
-                    IdLectuer = table.Column<int>(type: "int", nullable: true),
-                    IdSchool = table.Column<int>(type: "int", nullable: true),
-                    IdClass = table.Column<int>(type: "int", nullable: true),
-                    IdTeacher = table.Column<int>(type: "int", nullable: true),
+                    id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    IdStudent = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    IdLectuer = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    IdSchool = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    IdClass = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    IdTeacher = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     IsDeletedStudentLectuerTeacher = table.Column<bool>(type: "bit", nullable: false),
                     IsDeletedClass = table.Column<bool>(type: "bit", nullable: false),
                     IsDeletedStudent = table.Column<bool>(type: "bit", nullable: false),

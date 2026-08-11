@@ -7,8 +7,8 @@ namespace SchoolSystem.Models{
         public string Role { get; set; }
         [Required]
         public string UserName { get; set; }
-        public int IdUser { get; set; }
-        public int School { get; set; }
+        public Guid IdUser { get; set; }
+        public Guid School { get; set; }
         [Required, DataType(DataType.Password)]
         public string Password { get; set; }
         [Required, DataType(DataType.Password), Compare(nameof(Password))]

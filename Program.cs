@@ -7,6 +7,7 @@ using Microsoft.Extensions.FileProviders;
 using QuestPDF.Drawing;
 using SchoolSystem.Data;
 using SchoolSystem.Controllers;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,9 +20,11 @@ if (File.Exists("appsetting.env"))
     Env.Load("appsetting.env");
 
 builder.Services.AddControllersWithViews(options =>
-    options.Filters.Add(new Microsoft.AspNetCore.Mvc.AutoValidateAntiforgeryTokenAttribute()));
+{
+    options.Filters.Add(new Microsoft.AspNetCore.Mvc.AutoValidateAntiforgeryTokenAttribute());
+    options.Filters.Add<SchoolSystem.Filters.OwnershipAuthorizationFilter>();
+});
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddSingleton<EncryptionHelper>();
 builder.Services.AddDistributedMemoryCache();
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
@@ -42,6 +45,7 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
     options.SignIn.RequireConfirmedAccount = false;
 })
     .AddEntityFrameworkStores<SystemSchoolDbContext>()
+    .AddClaimsPrincipalFactory<ApplicationClaimsPrincipalFactory>()
     .AddDefaultTokenProviders();
 
 builder.Services.ConfigureApplicationCookie(options =>
@@ -76,7 +80,17 @@ builder.Services.AddStackExchangeRedisCache(options =>
     options.Configuration = "localhost:6379";
     options.InstanceName = "SchoolApp_";
 });
-builder.Services.AddAuthorization();
+builder.Services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect("localhost:6379"));
+builder.Services.AddAuthorization(options =>
+{
+    var authenticatedActiveUser = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .RequireClaim("active", "true")
+        .Build();
+    options.DefaultPolicy = authenticatedActiveUser;
+    // Everything is private unless an action explicitly opts out with [AllowAnonymous].
+    options.FallbackPolicy = authenticatedActiveUser;
+});
 builder.Services.AddNotyf(options =>
 {
     options.Position = NotyfPosition.TopCenter;
@@ -98,11 +112,12 @@ if (app.Environment.IsDevelopment())
         await db.Database.MigrateAsync();
 
         var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
-        foreach (var role in new[] { RoleNames.Admin, RoleNames.Teacher, RoleNames.Student })
+        foreach (var role in new[] { RoleNames.Admin, RoleNames.Manager, RoleNames.Teacher, RoleNames.Student })
             if (!await roleManager.RoleExistsAsync(role))
                 await roleManager.CreateAsync(new IdentityRole<Guid>(role));
 
         await IdentityDataSeeder.SeedMainAdminAsync(scope.ServiceProvider, app.Configuration);
+        await LoadTestDataSeeder.SeedAsync(scope.ServiceProvider, app.Configuration);
 
         if (args.Contains("--seed-only", StringComparer.OrdinalIgnoreCase))
         {

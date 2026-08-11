@@ -2,10 +2,10 @@ namespace SchoolSystem.Models.AdminSchool
 {
     public class GetChangeClassStudent
     {
-        public string? idStudent { get; set; }
+        public Guid? idStudent { get; set; }
         public string? nameStudent { get; set; }
-        public int? lastIdClass { get; set; }
-        public string? lastIdClassEnc { get; set; }
+        public Guid? lastIdClass { get; set; }
+        public Guid? lastIdClassEnc { get; set; }
         public List<theClass>? theClasses { get; set; }
 
     }
@@ -13,7 +13,7 @@ namespace SchoolSystem.Models.AdminSchool
     public class theClass
     {
         public string? nameClass { get; set; }
-        public int? idClass { get; set; }
+        public Guid? idClass { get; set; }
         
     }
 

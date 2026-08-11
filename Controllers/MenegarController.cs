@@ -19,27 +19,25 @@ namespace SchoolSystem.Controllers
         private readonly INotyfService _notyf;
         private readonly IErrorLoggerService _logger;
         private readonly ISessionValidatorService _sessionValidatorService;
-        private readonly EncryptionHelper _encryptionHelper;
 
 
-        public MenegarController(SystemSchoolDbContext context, EncryptionHelper encryptionHelper, ISessionValidatorService sessionValidatorService, INotyfService notyf, IErrorLoggerService logger)
+        public MenegarController(SystemSchoolDbContext context, ISessionValidatorService sessionValidatorService, INotyfService notyf, IErrorLoggerService logger)
         {
             _logger = logger;
             _context = context;
             _notyf = notyf;
             _sessionValidatorService = sessionValidatorService;
-            _encryptionHelper = encryptionHelper;
         }
 
-        [AuthorizeRoles("admin")]
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
         // GET: Menegar
         public  IActionResult Index()
         {
             return View();
         }
-        [AuthorizeRoles("admin")]
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
         // GET: Menegar/Details/5
-        public async Task<IActionResult> Details(int? id)
+        public async Task<IActionResult> Details(Guid? id)
         {
             if (id == null)
             {
@@ -55,7 +53,7 @@ namespace SchoolSystem.Controllers
 
             return View(menegar);
         }
-        [AuthorizeRoles("admin")]
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
         // GET: Menegar/Create
         public IActionResult Create()
         {
@@ -67,7 +65,7 @@ namespace SchoolSystem.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [AuthorizeRoles("admin")]
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
         public async Task<IActionResult> Create([Bind("Name,Phone,Email, TheDate, IdNumber")] Menegar menegar)
         {
             if (ModelState.IsValid)
@@ -80,9 +78,9 @@ namespace SchoolSystem.Controllers
             return View(menegar);
         }
 
-        [AuthorizeRoles("admin")]
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
         // GET: Menegar/Edit/5
-        public async Task<IActionResult> Edit(int? id)
+        public async Task<IActionResult> Edit(Guid? id)
         {
             if (id == null)
             {
@@ -102,8 +100,8 @@ namespace SchoolSystem.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [AuthorizeRoles("admin")]
-        public async Task<IActionResult> Edit(int id, [Bind("Name,Phone,Email")] Menegar menegar)
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
+        public async Task<IActionResult> Edit(Guid id, [Bind("Name,Phone,Email")] Menegar menegar)
         {
             if (id != menegar.Id)
             {
@@ -135,8 +133,8 @@ namespace SchoolSystem.Controllers
         }
 
         // GET: Menegar/Delete/5
-        [AuthorizeRoles("admin")]
-        public async Task<IActionResult> Delete(int? id)
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
+        public async Task<IActionResult> Delete(Guid? id)
         {
             if (id == null)
             {
@@ -156,8 +154,8 @@ namespace SchoolSystem.Controllers
         // POST: Menegar/Delete/5
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
-        [AuthorizeRoles("admin")]
-        public async Task<IActionResult> DeleteConfirmed(int id)
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
+        public async Task<IActionResult> DeleteConfirmed(Guid id)
         {
             Console.WriteLine(1);
             var menegar = await _context.Menegars.FindAsync(id);
@@ -172,7 +170,7 @@ namespace SchoolSystem.Controllers
         }
 
         
-        [AuthorizeRoles("admin")]
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
         public async Task<IActionResult> ManagerMenegarStudent(
             [FromQuery] int draw,
             [FromQuery] int start,
@@ -183,7 +181,7 @@ namespace SchoolSystem.Controllers
             try
             {
                 // التحقق من صلاحية المستخدم و التلاعب بالبيانات
-                var (IsValid, IdSchool, Message) = await _sessionValidatorService.ValidateAdminSessionAsync(HttpContext, "Menegar/ManagerMenegarStudent");
+                var (IsValid, IdSchool, Message) = await _sessionValidatorService.ValidateManagerSessionAsync(HttpContext, "Menegar/ManagerMenegarStudent");
                 if (!IsValid)
                 {
                     return Json(new { success = false, message = Message, error = "Unauthorized access. Session expired." });
@@ -211,7 +209,7 @@ namespace SchoolSystem.Controllers
                     .AsNoTracking()
                     .Select(s => new
                     {
-                        id = _encryptionHelper.EncryptInt(s.Id),
+                        id = s.Id,
                         name = s.Name,
                         ClassroomName = s.IdClassNavigation == null 
                         ? "فارغ" 
@@ -293,13 +291,13 @@ namespace SchoolSystem.Controllers
 
 
         [HttpGet]
-        [AuthorizeRoles("admin")]
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
         public IActionResult ManagerMenegarStudentView()
         {
             return View();
         }
 
-        [AuthorizeRoles("admin")]
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
         public async Task<IActionResult> ManagerMenegarTeacher(
             [FromQuery] int draw,
             [FromQuery] int start,
@@ -309,7 +307,7 @@ namespace SchoolSystem.Controllers
             try
             {
                 // التحقق من صلاحية المستخدم و التلاعب بالبيانات
-                var (IsValid, IdSchool, Message) = await _sessionValidatorService.ValidateAdminSessionAsync(HttpContext, "Lectuer/ManagerMenegarTeacher");
+                var (IsValid, IdSchool, Message) = await _sessionValidatorService.ValidateManagerSessionAsync(HttpContext, "Lectuer/ManagerMenegarTeacher");
                 if (!IsValid)
                 {
                     return Json(new { success = false, message = Message, error = "Unauthorized access. Session expired." });
@@ -337,7 +335,7 @@ namespace SchoolSystem.Controllers
                     .AsNoTracking()
                     .Select(t => new
                     {
-                        id = _encryptionHelper.EncryptInt(t.Id),
+                        id = t.Id,
                         name = t.Name,
                         phone = t.Phone,
                         email = t.Email,
@@ -408,7 +406,7 @@ namespace SchoolSystem.Controllers
             }
         }
 
-        [AuthorizeRoles("admin")]
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
         [HttpGet]
         public IActionResult ManagerMenegarTeacherView()
         {
@@ -416,7 +414,7 @@ namespace SchoolSystem.Controllers
         }
 
         [HttpGet]
-        [AuthorizeRoles("admin")]
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
         public IActionResult ManagerMenegarClassView()
         {
             return View();
@@ -424,9 +422,9 @@ namespace SchoolSystem.Controllers
         
         
         [HttpGet]
-        [AuthorizeRoles("admin")]
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
         public async Task<IActionResult> ManagerMenegarStudentInClass(
-            string idClass,
+            Guid idClass,
             [FromQuery] int draw,
             [FromQuery] int start,
             [FromQuery] int length = 10,
@@ -435,11 +433,11 @@ namespace SchoolSystem.Controllers
         {
             try
             {
-                int Id;
+                Guid Id;
 
                 try
                 {
-                    Id = _encryptionHelper.DecryptInt(idClass);
+                    Id = idClass;
                 }
                 catch (Exception ex)
                 {
@@ -449,7 +447,7 @@ namespace SchoolSystem.Controllers
                 }
                 
                 // التحقق من صلاحية المستخدم و التلاعب بالبيانات
-                var (IsValid, IdSchool, Message) = await _sessionValidatorService.ValidateAdminSessionAsync(HttpContext, "Lectuer/ManagerMenegarClass");
+                var (IsValid, IdSchool, Message) = await _sessionValidatorService.ValidateManagerSessionAsync(HttpContext, "Lectuer/ManagerMenegarClass");
                 if (!IsValid)
                 {
                     return Json(new { success = false, message = Message, error = "Unauthorized access. Session expired." });
@@ -477,10 +475,10 @@ namespace SchoolSystem.Controllers
                     .AsNoTracking()
                     .Select(s => new
                     {
-                        id = _encryptionHelper.EncryptInt(s.Id),
+                        id = s.Id,
                         name = s.Name,
                         ClassroomName = s.IdClassNavigation != null ? s.IdClassNavigation.Name : "Unknown",
-                        idClass = _encryptionHelper.EncryptInt(s.IdClass??0)
+                        idClass = s.IdClass ?? Guid.Empty
                     });
 
                 // البحث
@@ -545,8 +543,8 @@ namespace SchoolSystem.Controllers
 
 
         [HttpGet]
-        [AuthorizeRoles("admin")]
-        public async Task<IActionResult> ManagerMenegarStudentInClassView(string idClass)
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
+        public async Task<IActionResult> ManagerMenegarStudentInClassView(Guid idClass)
         {
             if (idClass == null)
             {
@@ -555,11 +553,11 @@ namespace SchoolSystem.Controllers
                 return RedirectToAction("ManagerMenegarClassView", "Menegar");
             }
 
-            int Id;
+            Guid Id;
 
             try
             {
-                Id = _encryptionHelper.DecryptInt(idClass);
+                Id = idClass;
 
             }
             catch (Exception ex)
@@ -581,9 +579,9 @@ namespace SchoolSystem.Controllers
         }
         
          [HttpGet]
-        [AuthorizeRoles("admin")]
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
         public async Task<IActionResult>  ManagerMenegarTeacherInClass(
-            string idClass,
+            Guid idClass,
             [FromQuery] int draw,
             [FromQuery] int start,
             [FromQuery] int length = 10,
@@ -592,11 +590,11 @@ namespace SchoolSystem.Controllers
         {
             try
             {
-                int Id;
+                Guid Id;
 
                 try
                 {
-                    Id = _encryptionHelper.DecryptInt(idClass);
+                    Id = idClass;
 
                 }
                 catch (Exception ex)
@@ -607,7 +605,7 @@ namespace SchoolSystem.Controllers
                 }
                 
                 // التحقق من صلاحية المستخدم و التلاعب بالبيانات
-                var (IsValid, IdSchool, Message) = await _sessionValidatorService.ValidateAdminSessionAsync(HttpContext, "Lectuer/ManagerMenegarClass");
+                var (IsValid, IdSchool, Message) = await _sessionValidatorService.ValidateManagerSessionAsync(HttpContext, "Lectuer/ManagerMenegarClass");
                 if (!IsValid)
                 {
                     return Json(new { success = false, message = Message, error = "Unauthorized access. Session expired." });
@@ -636,9 +634,9 @@ namespace SchoolSystem.Controllers
                     .Select(s => new
                     {
                         Id = s.Id,
-                        IdTeacher = s.IdTeacherNavigation != null ? s.IdTeacherNavigation.Id : 0,
-                        IdClass = s.IdClassNavigation != null ? s.IdClassNavigation.Id : 0,
-                        IdLectuer = s.IdClassNavigation != null ? s.IdClassNavigation.Id : 0,
+                        IdTeacher = s.IdTeacherNavigation != null ? s.IdTeacherNavigation.Id : Guid.Empty,
+                        IdClass = s.IdClassNavigation != null ? s.IdClassNavigation.Id : Guid.Empty,
+                        IdLectuer = s.IdClassNavigation != null ? s.IdClassNavigation.Id : Guid.Empty,
                         TeacherName = s.IdTeacherNavigation != null ? s.IdTeacherNavigation.Name : "Unknown",
                         LectuerName = s.IdLectuerNavigation != null ? s.IdLectuerNavigation.Name : "Unknown",
                         ClassroomName = s.IdClassNavigation != null ? s.IdClassNavigation.Name : "Unknown"
@@ -709,15 +707,15 @@ namespace SchoolSystem.Controllers
 
 
         [HttpGet]
-        [AuthorizeRoles("admin")]
-        public async Task<IActionResult>  ManagerMenegarTeacherInClassView(string idClass)
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
+        public async Task<IActionResult>  ManagerMenegarTeacherInClassView(Guid idClass)
         {
 
-            int Id;
+            Guid Id;
 
             try
             {
-                Id = _encryptionHelper.DecryptInt(idClass);
+                Id = idClass;
 
             }
             catch (Exception ex)
@@ -727,14 +725,20 @@ namespace SchoolSystem.Controllers
                 return View();
             }
 
-            TheClass? theClass = await _context.TheClasses.SingleOrDefaultAsync(c => c.Id == Id);
+            var (isValid, school, _) = await _sessionValidatorService
+                .ValidateManagerSessionAsync(HttpContext, "Menegar/ManagerMenegarTeacherInClassView");
+            if (!isValid)
+                return Forbid();
+
+            TheClass? theClass = await _context.TheClasses.AsNoTracking()
+                .SingleOrDefaultAsync(c => c.Id == Id && c.IdSchool == school && !c.IsDeleted);
             if (theClass == null)
             {
                 errorOperation("لا يمكن التلاعب بالبيانات المرسلة", "Lectuer/CreateTeacherLectuer", new Exception("تلاعب بالبيانات المرسلة"));
                 return View();
             }
             ViewBag.name = theClass?.Name ?? "Null";
-            ViewBag.IdClass = idClass;
+            ViewBag.IdClass = idClass.ToString("D");
             return View();
         }
 
@@ -742,7 +746,7 @@ namespace SchoolSystem.Controllers
         public JsonResult GetStudentCountPerClass()
         {
             Console.WriteLine("---------------------------------------");
-            var data = _context.TheClasses.Where(c => /*c.IdSchool == HttpContext.Session.GetInt32("School") &&*/ c.IsDeleted == false )
+            var data = _context.TheClasses.Where(c => /*c.IdSchool == HttpContext.Session.GetGuid("School") &&*/ c.IsDeleted == false )
                 .Select(c => new {
                     ClassName = c.Name,
                     StudentCount = c.Students.Where(sc => sc.IsDeletedStudent == false).Count()
@@ -757,7 +761,7 @@ namespace SchoolSystem.Controllers
         public JsonResult GetTeacherCountPerSubject()
         {
             Console.WriteLine("---------------------------------------123");
-            var data = _context.TeacherLectuerClasses.Where(t => t.IdSchool == HttpContext.Session.GetInt32("School") )
+            var data = _context.TeacherLectuerClasses.Where(t => t.IdSchool == HttpContext.Session.GetGuid("School") )
                 .Include(t => t.IdLectuerNavigation) // تأكد من تضمين المادة
                 .GroupBy(t => t.IdLectuerNavigation.Name)
                 .Select(g => new
@@ -771,8 +775,8 @@ namespace SchoolSystem.Controllers
             return Json(data);
         }
 
-        [AuthorizeRoles("admin")]
-        private bool MenegarExists(int id)
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
+        private bool MenegarExists(Guid id)
         {
             return _context.Menegars.Any(e => e.Id == id);
         }
