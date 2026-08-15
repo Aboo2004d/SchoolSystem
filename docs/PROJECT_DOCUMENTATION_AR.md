@@ -2,6 +2,13 @@
 
 > هذا الملف يصف الحالة الفعلية للمشروع بعد تحويل المصادقة إلى ASP.NET Core Identity، وتحويل معرفات المجال إلى GUID، وإضافة فصل الأدوار والملكية وRedis وبيانات اختبار الضغط.
 
+| بيان الوثيقة | القيمة |
+|---|---|
+| الإصدار | 2.0 |
+| آخر تحديث | 15 آب 2026 |
+| النطاق | المعمارية، الأمان، البيانات، التشغيل، Redis، Seeders، وعقود API |
+| حالة الوثيقة | جاهزة للتقديم والتسليم التقني |
+
 ## 1. نظرة عامة
 
 نظام ويب لإدارة المدارس مبني بـ ASP.NET Core MVC. يغطي المدارس، المديرين، المعلمين، الطلاب، الصفوف، المواد، إسناد المعلمين، العلامات، الحضور، الملفات الشخصية، الصور، التصدير إلى Excel، الشهادات وتقارير الأخطاء.
@@ -24,8 +31,8 @@
 |---|---|
 | `Program.cs` | التسجيل في DI، Identity، Redis، Session، Middleware، Migration وSeeders |
 | `Data/` | DbContext، كيانات المجال، ApplicationUser وSeeders |
-| `Controllers/` | صفحات MVC والعمليات التقليدية |
-| `Controllers/ApiController/` | نقاط AJAX وJSON والتصدير والتشخيص |
+| `Controllers/` | صفحات MVC؛ وفي العلامات والحضور تبقى عمليات فتح الصفحات فقط |
+| `Controllers/ApiController/` | نقاط JSON/AJAX للقراءة والكتابة والتصدير والتشخيص |
 | `Models/` | ViewModels ونماذج الطلب والاستجابة |
 | `Filters/` | التحقق من الأدوار وملكية الموارد |
 | `Services/` | الحسابات، البريد، الجلسة المتوافقة، السجلات والشهادات |
@@ -182,11 +189,11 @@ Session موجودة مؤقتًا للتوافق مع Controllers القديمة
 - `SchoolController` و`StatusSchoolController`: إدارة عامة للأدمن الأعلى.
 - `MenegarController`: شاشات مدير المدرسة وإدارة طلابها ومعلميها وصفوفها.
 - `TeacherController`: شاشة المعلم، طلابه، إسناداته وشهادته.
-- `StudentController`: شاشة الطالب، تغيير الصف الإداري وشهادته.
+- `StudentController`: شاشة الطالب وشهادته؛ بيانات الرسوم البيانية تأتي من `StudentApiController`.
 - `TheClassController`: الصفوف وإسناد المعلمين.
 - `LectuerController`: المواد وربط المعلمين والطلاب.
-- `GradesController`: إنشاء وعرض وتعديل وحذف العلامات.
-- `AttendanceController`: إنشاء وعرض وتعديل وحذف الحضور.
+- `GradesController`: فتح صفحات العلامات؛ القراءة والحفظ والتعديل والحذف عبر `GradesApiController`.
+- `AttendanceController`: فتح صفحات الحضور؛ القراءة والحفظ والتعديل والحذف عبر `AttendanceApiController`.
 - `ExportDataController`: تصدير الطلاب والمعلمين والعلامات إلى Excel.
 - `ImageController` و`ImageProfileController`: قراءة ورفع الصور الخاصة بأسماء ملفات آمنة.
 - `ErrorLogsController`: عرض سجلات الأخطاء للأدمن الأعلى.
@@ -293,7 +300,7 @@ dotnet ef database update
 
 ## 13. Migrations
 
-Migration الحالية `InitialGuidIdentity` تنشئ المخطط كاملًا بمفاتيح GUID. يوجد أيضًا `InitialGuidIdentity.sql` للتطبيق اليدوي. عند تعديل نموذج EF:
+تبدأ قاعدة البيانات بـ`InitialGuidIdentity` التي تنشئ المخطط الكامل بمفاتيح GUID. أضيفت `AddAttendanceQueryIndex` لتحسين استعلامات الحضور، و`ConvertAttendanceExcuseToNvarcharMax` لتحويل العذر من نوع SQL القديم `text` إلى `nvarchar(max)` القابل للبحث والترتيب دون تقليص البيانات. عند تعديل نموذج EF:
 
 ```powershell
 dotnet ef migrations add DescriptiveName
@@ -311,7 +318,7 @@ dotnet ef database update
 ## 15. التصدير والشهادات والصور
 
 - EPPlus ينشئ ملفات Excel لقوائم الطلاب والمعلمين والعلامات.
-- QuestPDF مع خطوط Amiri ينشئ شهادات عربية للطلاب والمعلمين.
+- QuestPDF مع خطوط Amiri ينشئ شهادات عربية. شهادة المعلم تجمع كل مواده في صفحة واحدة وتستخدم «المادة/المواد» حسب العدد. شهادات الطالب والمعلم تحترم ملكية الملف ونطاق المدرسة.
 - الصور الخاصة تحفظ خارج العرض static المباشر وتُخدم عبر Controller بعد التحقق من المستخدم واسم الملف.
 
 ## 16. الاختبارات والضغط
@@ -364,3 +371,193 @@ dotnet ef database update
 - أضف rate limiting لتسجيل الدخول والاستعادة والـAPIs المكلفة.
 - أضف health checks لـSQL وRedis.
 - أضف اختبارات تكامل وسياسات backup/restore ومراقبة مركزية.
+
+## 20. مرجع API
+
+### 20.1 قواعد عامة
+
+- العنوان المحلي في بيئة التطوير: `http://localhost:1004`. استخدم الأصل الفعلي للبيئة ولا تثبته في JavaScript خارج التطبيق.
+- المصادقة Cookie عبر ASP.NET Core Identity؛ ترسل الواجهة `credentials: 'same-origin'`.
+- طلبات `POST` و`PUT` و`DELETE` ترسل CSRF token في الترويسة `RequestVerificationToken`.
+- كل معرف من نوع GUID بالصيغة `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`.
+- DataTables يرسل `draw`, `start`, `length`, `search[value]`, `order[0][column]`, `order[0][dir]`.
+- حد الصفحة الأقصى لنقاط DataTables الحديثة 100 سجل.
+
+استجابة DataTables القياسية:
+
+```json
+{
+  "draw": 1,
+  "recordsTotal": 250,
+  "recordsFiltered": 18,
+  "data": []
+}
+```
+
+استجابة نجاح الكتابة:
+
+```json
+{
+  "success": true,
+  "message": "تم الحفظ بنجاح.",
+  "redirectUrl": "/Attendance/ViewAttendance?teacherId=..."
+}
+```
+
+أكواد HTTP المتوقعة:
+
+| الكود | المعنى |
+|---|---|
+| `200` | نجاح القراءة/التعديل/الحذف |
+| `400` | نموذج أو GUID أو CSRF غير صالح |
+| `401` | لا توجد مصادقة صالحة |
+| `403` | الدور أو ملكية المورد لا تسمح |
+| `404` | المورد غير موجود داخل النطاق المسموح |
+| `409` | تعارض منطقي/تكرار عندما يعيده endpoint |
+| `500` | خطأ داخلي مسجل في `ErrorLog` دون إرجاع stack trace |
+
+### 20.2 Attendance API
+
+| Method | المسار | الدور | الغرض والناتج |
+|---|---|---|---|
+| GET | `/api/Attendance/teacher-records?teacherId={guid}` | Teacher | DataTables لسجلات المعلم؛ الطالب، الصف، المادة، الحالة، التاريخ، العذر و`id`. |
+| GET | `/api/Attendance/subjects?teacherId={guid}` | Teacher | `[{ id, name }]` لمواد المعلم الفعالة. |
+| GET | `/api/Attendance/classes?teacherId={guid}&subjectId={guid}` | Teacher | `[{ id, name }]` لصفوف المعلم في المادة. |
+| GET | `/api/Attendance/student-summary?studentid={guid}` | Admin/Manager/Student | DataTables مجمع حسب المادة+المعلم: `teacherId`, `teacherName`, `lectuerId`, `lectuerName`, `attendanceDays`, `totalDays`. |
+| GET | `/api/Attendance/student-details?studentid={guid}&teacherId={guid}&lectuerId={guid}` | Admin/Manager/Student | DataTables للتفاصيل: `id`, `dateAndTime`, `attendanceStatus`, `excuse`. |
+| GET | `/api/Attendance/student-records?studentid={guid}` | Admin/Manager/Student | القائمة المفصلة القديمة؛ محافظ عليها للتوافق، والواجهة الحالية تستخدم summary/details. |
+| POST | `/api/Attendance/records` | Teacher | إنشاء أو تحديث حضور اليوم لدفعة طلاب؛ يعيد success/message/redirectUrl. |
+| PUT | `/api/Attendance/records/{id}` | Teacher | تعديل `status` و`excuse` لسجل يملكه المعلم. |
+| DELETE | `/api/Attendance/records/{id}` | Teacher | حذف سجل يملكه المعلم. |
+
+طلب إنشاء الحضور:
+
+```json
+{
+  "teacherId": "00000000-0000-0000-0000-000000000000",
+  "lectuerId": "00000000-0000-0000-0000-000000000000",
+  "classId": "00000000-0000-0000-0000-000000000000",
+  "items": [
+    { "studentId": "00000000-0000-0000-0000-000000000000", "status": "1", "excuse": null }
+  ]
+}
+```
+
+القيم المسموحة لـ`status`: `1` حضور، `0` غياب، `m` غياب بعذر. الحد الأقصى 500 طالب، وتمنع المعرفات المكررة. الخادم لا يثق بـ`teacherId`: يطابقه مع مستخدم Identity ويتحقق من تكليف المادة/الصف ومن ارتباط كل طالب بالمعلم.
+
+### 20.3 Grades API
+
+| Method | المسار | الدور | الغرض والناتج |
+|---|---|---|---|
+| GET | `/api/Grades/teacher-records?teacherId={guid}` | Teacher | DataTables لعلامات طلاب المعلم. |
+| GET | `/api/Grades/student-records?studentid={guid}` | Admin/Manager/Student | DataTables لعلامات الطالب: المادة وأجزاء العلامة والمجموع. |
+| GET | `/api/Grades/subjects?teacherId={guid}` | Teacher | `[{ id, name }]` للمواد الفعالة. |
+| GET | `/api/Grades/classes?teacherId={guid}&subjectId={guid}` | Teacher | `[{ id, name }]` للصفوف الفعالة في المادة. |
+| POST | `/api/Grades/records` | Teacher | Upsert جماعي للعلامات ويعيد success/message/redirectUrl. |
+| PUT | `/api/Grades/records/{id}` | Teacher | تعديل أجزاء علامة يملكها المعلم. |
+| DELETE | `/api/Grades/records/{id}` | Teacher | حذف سجل علامة يملكه المعلم. |
+
+طلب حفظ العلامات:
+
+```json
+{
+  "teacherId": "00000000-0000-0000-0000-000000000000",
+  "lectuerId": "00000000-0000-0000-0000-000000000000",
+  "classId": "00000000-0000-0000-0000-000000000000",
+  "items": [
+    {
+      "studentId": "00000000-0000-0000-0000-000000000000",
+      "firstMonth": 20,
+      "mid": 30,
+      "secondMonth": 20,
+      "activity": 10,
+      "final": 20
+    }
+  ]
+}
+```
+
+كل جزء يقبل `null` أو قيمة من 0 إلى 100. القيم الفارغة تحفظ صفرًا. يتحقق الخادم من المدرسة والتكليف وكل طالب قبل تنفيذ دفعة واحدة.
+
+### 20.4 Student dashboard API
+
+| Method | المسار | الدور | الناتج |
+|---|---|---|---|
+| GET | `/api/student/grade-chart?idStudent={guid}` | Student | مصفوفة `{ lectuerName, totalGrade }` مجمعة حسب المادة؛ `totalGrade` متوسط المجموع عند تعدد السجلات. |
+| GET | `/api/student/attendance-chart?idStudent={guid}` | Student | `{ subjectName, totalSessions, presentCount, excusedCount, presentPercentage, excusedPercentage }` لكل مادة. |
+| GET | `/api/student/Details?id={guid}` | Admin/Manager | تفاصيل طالب ضمن نطاق المدرسة. |
+| POST | `/api/student/Create` | Admin/Manager | إنشاء طالب وحسابه/ملفه وفق النموذج المستخدم في الواجهة؛ يتطلب CSRF. |
+| GET | `/api/student/Edit?id={guid}` | Admin/Manager | بيانات نموذج التعديل ضمن المدرسة. |
+| PUT | `/api/student/Edit` | Admin/Manager | تعديل الطالب؛ JSON وCSRF. |
+| DELETE | `/api/student/Delete` | Admin/Manager | حذف منطقي/إداري حسب التنفيذ، مع نموذج `{ id }` وCSRF. |
+| GET/POST | `/api/student/ChangeClass` | Admin/Manager | جلب بيانات تغيير الصف ثم تنفيذ التغيير ضمن المدرسة. |
+
+رسوم الطالب لا تقبل طالبًا آخر حتى لو تغير GUID؛ `ValidateStudentDataAccessAsync` يطابق ملف الطالب مع مستخدم Identity.
+
+### 20.5 Teacher, manager, class, and subject APIs
+
+| المجموعة | المسارات الرئيسية | الوظيفة |
+|---|---|---|
+| Teacher | `/api/teacher/Create`, `/Details`, `/Edit`, `/Delete` | إنشاء/قراءة/تعديل/حذف المعلم ضمن الدور والمدرسة. |
+| Teacher assignments | `/api/teacher/AddTeacherToClassesAndLectuers`, `/RemoveTeacherToClassLectuers`, `/ManagerStudentToTeacher` | إدارة إسنادات المعلم والطلاب. |
+| Teacher charts | `/api/teacher/grade-distribution`, `/api/teacher/attendance-summary` | بيانات رسوم المعلم بعد فحص ملكيته. |
+| Manager tables | `/api/menegar/MenegarStudent`, `/MenegarTeacher`, `/MenegarClass`, `/MenegarStudentInClass`, `/MenegarTeacherInClass` | DataTables مقيدة بمدرسة المدير. |
+| Manager statistics | `/api/menegar/CountTeacherPerSubject` | عدد المعلمين حسب المادة ضمن المدرسة. |
+| Classes | `/api/theClass/GetClasses`, `/GetClassToStudent`, `/Create`, `/Edit`, `/CreateTeacherClass`, `/Delete` | قوائم وإدارة الصفوف والإسناد. |
+| Subjects | `/api/lectuer/GetLectuers`, `/LectuersData`, `/Create`, `/Edit`, `/TeacherLectuer`, `/StudentLectuer`, `/Delete`, `/DeleteTeacher` | قوائم وإدارة المواد وروابطها. |
+
+توجد نقاط تاريخية في بعض Controllers تستعمل اسم الإجراء عند عدم تحديد route template. للاستهلاك الجديد، اعتمد فقط المسارات الصريحة الموضحة في هذا المرجع، وأضف template صريحًا لأي endpoint جديد.
+
+### 20.6 التصدير والصور وRedis
+
+| Method | المسار | الوصف |
+|---|---|---|
+| GET | `/api/ExportDataApi/...` | تصدير البيانات إلى Excel؛ اسم الإجراء/المعاملات يحددان نوع التصدير، ويتطلب الدور المناسب. |
+| POST | endpoints رفع صورة الملف | `multipart/form-data`، CSRF، تحقق الامتداد والحجم واسم الملف. |
+| GET | `/api/diagnostics/redis` | Admin فقط؛ حالة Redis وعدد المفاتيح ومعلومات type/TTL/size دون كشف المحتوى الحساس. |
+
+الشهادات PDF ليست API JSON؛ هي MVC downloads محمية:
+
+```text
+GET /Teacher/DownloadTeacherCertificate?idTeacher={guid}
+GET /Student/DownloadStudentCertificate?idStudent={guid}
+```
+
+شهادة المعلم تعرض جميع مواده دون تكرار في صفحة واحدة. شهادة الطالب والمعلم تتحققان من ملكية المستخدم أو نطاق مدرسة المدير؛ Admin يملك النطاق الإداري المصرح.
+
+### 20.7 مثال JavaScript آمن
+
+```javascript
+const token = document.querySelector(
+  'input[name="__RequestVerificationToken"]'
+).value;
+
+const response = await fetch('/api/Grades/records/RECORD_GUID', {
+  method: 'PUT',
+  credentials: 'same-origin',
+  headers: {
+    'Content-Type': 'application/json',
+    'RequestVerificationToken': token
+  },
+  body: JSON.stringify({
+    firstMonth: 20,
+    mid: 30,
+    secondMonth: 20,
+    activity: 10,
+    final: 20
+  })
+});
+
+if (!response.ok) {
+  const error = await response.json().catch(() => ({}));
+  throw new Error(error.message ?? 'Request failed');
+}
+```
+
+### 20.8 حدود الثقة والصيانة
+
+- لا يمثل GUID تصريحًا؛ كل endpoint يعيد فحص الدور والمدرسة والملكية.
+- لا تُقبل قيم `teacherId` أو `studentid` القادمة من العميل دون مطابقتها مع Identity.
+- لا تعِد stack traces أو connection strings أو tokens إلى العميل.
+- عند تعديل عقد API، عدّل View/JavaScript وهذا المرجع في التغيير نفسه.
+- أضف اختبارات تكامل لحالات 200 و400 و401 و403 و404، واختبار مستخدم يحاول الوصول إلى مورد مستخدم آخر.

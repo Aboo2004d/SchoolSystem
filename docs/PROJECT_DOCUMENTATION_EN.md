@@ -2,6 +2,13 @@
 
 > This document describes the current project after its migration to ASP.NET Core Identity, domain-wide GUID identifiers, role separation, ownership authorization, Redis caching, and load-test data seeding.
 
+| Document field | Value |
+|---|---|
+| Version | 2.0 |
+| Last updated | August 15, 2026 |
+| Scope | Architecture, security, data, operations, Redis, seeders, and API contracts |
+| Status | Ready for presentation and technical handover |
+
 ## 1. Overview
 
 This is an ASP.NET Core MVC school-management application covering schools, managers, teachers, students, classes, subjects, assignments, grades, attendance, profiles, images, Excel exports, certificates, and error logs.
@@ -23,8 +30,8 @@ Core technologies:
 |---|---|
 | `Program.cs` | DI, Identity, Redis, Session, middleware, migrations, and seeders |
 | `Data/` | DbContext, domain entities, ApplicationUser, and seeders |
-| `Controllers/` | MVC pages and traditional actions |
-| `Controllers/ApiController/` | AJAX/JSON endpoints, exports, and diagnostics |
+| `Controllers/` | MVC page delivery; grade and attendance controllers retain page-opening actions only |
+| `Controllers/ApiController/` | JSON/AJAX reads and writes, exports, and diagnostics |
 | `Models/` | View models and request/response models |
 | `Filters/` | Role and resource-ownership enforcement |
 | `Services/` | Accounts, email, compatibility validation, logging, certificates |
@@ -157,11 +164,11 @@ Legacy controllers temporarily receive values such as `Id`, `School`, `Role`, `U
 - `SchoolController`, `StatusSchoolController`: top Admin system administration.
 - `MenegarController`: manager views for school students, teachers, and classes.
 - `TeacherController`: teacher dashboard, students, assignments, certificate.
-- `StudentController`: student area, administrative class change, certificate.
+- `StudentController`: student dashboard and certificate; chart data comes from `StudentApiController`.
 - `TheClassController`: classes and teacher assignment.
 - `LectuerController`: subjects and teacher/student links.
-- `GradesController`: grade creation, display, editing, and deletion.
-- `AttendanceController`: attendance creation, display, editing, and deletion.
+- `GradesController`: grade pages; reads and all writes are handled by `GradesApiController`.
+- `AttendanceController`: attendance pages; reads and all writes are handled by `AttendanceApiController`.
 - `ExportDataController`: Excel exports.
 - `ImageController`, `ImageProfileController`: safe private image retrieval/upload.
 - `ErrorLogsController`: Admin-only error-log UI.
@@ -269,7 +276,7 @@ Development startup applies migrations automatically. Never run `database drop -
 
 ## 13. Migrations
 
-`InitialGuidIdentity` creates the full GUID/Identity schema. `InitialGuidIdentity.sql` is available for manual review/application.
+`InitialGuidIdentity` creates the complete GUID/Identity schema. `AddAttendanceQueryIndex` optimizes attendance queries. `ConvertAttendanceExcuseToNvarcharMax` changes the legacy SQL `text` excuse column to searchable and sortable `nvarchar(max)` without narrowing existing data.
 
 ```powershell
 dotnet ef migrations add DescriptiveName
@@ -287,7 +294,7 @@ The startup log message “Database migration failed” wraps both migration and
 ## 15. Exports, Certificates, and Images
 
 - EPPlus generates student, teacher, and grade workbooks.
-- QuestPDF and Amiri fonts generate Arabic student/teacher certificates.
+- QuestPDF and Amiri fonts generate Arabic certificates. A teacher certificate lists every distinct assigned subject on one page and changes the Arabic singular/plural label automatically. Teacher and student certificates enforce profile ownership or manager-school scope.
 - Private images are outside direct static serving and are returned through an authenticated controller after filename validation.
 
 ## 16. Testing and Load Testing
@@ -337,3 +344,176 @@ Track requests/sec, p95/p99 latency, 4xx/5xx rate, SQL connections, CPU/RAM, Red
 - Upgrade packages with security advisories.
 - Add rate limiting to login, recovery, and expensive APIs.
 - Add SQL/Redis health checks, integration tests, centralized monitoring, and backup/restore procedures.
+
+## 20. API Reference
+
+### 20.1 Conventions and response contracts
+
+- Development origin: `http://localhost:1004`. Use the active environment origin in deployed clients.
+- Authentication uses the ASP.NET Core Identity application cookie. Browser calls send `credentials: 'same-origin'`.
+- `POST`, `PUT`, and `DELETE` requests send the antiforgery value in the `RequestVerificationToken` header.
+- Domain identifiers are canonical GUID strings: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`.
+- DataTables sends `draw`, `start`, `length`, `search[value]`, `order[0][column]`, and `order[0][dir]`; modern endpoints cap pages at 100 records.
+
+Standard DataTables response:
+
+```json
+{ "draw": 1, "recordsTotal": 250, "recordsFiltered": 18, "data": [] }
+```
+
+Typical successful write response:
+
+```json
+{
+  "success": true,
+  "message": "Saved successfully.",
+  "redirectUrl": "/Attendance/ViewAttendance?teacherId=..."
+}
+```
+
+| Status | Meaning |
+|---|---|
+| `200` | Successful read, update, or delete |
+| `400` | Invalid model, GUID, or antiforgery token |
+| `401` | No valid authentication context |
+| `403` | Role or resource-ownership check failed |
+| `404` | Resource not found inside the caller's authorized scope |
+| `409` | Logical or duplicate conflict when returned by an endpoint |
+| `500` | Logged internal error; no stack trace is returned |
+
+### 20.2 Attendance API
+
+| Method | Route | Role | Purpose and response |
+|---|---|---|---|
+| GET | `/api/Attendance/teacher-records?teacherId={guid}` | Teacher | DataTables records: student, class, subject, status, date, excuse, and record `id`. |
+| GET | `/api/Attendance/subjects?teacherId={guid}` | Teacher | Active assignments as `[{ id, name }]`. |
+| GET | `/api/Attendance/classes?teacherId={guid}&subjectId={guid}` | Teacher | Active assigned classes as `[{ id, name }]`. |
+| GET | `/api/Attendance/student-summary?studentid={guid}` | Admin/Manager/Student | DataTables grouped by subject and teacher: `teacherId`, `teacherName`, `lectuerId`, `lectuerName`, `attendanceDays`, `totalDays`. |
+| GET | `/api/Attendance/student-details?studentid={guid}&teacherId={guid}&lectuerId={guid}` | Admin/Manager/Student | DataTables details: `id`, `dateAndTime`, `attendanceStatus`, `excuse`. |
+| GET | `/api/Attendance/student-records?studentid={guid}` | Admin/Manager/Student | Legacy detailed list retained for compatibility; current UI uses summary/details. |
+| POST | `/api/Attendance/records` | Teacher | Creates or updates today's batch; returns success/message/redirectUrl. |
+| PUT | `/api/Attendance/records/{id}` | Teacher | Updates `status` and `excuse` on an owned record. |
+| DELETE | `/api/Attendance/records/{id}` | Teacher | Deletes an owned record. |
+
+Batch attendance request:
+
+```json
+{
+  "teacherId": "00000000-0000-0000-0000-000000000000",
+  "lectuerId": "00000000-0000-0000-0000-000000000000",
+  "classId": "00000000-0000-0000-0000-000000000000",
+  "items": [
+    { "studentId": "00000000-0000-0000-0000-000000000000", "status": "1", "excuse": null }
+  ]
+}
+```
+
+Allowed statuses are `1` (present), `0` (absent), and `m` (excused). The batch limit is 500; duplicate students are rejected. The server matches `teacherId` to Identity and validates school, assignment, class, subject, and every student before writing.
+
+### 20.3 Grades API
+
+| Method | Route | Role | Purpose and response |
+|---|---|---|---|
+| GET | `/api/Grades/teacher-records?teacherId={guid}` | Teacher | DataTables records for the teacher's students. |
+| GET | `/api/Grades/student-records?studentid={guid}` | Admin/Manager/Student | DataTables student grades: subject, components, and computed total. |
+| GET | `/api/Grades/subjects?teacherId={guid}` | Teacher | Active subjects as `[{ id, name }]`. |
+| GET | `/api/Grades/classes?teacherId={guid}&subjectId={guid}` | Teacher | Active classes for the assignment. |
+| POST | `/api/Grades/records` | Teacher | Batch upsert; returns success/message/redirectUrl. |
+| PUT | `/api/Grades/records/{id}` | Teacher | Updates owned grade components. |
+| DELETE | `/api/Grades/records/{id}` | Teacher | Deletes an owned grade record. |
+
+Batch grade request:
+
+```json
+{
+  "teacherId": "00000000-0000-0000-0000-000000000000",
+  "lectuerId": "00000000-0000-0000-0000-000000000000",
+  "classId": "00000000-0000-0000-0000-000000000000",
+  "items": [{
+    "studentId": "00000000-0000-0000-0000-000000000000",
+    "firstMonth": 20, "mid": 30, "secondMonth": 20,
+    "activity": 10, "final": 20
+  }]
+}
+```
+
+Each component accepts `null` or 0-100; null is stored as zero. School, assignment, class, subject, and every student are validated before commit.
+
+### 20.4 Student dashboard API
+
+| Method | Route | Role | Response |
+|---|---|---|---|
+| GET | `/api/student/grade-chart?idStudent={guid}` | Student | `{ lectuerName, totalGrade }[]`; `totalGrade` is the average total when multiple subject rows exist. |
+| GET | `/api/student/attendance-chart?idStudent={guid}` | Student | Per subject: `{ subjectName, totalSessions, presentCount, excusedCount, presentPercentage, excusedPercentage }`. |
+| GET | `/api/student/Details?id={guid}` | Admin/Manager | Student details inside authorized school scope. |
+| POST | `/api/student/Create` | Admin/Manager | Creates the account/profile; antiforgery required. |
+| GET | `/api/student/Edit?id={guid}` | Admin/Manager | Loads edit data inside school scope. |
+| PUT | `/api/student/Edit` | Admin/Manager | Updates a student using JSON plus antiforgery. |
+| DELETE | `/api/student/Delete` | Admin/Manager | Administrative/soft delete using `{ id }` plus antiforgery. |
+| GET/POST | `/api/student/ChangeClass` | Admin/Manager | Loads and applies a class change in school scope. |
+
+Chart endpoints reject another student's GUID even when it exists: `ValidateStudentDataAccessAsync` matches it to the authenticated Identity profile.
+
+### 20.5 Teacher, manager, class, and subject APIs
+
+| Group | Main routes | Purpose |
+|---|---|---|
+| Teacher | `/api/teacher/Create`, `/Details`, `/Edit`, `/Delete` | Teacher CRUD within role/school scope. |
+| Assignments | `/api/teacher/AddTeacherToClassesAndLectuers`, `/RemoveTeacherToClassLectuers`, `/ManagerStudentToTeacher` | Teacher/class/subject/student assignment. |
+| Teacher charts | `/api/teacher/grade-distribution`, `/api/teacher/attendance-summary` | Ownership-checked dashboard data. |
+| Manager tables | `/api/menegar/MenegarStudent`, `/MenegarTeacher`, `/MenegarClass`, `/MenegarStudentInClass`, `/MenegarTeacherInClass` | School-scoped DataTables data. |
+| Manager statistics | `/api/menegar/CountTeacherPerSubject` | Teacher count per subject. |
+| Classes | `/api/theClass/GetClasses`, `/GetClassToStudent`, `/Create`, `/Edit`, `/CreateTeacherClass`, `/Delete` | Class lists, CRUD, and assignment. |
+| Subjects | `/api/lectuer/GetLectuers`, `/LectuersData`, `/Create`, `/Edit`, `/TeacherLectuer`, `/StudentLectuer`, `/Delete`, `/DeleteTeacher` | Subject lists, CRUD, and links. |
+
+Some legacy controllers contain actions without explicit route templates. New clients should use only explicit routes documented here, and every new endpoint should declare its template.
+
+### 20.6 Exports, images, Redis, and certificates
+
+| Method | Route | Description |
+|---|---|---|
+| GET | `/api/ExportDataApi/...` | Role-protected Excel exports; action and parameters select the export. |
+| POST | Profile-image upload endpoints | `multipart/form-data`, antiforgery, extension/size checks, and safe filenames. |
+| GET | `/api/diagnostics/redis` | Admin-only connectivity, key count, type, TTL, and size without sensitive values. |
+
+PDF certificates are protected MVC downloads, not JSON APIs:
+
+```text
+GET /Teacher/DownloadTeacherCertificate?idTeacher={guid}
+GET /Student/DownloadStudentCertificate?idStudent={guid}
+```
+
+Teacher certificates list all distinct subjects on one page. Both actions enforce profile ownership or manager-school scope.
+
+### 20.7 Secure JavaScript example
+
+```javascript
+const token = document.querySelector(
+  'input[name="__RequestVerificationToken"]'
+).value;
+
+const response = await fetch('/api/Grades/records/RECORD_GUID', {
+  method: 'PUT',
+  credentials: 'same-origin',
+  headers: {
+    'Content-Type': 'application/json',
+    'RequestVerificationToken': token
+  },
+  body: JSON.stringify({
+    firstMonth: 20, mid: 30, secondMonth: 20, activity: 10, final: 20
+  })
+});
+
+if (!response.ok) {
+  const error = await response.json().catch(() => ({}));
+  throw new Error(error.message ?? 'Request failed');
+}
+```
+
+### 20.8 Trust boundaries and maintenance
+
+- A GUID is never authorization; every endpoint rechecks role, school, and ownership.
+- Client `teacherId` and `studentid` values are matched to Identity/database scope.
+- Never return stack traces, tokens, credentials, or connection strings.
+- Update the Razor/JavaScript caller and this reference in the same change whenever a contract changes.
+- Add integration tests for 200, 400, 401, 403, and 404, including cross-user access attempts.
