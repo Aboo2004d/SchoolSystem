@@ -76,7 +76,7 @@
                 "processing": true,
                 "serverSide": true,
                 "ajax": {
-                    "url": "/Grades/DataGrades?teacherId="+idTeacher,
+                    "url": "/api/Grades/teacher-records?teacherId=" + encodeURIComponent(idTeacher),
                     "type": "GET",
                     "dataSrc": function (json) {
                             if (json.error) {
@@ -158,7 +158,7 @@
             $('#dropdownNewMark').on('click', function () {
                
 
-                $.getJSON('/Grades/GetSubjectsForTeacher', { teacherId: teacherId }, function (data) {
+                $.getJSON('/api/Grades/subjects', { teacherId: teacherId }, function (data) {
                     var subjectDropdown = $('#subjectDropdown');
                     subjectDropdown.empty().append('<option value="">يرجى الاختيار...</option>');
 
@@ -173,7 +173,7 @@
                 var subjectId = $(this).val();
                 if (!subjectId) return;
 
-                $.getJSON('/Grades/GetGradesForSubject', { teacherId: teacherId, subjectId: subjectId }, function (data) {
+                $.getJSON('/api/Grades/classes', { teacherId: teacherId, subjectId: subjectId }, function (data) {
                     var gradeDropdown = $('#gradeDropdown');
                     gradeDropdown.empty().append('<option value="">يرجى الاختيار...</option>');
 

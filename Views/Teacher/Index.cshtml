@@ -70,8 +70,11 @@
 
     <script>
         document.addEventListener("DOMContentLoaded", function () {
-            fetch('@Url.Action("GetStudentCountPerGrades", "Teacher", new { idTeacher = @Model.Id })')
-                .then(response => response.json())
+            fetch('/api/teacher/grade-distribution?idTeacher=@Model.Id')
+                .then(response => {
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    return response.json();
+                })
                 .then(data => {
                     const labels = data.map(item => item.lectuerName);
 
@@ -163,8 +166,11 @@
 
     <script>
         document.addEventListener("DOMContentLoaded", function () {
-            fetch('@Url.Action("GetStudentCountPerAttendance", "Teacher", new { idTeacher = @Model.Id })')
-                .then(response => response.json())
+            fetch('/api/teacher/attendance-summary?idTeacher=@Model.Id')
+                .then(response => {
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    return response.json();
+                })
                 .then(data => {
                     const labels = data.map(item => item.lectuerName);
 

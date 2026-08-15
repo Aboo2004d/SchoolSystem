@@ -34,8 +34,7 @@ namespace SchoolSystem.Controllers
         }
         // GET: Attendance
         
-        [HttpGet]
-        [AuthorizeRoles("Teacher")]
+        [NonAction]
         public async Task<JsonResult> DataAttendance(
             Guid teacherId,
             [FromQuery] int draw,
@@ -57,6 +56,7 @@ namespace SchoolSystem.Controllers
                 //فحص اذا كان تم ارسال قيمة المتغير ام لا و وصع قيمة افتراضية اذا كان لا
                 if (length <= 0)
                     length = 10;
+                length = Math.Min(length, 100);
 
                 // تحديد قيمة الـ searchValue
                 var orderColumnIndex = Request.Query["order[0][column]"].ToString();
@@ -67,11 +67,16 @@ namespace SchoolSystem.Controllers
                 if (string.IsNullOrEmpty(orderDir)) orderDir = "asc";
 
                 // إجمالي عدد السجلات بدون فلترة
-                var totalRecords = await _context.Attendances.Where(std => std.IdSchool == IdSchool && std.IdTeacher == IdTeacher)
-                .CountAsync();
+                var attendanceQuery = _context.Attendances.Where(std =>
+                    std.IdSchool == IdSchool && std.IdTeacher == IdTeacher &&
+                    !std.IsDeletedAttendance &&
+                    !std.IsDeletedStudent && !std.IsDeletedClass && !std.IsDeletedLectuer &&
+                    !std.IsDeletedTeacher && !std.IsDeletedSchool);
+
+                var totalRecords = await attendanceQuery.CountAsync();
 
                 // الاستعلام الأساسي مع تحسين الأداء
-                var query = _context.Attendances.Where(std => std.IdSchool == IdSchool && std.IdTeacher == IdTeacher)
+                var query = attendanceQuery
                     .AsNoTracking()
                     .Select(s => new
                     {
@@ -99,7 +104,9 @@ namespace SchoolSystem.Controllers
                 }
 
                 // عدد السجلات الاصلية التي تنطبق عليها الشروط
-                var filteredCount = await query.CountAsync();
+                var filteredCount = string.IsNullOrWhiteSpace(searchValue)
+                    ? totalRecords
+                    : await query.CountAsync();
 
                 // الترتيب
                 query = (orderColumnIndex, orderDir) switch
@@ -164,9 +171,10 @@ namespace SchoolSystem.Controllers
                 
                 return RedirectToAction("Index", "Teacher");
             }
-            var name =await _context.Teachers.SingleOrDefaultAsync(c => c.Id == teacherId);
+            var name = await _context.Teachers.AsNoTracking()
+                .SingleOrDefaultAsync(c => c.Id == IdTeacher && c.IdSchool == IdSchool && !c.IsDeleted);
             ViewBag.name = name?.Name??"Null";
-            ViewBag.IdTeacher = IdTeacher;
+            ViewBag.IdTeacher = IdTeacher.ToString("D");
             return View();
         }
 
@@ -177,6 +185,14 @@ namespace SchoolSystem.Controllers
         {
             idTeacher = HttpContext.Session.GetGuid("Id") ?? Guid.Empty;
             try{
+                var (isValid, currentTeacherId, schoolId, teacherSessionIsActive) =
+                    await _sessionValidatorService.ValidateTeacherSessionAsync(
+                        HttpContext, idTeacher.Value, "Attendance/Create");
+                if (!isValid)
+                    return teacherSessionIsActive
+                        ? RedirectToAction("Index", "Teacher")
+                        : RedirectToAction("Login", "Account");
+
                 if (idClass == null || idLectuer == null)
                 {
                     
@@ -191,8 +207,10 @@ namespace SchoolSystem.Controllers
                     return View(nameof(Index), new { idTeacher = idTeacher });
                 }
 
-                Lectuer? lec =await _context.Lectuers.FindAsync(idLectuer);
-                TheClass? cla  =await _context.TheClasses.FindAsync(idClass);
+                Lectuer? lec = await _context.Lectuers.AsNoTracking().FirstOrDefaultAsync(l =>
+                    l.Id == idLectuer.Value && l.IdSchool == schoolId && !l.IsDeleted && !l.IsDeletedSchool);
+                TheClass? cla = await _context.TheClasses.AsNoTracking().FirstOrDefaultAsync(c =>
+                    c.Id == idClass.Value && c.IdSchool == schoolId && !c.IsDeleted && !c.IsDeletedSchool);
                 
                 if (lec == null || cla == null)
                 {
@@ -202,7 +220,12 @@ namespace SchoolSystem.Controllers
                 }
 
                 TeacherLectuerClass? lectuer =await _context.TeacherLectuerClasses
-                    .Where(tl => tl.IdTeacher == idTeacher && tl.IdLectuer == idLectuer && tl.IdClass == idClass)
+                    .AsNoTracking()
+                    .Where(tl => tl.IdTeacher == currentTeacherId && tl.IdSchool == schoolId &&
+                        tl.IdLectuer == idLectuer && tl.IdClass == idClass &&
+                        !tl.IsDeletedTeacherLectuerClass && !tl.IsDeletedTeacher &&
+                        !tl.IsDeletedLectuer && !tl.IsDeletedClass && !tl.IsDeletedSchool &&
+                        !tl.IsTeacherRemovedFromClass && !tl.IsTeacherRemovedFromLectuer)
                     .FirstOrDefaultAsync();
                     
                 if (lectuer != null)
@@ -210,15 +233,21 @@ namespace SchoolSystem.Controllers
                     ViewData["DateAndTime"] = DateOnly.FromDateTime(DateTime.Now);
 
                     ViewData["IdLectuer"] = idLectuer;
-                    ViewData["IdTeacher"] = idTeacher;
+                    ViewData["IdTeacher"] = currentTeacherId;
                     ViewData["IdClass"] = idClass;
 
                     List<StudentLectuerTeacher>? student = await _context.StudentLectuerTeachers
-                        .Where(t => t.IdTeacher == lectuer.IdTeacher && t.IdClass == lectuer.IdClass)
+                        .AsNoTracking()
+                        .Where(t => t.IdTeacher == currentTeacherId && t.IdSchool == schoolId &&
+                            t.IdClass == idClass && t.IdLectuer == idLectuer &&
+                            !t.IsDeletedStudentLectuerTeacher && !t.IsDeletedStudent &&
+                            !t.IsDeletedTeacher && !t.IsDeletedLectuer && !t.IsDeletedClass &&
+                            !t.IsDeletedSchool && !t.IsTeacherRemovedFromClass &&
+                            !t.IsTeacherRemovedFromLectuer)
                         .Include(st => st.IdStudentNavigation)
                         .ToListAsync();
 
-                    if (student == null)
+                    if (student.Count == 0)
                     {
                         _notyf.Error("لا يوجد طلاب بعد.");
                         return View(nameof(Index), new { idTeacher = idTeacher });
@@ -254,17 +283,76 @@ namespace SchoolSystem.Controllers
         // To protect from overposting attacks, enable the specific properties you want to bind to.
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
+        [NonAction]
         [ValidateAntiForgeryToken]
         [AuthorizeRoles("Teacher")]
         
         public async Task<IActionResult> Create(List<Attendance> Attendances)
         {
             try{
+                if (Attendances.Count == 0)
+                    return BadRequest();
+
+                var requestedTeacherId = HttpContext.Session.GetGuid("Id") ?? Guid.Empty;
+                var (isValid, teacherId, schoolId, _) = await _sessionValidatorService
+                    .ValidateTeacherSessionAsync(HttpContext, requestedTeacherId, "Attendance/Create");
+                if (!isValid)
+                    return Forbid();
+
+                var lectureId = Attendances[0].IdLectuer;
+                var classId = Attendances[0].IdClass;
+                if (lectureId == null || classId == null)
+                    return BadRequest();
+
+                var ownsClassAndLecture = await _context.TeacherLectuerClasses.AsNoTracking().AnyAsync(t =>
+                    t.IdTeacher == teacherId && t.IdSchool == schoolId &&
+                    t.IdLectuer == lectureId && t.IdClass == classId &&
+                    !t.IsDeletedTeacherLectuerClass && !t.IsDeletedTeacher &&
+                    !t.IsDeletedLectuer && !t.IsDeletedClass && !t.IsDeletedSchool &&
+                    !t.IsTeacherRemovedFromClass && !t.IsTeacherRemovedFromLectuer);
+                if (!ownsClassAndLecture)
+                    return Forbid();
+
+                var postedStudentIds = Attendances
+                    .Where(a => a.IdStudent.HasValue)
+                    .Select(a => a.IdStudent!.Value)
+                    .Distinct()
+                    .ToList();
+                if (postedStudentIds.Count != Attendances.Count)
+                    return BadRequest();
+
+                var allowedStudentIds = await _context.StudentLectuerTeachers.AsNoTracking()
+                    .Where(t => t.IdTeacher == teacherId && t.IdSchool == schoolId &&
+                        t.IdLectuer == lectureId && t.IdClass == classId &&
+                        postedStudentIds.Contains(t.IdStudent!.Value) &&
+                        !t.IsDeletedStudentLectuerTeacher && !t.IsDeletedStudent &&
+                        !t.IsDeletedTeacher && !t.IsDeletedLectuer && !t.IsDeletedClass &&
+                        !t.IsDeletedSchool && !t.IsTeacherRemovedFromClass &&
+                        !t.IsTeacherRemovedFromLectuer)
+                    .Select(t => t.IdStudent!.Value)
+                    .Distinct()
+                    .ToListAsync();
+                if (allowedStudentIds.Count != postedStudentIds.Count)
+                    return Forbid();
+
+                var attendanceDate = DateOnly.FromDateTime(DateTime.Now);
+                foreach (var attendance in Attendances)
+                {
+                    if (attendance.AttendanceStatus is not ("1" or "0" or "m"))
+                        ModelState.AddModelError(nameof(Attendance.AttendanceStatus), "Invalid attendance status.");
+
+                    attendance.Id = Guid.Empty;
+                    attendance.IdTeacher = teacherId;
+                    attendance.IdSchool = schoolId;
+                    attendance.IdLectuer = lectureId;
+                    attendance.IdClass = classId;
+                    attendance.DateAndTime = attendanceDate;
+                    if (attendance.AttendanceStatus != "m")
+                        attendance.Excuse = null;
+                }
+
                 if (ModelState.IsValid){
-                    foreach(var i in Attendances){
-                        i.IdSchool = _context.Teachers.Find(i.IdTeacher)?.IdSchool??null;
-                        await _context.AddRangeAsync(i);
-                    }
+                    await _context.Attendances.AddRangeAsync(Attendances);
                     await _context.SaveChangesAsync();
                     _notyf.Success("تم تسجيل الحضور و الغياب بنجاح");
                     return RedirectToAction("ViewAttendance", new { teacherId = Attendances[0].IdTeacher });
@@ -290,7 +378,7 @@ namespace SchoolSystem.Controllers
             return View(Attendances);
         }
 
-        [AuthorizeRoles("Teacher")]
+        [NonAction]
         public async Task<IActionResult> GetLectuerForTeacher(Guid teacherId)
         {
             if(teacherId != HttpContext.Session.GetGuid("Id"))
@@ -314,6 +402,7 @@ namespace SchoolSystem.Controllers
             return Json(subjects);
         }
 
+        [NonAction]
         public async Task<IActionResult> GetClassForSubject(Guid teacherId, Guid subjectId)
         {
             if(teacherId != HttpContext.Session.GetGuid("Id"))
@@ -345,8 +434,7 @@ namespace SchoolSystem.Controllers
             return Json(grades);
         }
 
-        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager, RoleNames.Student)]
-        [HttpGet]
+        [NonAction]
         public async Task<JsonResult> AttendancesStudentData(
             Guid studentid,
             [FromQuery] int draw,
@@ -358,7 +446,7 @@ namespace SchoolSystem.Controllers
             {
                 
                 // التحقق من صلاحية المستخدم و التلاعب بالبيانات
-                var (IsValid, IdStudent, IdSchool, status) = await _sessionValidatorService.ValidateStudentSessionAsync(HttpContext, studentid, "Attendance/AttendancesStudentData");
+                var (IsValid, IdStudent, IdSchool, status) = await _sessionValidatorService.ValidateStudentDataAccessAsync(HttpContext, studentid, "Attendance/AttendancesStudentData");
                 if (!IsValid)
                 {
                     return Json(new { success = false, status= status, error = "Unauthorized access. Session expired." });
@@ -472,7 +560,7 @@ namespace SchoolSystem.Controllers
         {
             if (HttpContext.Session.GetString("Role") == "admin")
             {
-                var (IsValid, IdStudent, IdSchool, status) = await _sessionValidatorService.ValidateStudentSessionAsync(HttpContext, studentid, "Attendance/AttendancesStudentData");
+                var (IsValid, IdStudent, IdSchool, status) = await _sessionValidatorService.ValidateStudentDataAccessAsync(HttpContext, studentid, "Attendance/AttendancesStudentData");
                 // التحقق من صلاحية المستخدم و التلاعب بالبيانات
                 if (!IsValid)
                 {
@@ -485,7 +573,7 @@ namespace SchoolSystem.Controllers
             {
 
                 // التحقق من صلاحية المستخدم و التلاعب بالبيانات
-                var (IsValid, IdStudent, IdSchool, status) = await _sessionValidatorService.ValidateStudentSessionAsync(HttpContext, studentid, "Attendance/AttendancesStudentData");
+                var (IsValid, IdStudent, IdSchool, status) = await _sessionValidatorService.ValidateStudentDataAccessAsync(HttpContext, studentid, "Attendance/AttendancesStudentData");
                 if (!IsValid)
                 {
                     if(!status)
@@ -511,7 +599,15 @@ namespace SchoolSystem.Controllers
                     return View(nameof(ViewAttendance));
                 }
 
-                var attendance = await _context.Attendances.FindAsync(id);
+                var requestedTeacherId = HttpContext.Session.GetGuid("Id") ?? Guid.Empty;
+                var (isValid, teacherId, schoolId, _) = await _sessionValidatorService
+                    .ValidateTeacherSessionAsync(HttpContext, requestedTeacherId, "Attendance/Edit");
+                if (!isValid)
+                    return Forbid();
+
+                var attendance = await _context.Attendances.AsNoTracking().FirstOrDefaultAsync(a =>
+                    a.Id == id.Value && a.IdTeacher == teacherId && a.IdSchool == schoolId &&
+                    !a.IsDeletedTeacher && !a.IsDeletedSchool);
                 if (attendance == null)
                 {
                     await _logger.LogAsync(new Exception("التلاعب بالبيانات المرسلة"),"Attendance/Edit");
@@ -521,7 +617,8 @@ namespace SchoolSystem.Controllers
             
                 if (attendance.IdStudent != null)
                 {
-                    var student = await _context.Students.FindAsync(attendance.IdStudent);
+                    var student = await _context.Students.AsNoTracking().FirstOrDefaultAsync(s =>
+                        s.Id == attendance.IdStudent && s.IdSchool == schoolId && !s.IsDeletedStudent);
                     if (student == null)
                     {
                         Exception ex = new Exception("التلاعب بالبيانات المرسلة");
@@ -563,9 +660,10 @@ namespace SchoolSystem.Controllers
         // To protect from overposting attacks, enable the specific properties you want to bind to.
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
+        [NonAction]
         [ValidateAntiForgeryToken]
         [AuthorizeRoles("Teacher")]
-        public async Task<IActionResult> Edit(Guid id, [Bind("Id,AttendanceStatus,DateAndTime,Excuse,IdTeacher,IdLectuer,IdStudent,IdClass")] Attendance attendance)
+        public async Task<IActionResult> Edit(Guid id, [Bind("Id,AttendanceStatus,Excuse")] Attendance attendance)
         {
             
             if (id != attendance.Id)
@@ -575,31 +673,27 @@ namespace SchoolSystem.Controllers
                 return View(attendance);
             }
 
-            if (ModelState.IsValid)
+            var requestedTeacherId = HttpContext.Session.GetGuid("Id") ?? Guid.Empty;
+            var (isValid, teacherId, schoolId, _) = await _sessionValidatorService
+                .ValidateTeacherSessionAsync(HttpContext, requestedTeacherId, "Attendance/Edit");
+            if (!isValid)
+                return Forbid();
+
+            var existingAttendance = await _context.Attendances.FirstOrDefaultAsync(a =>
+                a.Id == id && a.IdTeacher == teacherId && a.IdSchool == schoolId &&
+                !a.IsDeletedTeacher && !a.IsDeletedSchool);
+            if (existingAttendance == null)
+                return NotFound();
+
+            if (attendance.AttendanceStatus == "1" || attendance.AttendanceStatus == "0" || attendance.AttendanceStatus == "m")
             {
                 try
                 {
-                    if (attendance.AttendanceStatus == "1" || attendance.AttendanceStatus == "0")
-                    {
-                        attendance.IdSchool = _context.Teachers.Find(attendance.IdTeacher)?.IdSchool ?? null;
-                        attendance.Excuse = null;
-                        _context.Update(attendance);
-                        await _context.SaveChangesAsync();
-                        _notyf.Success("تمت عملية التعديل بنجاح");
-                        return RedirectToAction("ViewAttendance", new { teacherId = attendance.IdTeacher });
-                    }
-                    else if (attendance.AttendanceStatus == "m")
-                    {
-                        attendance.IdSchool = _context.Teachers.Find(attendance.IdTeacher)?.IdSchool ?? null;
-                        _context.Update(attendance);
-                        await _context.SaveChangesAsync();
-                        _notyf.Success("تمت عملية التعديل بنجاح");
-                        return RedirectToAction("ViewAttendance", new { teacherId = attendance.IdTeacher });
-                    }
-                    else
-                    {
-                        _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة");
-                    }
+                    existingAttendance.AttendanceStatus = attendance.AttendanceStatus;
+                    existingAttendance.Excuse = attendance.AttendanceStatus == "m" ? attendance.Excuse : null;
+                    await _context.SaveChangesAsync();
+                    _notyf.Success("تمت عملية التعديل بنجاح");
+                    return RedirectToAction("ViewAttendance", new { teacherId });
 
                 }
                 catch (Exception ex)
@@ -609,10 +703,13 @@ namespace SchoolSystem.Controllers
                 }
                 
             }
-            return View(attendance);
+            _notyf.Error("حالة الحضور غير صالحة");
+            return RedirectToAction("Edit", new { id });
         }
 
         // GET: Attendance/Delete/5
+        [HttpGet]
+        [AuthorizeRoles(RoleNames.Teacher)]
         public async Task<IActionResult> Delete(Guid? id)
         {
             if (id == null)
@@ -620,11 +717,19 @@ namespace SchoolSystem.Controllers
                 return NotFound();
             }
 
+            var requestedTeacherId = HttpContext.Session.GetGuid("Id") ?? Guid.Empty;
+            var (isValid, teacherId, schoolId, _) = await _sessionValidatorService
+                .ValidateTeacherSessionAsync(HttpContext, requestedTeacherId, "Attendance/DeletePage");
+            if (!isValid)
+                return Forbid();
+
             var attendance = await _context.Attendances
                 .Include(a => a.IdLectuerNavigation)
                 .Include(a => a.IdStudentNavigation)
                 .Include(a => a.IdTeacherNavigation)
-                .FirstOrDefaultAsync(m => m.Id == id);
+                .FirstOrDefaultAsync(m => m.Id == id && m.IdTeacher == teacherId &&
+                    m.IdSchool == schoolId && !m.IsDeletedAttendance &&
+                    !m.IsDeletedTeacher && !m.IsDeletedSchool);
             if (attendance == null)
             {
                 return NotFound();
@@ -635,6 +740,7 @@ namespace SchoolSystem.Controllers
 
         // POST: Attendance/Delete/5
         [HttpPost, ActionName("Delete")]
+        [NonAction]
         [ValidateAntiForgeryToken]
         [AuthorizeRoles("Teacher")]
         public async Task<IActionResult> DeleteConfirmed(Guid id) {

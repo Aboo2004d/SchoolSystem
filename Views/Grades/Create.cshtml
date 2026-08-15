@@ -6,6 +6,8 @@
 
 <h4>اضافة العلامات للطلاب في الصف: @ViewBag.GradeName في مادة: @ViewBag.SubjectName</h4>
 <hr />
+<form id="gradesForm">
+@Html.AntiForgeryToken()
 <table class="table" id="gradesTable">
     <thead>
         <tr style="font-size: smaller;">
@@ -49,12 +51,6 @@
             <td><input type="number" class="form-control small-input" name="Grades[@i].Activity" value="@(grade.Activity)" /></td>
             <td><input type="number" class="form-control small-input" name="Grades[@i].Final" value="@(grade.Final )" /></td>
         </tr>
-        <p>
-            teacherId: @grade.IdTeacher, subjectId: @grade.IdLectuer classId: @grade.IdClass
-            <br />
-            studentId: @grade.IdStudent
-            <br />
-        </p>
     }
 
 
@@ -63,9 +59,10 @@
 
 
 <div>
-    <button type="button" class="btn btn-success" id="saveAllBtn">حفظ</button>
+    <button type="submit" class="btn btn-success" id="saveAllBtn">حفظ</button>
     <a class="btn btn-dark" asp-action="ViewGrades" asp-route-teacherId="@ViewBag.TeacherId">عودة دون حفظ</a>
 </div>
+</form>
 
 @section Scripts {
     <script>
@@ -88,27 +85,53 @@
             });
         });
     </script>
-
     <script>
-        $('#saveAllBtn').click(function () {
-            var form = $('<form method="post" action="/Grades/SaveAll"></form>');
+        $('#gradesForm').on('submit', async function (event) {
+            event.preventDefault();
+            const button = $('#saveAllBtn');
+            button.prop('disabled', true);
 
-            // إضافة TeacherId و SubjectId
-            form.append('<input type="hidden" name="teacherId" value="@ViewBag.TeacherId" />');
-            form.append('<input type="hidden" name="subjectId" value="@ViewBag.SubjectId" />');
+            const numberOrNull = value => value === '' ? null : Number(value);
+            const payload = {
+                teacherId: '@ViewBag.TeacherId',
+                lectuerId: '@ViewBag.SubjectId',
+                classId: '@ViewBag.ClassId',
+                items: $('#gradesTable tbody tr').map(function () {
+                    return {
+                        studentId: $(this).find('input[name$=".StudentId"]').val(),
+                        firstMonth: numberOrNull($(this).find('input[name$=".FirstMonth"]').val()),
+                        mid: numberOrNull($(this).find('input[name$=".Mid"]').val()),
+                        secondMonth: numberOrNull($(this).find('input[name$=".SecondMonth"]').val()),
+                        activity: numberOrNull($(this).find('input[name$=".Activity"]').val()),
+                        final: numberOrNull($(this).find('input[name$=".Final"]').val())
+                    };
+                }).get()
+            };
 
-            // نسخ جميع الحقول من الجدول
-            $('table input').each(function () {
-                var input = $(this).clone();
-                form.append(input);
-            });
-
-            // إرسال النموذج
-            $('body').append(form);
-            form.submit();
+            try {
+                const response = await fetch('/api/Grades/records', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    const validationMessage = result.errors
+                        ? Object.values(result.errors).flat().join('\n')
+                        : result.message;
+                    throw new Error(validationMessage || 'فشل حفظ العلامات.');
+                }
+                window.location.href = result.redirectUrl;
+            } catch (error) {
+                alert(error.message);
+                button.prop('disabled', false);
+            }
         });
     </script>
-
 
     <style>
         .small-input {

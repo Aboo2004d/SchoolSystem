@@ -24,47 +24,54 @@ public class TeacherEnrollmentCertificate : IDocument
 
     public void Compose(IDocumentContainer container)
     {
-        foreach (string lectuer in SubjectName)
+        var subjects = SubjectName
+            .Where(subject => !string.IsNullOrWhiteSpace(subject))
+            .Select(subject => subject.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (subjects.Count == 0)
+            subjects.Add("غير محددة");
+
+        var subjectsText = string.Join(" ، ", subjects);
+        var subjectLabel = subjects.Count == 1 ? "المادة" : "المواد";
+        var teachingPhrase = subjects.Count == 1 ? "مادة" : "المواد";
+        var year = DateTime.Now.Year;
+        var academicYear = DateTime.Now.Month < 8
+            ? $"{year - 1} - {year}"
+            : $"{year} - {year + 1}";
+
+        container.Page(page =>
         {
-            var year = DateTime.Now.Year;
-            var academicYear = DateTime.Now.Month < 8
-                ? $"{year - 1} - {year}"
-                : $"{year} - {year + 1}";
+            page.Size(PageSizes.A4);
+            page.Margin(50);
+            page.DefaultTextStyle(x => x.FontSize(16));
+            page.DefaultTextStyle(x => x.FontFamily("Amiri"));
 
-            container.Page(page =>
+            page.Content().Column(column =>
             {
-                page.Size(PageSizes.A4);
-                page.Margin(50);
-                page.DefaultTextStyle(x => x.FontSize(16));
-                page.DefaultTextStyle(x => x.FontFamily("Amiri"));
+                column.Spacing(20);
+                column.Item().AlignCenter().Text("شهادة قيد")
+                    .FontSize(28).Bold().FontColor(Colors.Green.Darken2);
 
-                page.Content().Column(column =>
-                {
-                    column.Spacing(20);
-                    column.Item().AlignCenter().Text("شهادة قيد")
-                        .FontSize(28).Bold().FontColor(Colors.Green.Darken2);
+                column.Item().AlignRight().Text($"اسم المعلم: {TeacherName}");
+                column.Item().AlignRight().Text($"رقم الهوية: {IdNumber}");
+                column.Item().AlignRight().Text($"اسم المدرسة: {SchoolName}");
+                column.Item().AlignRight().Text($"{subjectLabel}: {subjectsText}");
 
-                    column.Item().AlignRight().Text($"اسم المعلم: {TeacherName}");
-                    column.Item().AlignRight().Text($"رقم الهوية: {IdNumber}");
-                    column.Item().AlignRight().Text($"اسم المدرسة: {SchoolName}");
-                    column.Item().AlignRight().Text($"المادة: {lectuer}");
-                    
-                    column.Item().PaddingTop(20).AlignRight().Text(
-                        $"تشهد إدارة مدرسة: {SchoolName}"
-                    );
-                    column.Item().PaddingTop(5).AlignRight().Text(
-                        $"بأن المعلم: {TeacherName}، حامل الهوية رقم: {IdNumber} "
-                    );
-                    column.Item().PaddingTop(5).AlignRight().Text(
-                        $". يعمل لدينا في تدريس مادة: {lectuer} خلال العام الدراسي: {academicYear}"
-                    );
+                column.Item().PaddingTop(20).AlignRight().Text(
+                    $"تشهد إدارة مدرسة: {SchoolName}"
+                );
+                column.Item().PaddingTop(5).AlignRight().Text(
+                    $"بأن المعلم: {TeacherName}، حامل الهوية رقم: {IdNumber}"
+                );
+                column.Item().PaddingTop(5).AlignRight().Text(
+                    $"يعمل لدينا في تدريس {teachingPhrase}: {subjectsText} خلال العام الدراسي: {academicYear}"
+                );
 
-                    column.Item().PaddingTop(50).AlignLeft().Text("مدير المدرسة: ")
-                        .Bold().FontSize(16);
-                        column.Item().AlignLeft().Text(NameMenegar)
-                    .FontSize(15);
-                });
+                column.Item().PaddingTop(50).AlignLeft().Text("مدير المدرسة: ")
+                    .Bold().FontSize(16);
+                column.Item().AlignLeft().Text(NameMenegar).FontSize(15);
             });
-        }
+        });
     }
 }

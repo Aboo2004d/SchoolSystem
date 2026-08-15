@@ -45,6 +45,47 @@ public sealed class SessionValidatorService : ISessionValidatorService
         return (true, profile.Id, profile.IdSchool.Value, true);
     }
 
+    public async Task<(bool IsValid, Guid IdStudent, Guid IdSchool, bool status)> ValidateStudentDataAccessAsync(
+        HttpContext httpContext, Guid studentId, string source)
+    {
+        var user = await _userManager.GetUserAsync(httpContext.User);
+        if (user is null || !user.IsActive)
+            return (false, Guid.Empty, Guid.Empty, false);
+
+        var student = await _context.Students.AsNoTracking().SingleOrDefaultAsync(x =>
+            x.Id == studentId && !x.IsDeletedStudent && !x.IsDeletedSchool && x.IdSchool.HasValue);
+        if (student is null)
+            return await RejectAsync(source, (false, Guid.Empty, Guid.Empty, true));
+        var targetSchoolId = student.IdSchool!.Value;
+
+        if (await _userManager.IsInRoleAsync(user, RoleNames.Admin))
+            return (true, student.Id, targetSchoolId, true);
+
+        if (await _userManager.IsInRoleAsync(user, RoleNames.Student))
+        {
+            var ownsStudentProfile = student.ApplicationUserId == user.Id;
+            return ownsStudentProfile
+                ? (true, student.Id, targetSchoolId, true)
+                : await RejectAsync(source, (false, Guid.Empty, Guid.Empty, true));
+        }
+
+        if (await _userManager.IsInRoleAsync(user, RoleNames.Manager))
+        {
+            var managerSchoolId = await _context.Menegars.AsNoTracking()
+                .Where(manager => manager.ApplicationUserId == user.Id && !manager.IsDeleted &&
+                    !manager.IsDeletedSchool)
+                .Select(manager => manager.IdSchool)
+                .SingleOrDefaultAsync();
+
+            return managerSchoolId.HasValue && managerSchoolId.Value == targetSchoolId
+                ? (true, student.Id, targetSchoolId, true)
+                : await RejectAsync(source, (false, Guid.Empty, Guid.Empty, true));
+        }
+
+        await _logger.LogAsync(new UnauthorizedAccessException("Role is not allowed to access student data."), source);
+        return (false, Guid.Empty, Guid.Empty, true);
+    }
+
     public async Task<(bool IsValid, Guid IdSchool, string Message)> ValidateManagerSessionAsync(
         HttpContext httpContext, string source)
     {

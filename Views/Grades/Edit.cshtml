@@ -13,7 +13,8 @@
         </div>
 
         <div class="card-body">
-            <form asp-action="Edit" method="post" novalidate>
+            <form id="gradeEditForm" novalidate>
+                @Html.AntiForgeryToken()
                 <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
                 <input type="hidden" asp-for="GradesId" />
 
@@ -57,7 +58,7 @@
                     <button type="submit" class="btn btn-outline-success">
                         <i class="bi bi-save-fill me-1"></i> حفظ
                     </button>
-                    <a class="btn btn-outline-secondary" asp-action="Index" asp-route-teacherId="@Model.IdTeacher">
+                    <a class="btn btn-outline-secondary" asp-action="ViewGrades" asp-route-teacherId="@Model.IdTeacher">
                         <i class="bi bi-arrow-return-left me-1"></i> عودة
                     </a>
                 </div>
@@ -68,4 +69,40 @@
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        $('#gradeEditForm').on('submit', async function (event) {
+            event.preventDefault();
+            const button = $(this).find('button[type="submit"]');
+            button.prop('disabled', true);
+            const numberOrNull = value => value === '' ? null : Number(value);
+            try {
+                const response = await fetch('/api/Grades/records/@Model.GradesId', {
+                    method: 'PUT',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
+                    },
+                    body: JSON.stringify({
+                        firstMonth: numberOrNull($('#FirstMonth').val()),
+                        mid: numberOrNull($('#Mid').val()),
+                        secondMonth: numberOrNull($('#SecondMonth').val()),
+                        activity: numberOrNull($('#Activity').val()),
+                        final: numberOrNull($('#Final').val())
+                    })
+                });
+                const result = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    const validationMessage = result.errors
+                        ? Object.values(result.errors).flat().join('\n')
+                        : result.message;
+                    throw new Error(validationMessage || 'فشل تعديل العلامات.');
+                }
+                window.location.href = result.redirectUrl;
+            } catch (error) {
+                alert(error.message);
+                button.prop('disabled', false);
+            }
+        });
+    </script>
 }

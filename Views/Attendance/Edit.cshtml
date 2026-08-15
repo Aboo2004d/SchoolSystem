@@ -8,21 +8,10 @@
 <hr />
 <div class="row">
     <div class="col-md-4">
-        <form asp-action="Edit">
+        <form id="attendanceEditForm">
+            @Html.AntiForgeryToken()
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-            @{
-                int IdStudent = ViewBag.IdStudent;
-                int IdTeacher = ViewBag.IdTeacher;
-                int IdLectuer = ViewBag.IdLectuer;
-                int IdClass = ViewBag.IdClass;
-                DateOnly DateAndTime = ViewBag.DateAndTime;
-            }
             <input type="hidden" asp-for="Id" />
-            <input type="hidden" asp-for="IdStudent" value="@IdStudent" class="form-control" />
-            <input type="hidden" asp-for="IdTeacher" value="@IdTeacher" class="form-control" />
-            <input type="hidden" asp-for="IdLectuer" value="@IdLectuer" class="form-control" />
-            <input type="hidden" asp-for="IdClass" value="@IdClass" class="form-control" />
-            <input type="hidden" asp-for="DateAndTime" value="@DateAndTime" class="form-control" />
             <div class="form-group">
                 <label asp-for="AttendanceStatus" class="control-label">حالة الحضور</label>
                 <select asp-for="AttendanceStatus" asp-items="ViewBag.Status" class="form-control attendance-status"></select>
@@ -36,7 +25,7 @@
             <br>
             <div class="form-group">
                 <input type="submit" value="حفظ" class="btn btn-primary" />
-                <a asp-action="Index" class="btn btn-dark">عودة</a>
+                <a asp-action="ViewAttendance" asp-route-teacherId="@Model.IdTeacher" class="btn btn-dark">عودة</a>
             </div>
         </form>
     </div>
@@ -58,8 +47,35 @@
             } else {
                 excuseInput.prop('disabled', true).val('');  // تعطيل الحقل وإزالة أي قيمة موجودة
             }
-        });
+        }).trigger('change');
     });
 </script>
+    <script>
+        $('#attendanceEditForm').on('submit', async function (event) {
+            event.preventDefault();
+            const button = $(this).find('input[type="submit"]');
+            button.prop('disabled', true);
+            try {
+                const response = await fetch('/api/Attendance/records/@Model.Id', {
+                    method: 'PUT',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
+                    },
+                    body: JSON.stringify({
+                        status: $('#AttendanceStatus').val(),
+                        excuse: $('#Excuse').val() || null
+                    })
+                });
+                const result = await response.json().catch(() => ({}));
+                if (!response.ok) throw new Error(result.message || 'فشل تعديل الحضور.');
+                window.location.href = result.redirectUrl;
+            } catch (error) {
+                alert(error.message);
+                button.prop('disabled', false);
+            }
+        });
+    </script>
 
 }

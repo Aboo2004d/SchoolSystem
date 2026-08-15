@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SchoolSystem.Data;
 
@@ -11,9 +12,11 @@ using SchoolSystem.Data;
 namespace SchoolSystem.Migrations
 {
     [DbContext(typeof(SystemSchoolDbContext))]
-    partial class SystemSchoolDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260815093502_AddAttendanceQueryIndex")]
+    partial class AddAttendanceQueryIndex
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -242,7 +245,7 @@ namespace SchoolSystem.Migrations
                         .HasColumnType("date");
 
                     b.Property<string>("Excuse")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<Guid?>("IdClass")
                         .HasColumnType("uniqueidentifier");

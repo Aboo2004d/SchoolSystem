@@ -67,9 +67,23 @@
         </dd>
     </dl>
     
-    <form asp-action="Delete">
+    <form id="gradeDeleteForm">
+        @Html.AntiForgeryToken()
         <input type="hidden" asp-for="GradesId" />
         <input type="submit" value="Delete" class="btn btn-danger" /> |
         <a asp-action="Index">Back to List</a>
     </form>
 </div>
+<script>
+    document.getElementById('gradeDeleteForm').addEventListener('submit', async function (event) {
+        event.preventDefault();
+        const response = await fetch('/api/Grades/records/@Model.GradesId', {
+            method: 'DELETE',
+            credentials: 'same-origin',
+            headers: { 'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value }
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) return alert(result.message || 'فشل حذف سجل العلامات.');
+        window.location.href = result.redirectUrl;
+    });
+</script>

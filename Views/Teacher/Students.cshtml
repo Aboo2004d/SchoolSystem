@@ -34,7 +34,7 @@
                 "processing": true,
                 "serverSide": true,
                 "ajax": {
-                    "url": "/Teacher/ManagerStudentToTeacher?teacherId="+idTeacher,
+                    "url": "/api/teacher/ManagerStudentToTeacher?teacherId="+encodeURIComponent(idTeacher),
                     "type": "GET",
                     "dataSrc": function (json) {
                         if (json.error) {

@@ -6,7 +6,7 @@
 
 <h1>تسجيل حضور و غياب للطلاب</h1>
 <hr />
-<form action="Create" method="post">
+<form id="attendanceForm">
     @Html.AntiForgeryToken()
     
 
@@ -19,9 +19,6 @@
             </tr>
         </thead>
         <tbody>@{
-            int IdLectuer = ViewBag.IdLectuer;
-            int IdTeacher = ViewBag.IdTeacher;
-            int IdClass = ViewBag.IdClass;
             DateOnly DateAndTime = ViewBag.DateAndTime;
             for (int i = 0; i < ViewBag.Students.Count; i++)
             {
@@ -30,13 +27,9 @@
                 if (student.Id != null)  // تحقق أولا
                 {
                     <tr>
-                        <input type="hidden" name="Attendances[@i].IdLectuer" value="@IdLectuer" />
-                        <input type="hidden" name="Attendances[@i].IdTeacher" value="@IdTeacher" />
-                        <input type="hidden" name="Attendances[@i].DateAndTime" value="@DateAndTime" />
-                        <input type="hidden" name="Attendances[@i].IdClass" value="@IdClass" />
+                        <input type="hidden" class="student-id" value="@student.IdStudent" />
                         <td>
                             @student.IdStudentNavigation.Name
-                            <input type="hidden" name="Attendances[@i].IdStudent" value="@student.IdStudent" />
                         </td>
                         <td>
                             <select name="Attendances[@i].AttendanceStatus" class="form-control attendance-status">
@@ -94,6 +87,44 @@
                     excuseInput.prop('disabled', true).val('');
                 }
             });
+        });
+    </script>
+    <script>
+        $('#attendanceForm').on('submit', async function (event) {
+            event.preventDefault();
+            const button = $(this).find('button[type="submit"]');
+            button.prop('disabled', true);
+
+            const payload = {
+                teacherId: '@ViewBag.IdTeacher',
+                lectuerId: '@ViewBag.IdLectuer',
+                classId: '@ViewBag.IdClass',
+                items: $('#attendancesTable tbody tr').map(function () {
+                    return {
+                        studentId: $(this).find('.student-id').val(),
+                        status: $(this).find('.attendance-status').val(),
+                        excuse: $(this).find('.excuse-input').val() || null
+                    };
+                }).get()
+            };
+
+            try {
+                const response = await fetch('/api/Attendance/records', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json().catch(() => ({}));
+                if (!response.ok) throw new Error(result.message || 'فشل حفظ الحضور.');
+                window.location.href = result.redirectUrl;
+            } catch (error) {
+                alert(error.message);
+                button.prop('disabled', false);
+            }
         });
     </script>
 }

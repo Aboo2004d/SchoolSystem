@@ -34,8 +34,7 @@ namespace SchoolSystem.Controllers
             _sessionValidatorService = sessionValidatorService;
         }
         // GET: Grades
-        [HttpGet]
-        [AuthorizeRoles("Teacher")]
+        [NonAction]
         public async Task<IActionResult> DataGrades(
             Guid? teacherId,
             [FromQuery] int draw,
@@ -261,6 +260,14 @@ namespace SchoolSystem.Controllers
                 _notyf.Error("حدث خطأ غير متوقع.");
                 return RedirectToAction("ManagerMenegarTeacherView", "Menegar");
             }
+
+            var (teacherAccessIsValid, currentTeacherId, schoolId, teacherSessionIsActive) =
+                await _sessionValidatorService.ValidateTeacherSessionAsync(HttpContext, Id, "Grades/Create");
+            if (!teacherAccessIsValid)
+                return teacherSessionIsActive
+                    ? Forbid()
+                    : RedirectToAction("Login", "Account");
+            Id = currentTeacherId;
             
             if (gradeId == null || subjectId == null)
             {
@@ -276,8 +283,12 @@ namespace SchoolSystem.Controllers
                 return View(nameof(ViewGrades), new { idTeacher = teacherId });
             }
 
-            bool isFind =   _context.Lectuers.Any(t => t.Id == IdLectuer)
-                           && _context.TheClasses.Any(t => t.Id == IdGrade);
+            bool isFind = await _context.TeacherLectuerClasses.AsNoTracking().AnyAsync(t =>
+                t.IdTeacher == Id && t.IdSchool == schoolId && t.IdLectuer == IdLectuer &&
+                t.IdClass == IdGrade && !t.IsDeletedTeacherLectuerClass &&
+                !t.IsDeletedTeacher && !t.IsDeletedLectuer && !t.IsDeletedClass &&
+                !t.IsDeletedSchool && !t.IsTeacherRemovedFromClass &&
+                !t.IsTeacherRemovedFromLectuer);
                            
             if (!isFind)
             {
@@ -287,19 +298,23 @@ namespace SchoolSystem.Controllers
                 
             }
             
-            var students = _context.Students
-                .Where(student =>
-                _context.StudentLectuerTeachers.Any(stl => stl.IdClass == IdGrade
-                && stl.IdLectuer == IdLectuer && stl.IdTeacher == Id)
-                && _context.TeacherLectuerClasses.Any(tlc => tlc.IdClass == IdGrade && tlc.IdTeacher == Id)
-                && student.IdClass == IdGrade
-                )
-                .ToList();
+            var students = await _context.StudentLectuerTeachers.AsNoTracking()
+                .Where(stl => stl.IdTeacher == Id && stl.IdSchool == schoolId &&
+                    stl.IdClass == IdGrade && stl.IdLectuer == IdLectuer &&
+                    !stl.IsDeletedStudentLectuerTeacher && !stl.IsDeletedStudent &&
+                    !stl.IsDeletedTeacher && !stl.IsDeletedLectuer && !stl.IsDeletedClass &&
+                    !stl.IsDeletedSchool && !stl.IsTeacherRemovedFromClass &&
+                    !stl.IsTeacherRemovedFromLectuer && stl.IdStudentNavigation != null)
+                .Select(stl => stl.IdStudentNavigation!)
+                .Distinct()
+                .ToListAsync();
 
             var studentIds = students.Select(s => (Guid?)s.Id).ToList();
 
             var existingGrades = _context.Grades
-                .Where(g => g.IdTeacher == Id && g.IdLectuer == IdLectuer && studentIds.Contains(g.IdStudent))
+                .Where(g => g.IdTeacher == Id && g.IdSchool == schoolId &&
+                    g.IdLectuer == IdLectuer && g.IdClass == IdGrade &&
+                    studentIds.Contains(g.IdStudent) && !g.IsDeletedGrades)
                 .Include(g => g.IdStudentNavigation)
                 .ToList();
 
@@ -358,6 +373,8 @@ namespace SchoolSystem.Controllers
 
         
         [HttpPost]
+        [NonAction]
+        [ValidateAntiForgeryToken]
         [AuthorizeRoles("Teacher")]
         public async Task<IActionResult> SaveAll(List<GradeInputViewModel> Grades)
         {
@@ -447,8 +464,7 @@ namespace SchoolSystem.Controllers
             }
         }
         
-        [HttpGet]
-        [AuthorizeRoles(RoleNames.Student, RoleNames.Admin, RoleNames.Manager)]
+        [NonAction]
         public async Task<IActionResult> DataGradesStudent(
             Guid studentid,
             [FromQuery] int draw,
@@ -459,7 +475,7 @@ namespace SchoolSystem.Controllers
             try
             {
                 // التحقق من صلاحية المستخدم و التلاعب بالبيانات
-                var (IsValid, IdStudent, IdSchool,status) = await _sessionValidatorService.ValidateStudentSessionAsync(HttpContext, studentid, "Grades/DataGradesStudent");
+                var (IsValid, IdStudent, IdSchool,status) = await _sessionValidatorService.ValidateStudentDataAccessAsync(HttpContext, studentid, "Grades/DataGradesStudent");
                 if (!IsValid)
                 {
                     return Json(new { success = false, status= status, error = "Unauthorized access. Session expired." });
@@ -579,7 +595,7 @@ namespace SchoolSystem.Controllers
             if (HttpContext.Session.GetString("Role") == "admin")
             {
                 // التحقق من صلاحية المستخدم و التلاعب بالبيانات
-                var (IsValid, IdStudent, IdSchool, status) = await _sessionValidatorService.ValidateStudentSessionAsync(HttpContext, studentid, "Attendance/AttendancesStudentData");
+                var (IsValid, IdStudent, IdSchool, status) = await _sessionValidatorService.ValidateStudentDataAccessAsync(HttpContext, studentid, "Grades/MarkStudent");
                 if (!IsValid)
                 {
                     if(!status)
@@ -591,7 +607,7 @@ namespace SchoolSystem.Controllers
             {
 
                 // التحقق من صلاحية المستخدم و التلاعب بالبيانات
-                var (IsValid, IdStudent, IdSchool, status) = await _sessionValidatorService.ValidateStudentSessionAsync(HttpContext, studentid, "Attendance/AttendancesStudentData");
+                var (IsValid, IdStudent, IdSchool, status) = await _sessionValidatorService.ValidateStudentDataAccessAsync(HttpContext, studentid, "Grades/MarkStudent");
                 if (!IsValid)
                 {
                     if(!status)
@@ -612,6 +628,13 @@ namespace SchoolSystem.Controllers
         public async Task<IActionResult> Edit(Guid? id)
         {
             Guid Id = HttpContext.Session.GetGuid("Id") ?? Guid.Empty;
+            var (isValid, teacherId, schoolId, sessionIsActive) = await _sessionValidatorService
+                .ValidateTeacherSessionAsync(HttpContext, Id, "Grades/Edit");
+            if (!isValid)
+                return sessionIsActive
+                    ? RedirectToAction(nameof(ViewGrades), new { teacherId = Id })
+                    : RedirectToAction("Login", "Account");
+
             if (id == null)
             {
                 _notyf.Error("لا يمكن التلاعب بالبيانات المرسلة.");
@@ -634,7 +657,9 @@ namespace SchoolSystem.Controllers
                 return RedirectToAction("ViewGrades", "Grades", new { teacherId = id });
             }
 
-            var grade = await _context.Grades.FindAsync(IdGrade);
+            var grade = await _context.Grades.AsNoTracking().FirstOrDefaultAsync(g =>
+                g.GradesId == IdGrade && g.IdTeacher == teacherId && g.IdSchool == schoolId &&
+                !g.IsDeletedGrades && !g.IsDeletedTeacher && !g.IsDeletedSchool);
             if (grade == null)
             {
                 if(Id != Guid.Empty){
@@ -653,11 +678,19 @@ namespace SchoolSystem.Controllers
         // To protect from overposting attacks, enable the specific properties you want to bind to.
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
+        [NonAction]
         [ValidateAntiForgeryToken]
         [AuthorizeRoles("Teacher")]
         public async Task<IActionResult> Edit(Guid id, [Bind("GradesId,FirstMonth,Mid,SecondMonth,Activity,Final")] Grade grade)
         {
             Guid Id = HttpContext.Session.GetGuid("Id") ?? Guid.Empty;
+            var (isValid, teacherId, schoolId, sessionIsActive) = await _sessionValidatorService
+                .ValidateTeacherSessionAsync(HttpContext, Id, "Grades/Edit");
+            if (!isValid)
+                return sessionIsActive
+                    ? RedirectToAction(nameof(ViewGrades), new { teacherId = Id })
+                    : RedirectToAction("Login", "Account");
+
             if  (id != grade.GradesId)
             {
                 if(Id != Guid.Empty)
@@ -671,7 +704,9 @@ namespace SchoolSystem.Controllers
                 return RedirectToAction("Logout","Account");
             }
 
-            var grades = await _context.Grades.FindAsync(id);
+            var grades = await _context.Grades.FirstOrDefaultAsync(g =>
+                g.GradesId == id && g.IdTeacher == teacherId && g.IdSchool == schoolId &&
+                !g.IsDeletedGrades && !g.IsDeletedTeacher && !g.IsDeletedSchool);
             if (grades == null)
             {
                 if(Id != Guid.Empty)
@@ -717,19 +752,22 @@ namespace SchoolSystem.Controllers
                     {
                         _notyf.Error("The transmitted data cannot be tampered with.");
                         await _logger.LogAsync(new Exception("Manipulation of transmitted data"), "Grades/Edit");
-                        return RedirectToAction("Index", new { teacherId = Id });
+                        return RedirectToAction(nameof(ViewGrades), new { teacherId = Id });
                     }
                     await HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
                     _notyf.Error("Unauthenticated user.");
                     await _logger.LogAsync(new Exception("Unauthenticated user."), "Grades/Edit");
                     return RedirectToAction("Index", "Home");
                 }
-                return RedirectToAction(nameof(Index), new { teacherId = grades.IdTeacher });
+                return RedirectToAction(nameof(ViewGrades), new { teacherId = grades.IdTeacher ?? Id });
             }
+            grade.IdTeacher = grades.IdTeacher ?? Id;
             return View(grade);
         }
 
         // GET: Grades/Delete/5
+        [HttpGet]
+        [AuthorizeRoles(RoleNames.Teacher)]
         public async Task<IActionResult> Delete(Guid? id)
         {
             if (id == null)
@@ -737,11 +775,19 @@ namespace SchoolSystem.Controllers
                 return NotFound();
             }
 
+            var requestedTeacherId = HttpContext.Session.GetGuid("Id") ?? Guid.Empty;
+            var (isValid, teacherId, schoolId, _) = await _sessionValidatorService
+                .ValidateTeacherSessionAsync(HttpContext, requestedTeacherId, "Grades/DeletePage");
+            if (!isValid)
+                return Forbid();
+
             var grade = await _context.Grades
                 .Include(g => g.IdLectuerNavigation)
                 .Include(g => g.IdStudentNavigation)
                 .Include(g => g.IdTeacherNavigation)
-                .FirstOrDefaultAsync(m => m.GradesId == id);
+                .FirstOrDefaultAsync(m => m.GradesId == id && m.IdTeacher == teacherId &&
+                    m.IdSchool == schoolId && !m.IsDeletedGrades &&
+                    !m.IsDeletedTeacher && !m.IsDeletedSchool);
             if (grade == null)
             {
                 return NotFound();
@@ -752,6 +798,7 @@ namespace SchoolSystem.Controllers
 
         // POST: Grades/Delete/5
         [HttpPost, ActionName("Delete")]
+        [NonAction]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(Guid id)
         {
@@ -797,8 +844,7 @@ namespace SchoolSystem.Controllers
 
         
 
-        [HttpGet]
-        [AuthorizeRoles("Teacher")]
+        [NonAction]
         public async Task<IActionResult> GetSubjectsForTeacher(Guid? teacherId)
         {
             Guid Id;
@@ -832,8 +878,7 @@ namespace SchoolSystem.Controllers
             return Json(subjects);
         }
 
-        [HttpGet]
-        [AuthorizeRoles("Teacher")]
+        [NonAction]
         public async Task<IActionResult> GetGradesForSubject(Guid? teacherId, Guid subjectId)
         {
 

@@ -55,7 +55,7 @@
                 "serverSide": true,
                 "ajax": {
                     "ajax": {
-                        "url": "/Grades/DataGradesStudent?studentid="+idStudent,
+                        "url": "/api/Grades/student-records?studentid=" + encodeURIComponent(idStudent),
                         "type": "GET",
                         "dataSrc": function (json) {
                             if (json.error) {

@@ -49,9 +49,23 @@
         </dd>
     </dl>
     
-    <form asp-action="Delete">
+    <form id="attendanceDeleteForm">
+        @Html.AntiForgeryToken()
         <input type="hidden" asp-for="Id" />
         <input type="submit" value="Delete" class="btn btn-danger" /> |
         <a asp-action="Index">Back to List</a>
     </form>
 </div>
+<script>
+    document.getElementById('attendanceDeleteForm').addEventListener('submit', async function (event) {
+        event.preventDefault();
+        const response = await fetch('/api/Attendance/records/@Model.Id', {
+            method: 'DELETE',
+            credentials: 'same-origin',
+            headers: { 'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value }
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) return alert(result.message || 'فشل حذف سجل الحضور.');
+        window.location.href = result.redirectUrl;
+    });
+</script>

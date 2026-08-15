@@ -572,7 +572,7 @@ namespace SchoolSystem.Controllers
         }
 
 
-        [HttpGet]
+        [HttpGet("ManagerStudentToTeacher")]
         [AuthorizeRoles("Teacher")]
         public async Task<IActionResult> ManagerStudentToTeacher(
             Guid? teacherId,
@@ -581,6 +581,9 @@ namespace SchoolSystem.Controllers
             [FromQuery] int length = 10,
             [FromQuery(Name = "search[value]")] string searchValue = "")
         {
+            if (!teacherId.HasValue || teacherId.Value == Guid.Empty)
+                return BadRequest(new { error = "A valid teacher id is required." });
+
             Guid Id;
 
             try
@@ -602,12 +605,14 @@ namespace SchoolSystem.Controllers
                 var (IsValid, IdTeacher, IdSchool,status) = await _sessionValidatorService.ValidateTeacherSessionAsync(HttpContext, Id, "Attendance/DataAttendance");
                 if (!IsValid)
                 {
-                    return Json(new { success = false, error = "Unauthorized access. Session expired." });
+                    return Forbid();
                 }
 
                 //فحص اذا كان تم ارسال قيمة المتغير ام لا و وصع قيمة افتراضية اذا كان لا
                 if (length <= 0)
                     length = 10;
+                length = Math.Min(length, 100);
+                start = Math.Max(start, 0);
 
                 // تحديد قيمة الـ searchValue
                 var orderColumnIndex = Request.Query["order[0][column]"].ToString();
@@ -618,11 +623,17 @@ namespace SchoolSystem.Controllers
                 if (string.IsNullOrEmpty(orderDir)) orderDir = "asc";
 
                 // إجمالي عدد السجلات بدون فلترة
-                var totalRecords = await _context.StudentLectuerTeachers.Where(std => std.IdSchool == IdSchool && std.IdTeacher == IdTeacher)
-                .CountAsync();
+                var baseQuery = _context.StudentLectuerTeachers.Where(std =>
+                    std.IdSchool == IdSchool && std.IdTeacher == IdTeacher &&
+                    !std.IsDeletedStudentLectuerTeacher && !std.IsDeletedStudent &&
+                    !std.IsDeletedClass && !std.IsDeletedLectuer && !std.IsDeletedTeacher &&
+                    !std.IsDeletedSchool &&
+                    !std.IsTeacherRemovedFromClass && !std.IsTeacherRemovedFromLectuer);
+
+                var totalRecords = await baseQuery.CountAsync();
 
                 // الاستعلام الأساسي مع تحسين الأداء
-                var query = _context.StudentLectuerTeachers.Where(std => std.IdSchool == IdSchool && std.IdTeacher == IdTeacher)
+                var query = baseQuery
                     .AsNoTracking()
                     .Select(s => new
                     {
@@ -647,7 +658,9 @@ namespace SchoolSystem.Controllers
                 }
 
                 // عدد السجلات الاصلية التي تنطبق عليها الشروط
-                var filteredCount = await query.CountAsync();
+                var filteredCount = string.IsNullOrWhiteSpace(searchValue)
+                    ? totalRecords
+                    : await query.CountAsync();
 
                 // الترتيب
                 query = (orderColumnIndex, orderDir) switch
@@ -693,12 +706,133 @@ namespace SchoolSystem.Controllers
             {
                 // حال كان هناك خطأ غير متوقع
                 await _logger.LogAsync(e, "Attendance/DataAttendance");
-                return Json(new { error = e.Message, stack = e.StackTrace });
+                return StatusCode(StatusCodes.Status500InternalServerError,
+                    new { error = "Unable to load students." });
             }
         }
 
 
-        [HttpGet]
+        [HttpGet("grade-distribution")]
+        [AuthorizeRoles(RoleNames.Teacher)]
+        public async Task<IActionResult> GetGradeDistribution(Guid? idTeacher)
+        {
+            if (!idTeacher.HasValue || idTeacher.Value == Guid.Empty)
+                return BadRequest(new { error = "A valid teacher id is required." });
+
+            try
+            {
+                var (isValid, teacherId, schoolId, _) = await _sessionValidatorService
+                    .ValidateTeacherSessionAsync(HttpContext, idTeacher.Value,
+                        "TeacherApi/GetGradeDistribution");
+                if (!isValid)
+                    return Forbid();
+
+                var gradeStats = await _context.Grades.AsNoTracking()
+                    .Where(grade => grade.IdSchool == schoolId && grade.IdTeacher == teacherId &&
+                        grade.IdLectuer.HasValue && !grade.IsDeletedGrades &&
+                        !grade.IsDeletedStudent && !grade.IsDeletedTeacher &&
+                        !grade.IsDeletedLectuer && !grade.IsDeletedSchool &&
+                        !grade.IsTeacherRemovedFromLectuer)
+                    .GroupBy(grade => grade.IdLectuer!.Value)
+                    .Select(group => new
+                    {
+                        LectuerId = group.Key,
+                        TotalStudents = group.Count(),
+                        Below50Count = group.Count(grade => grade.Total < 50),
+                        Below60Count = group.Count(grade => grade.Total >= 50 && grade.Total < 60),
+                        Below70Count = group.Count(grade => grade.Total >= 60 && grade.Total < 70),
+                        Below80Count = group.Count(grade => grade.Total >= 70 && grade.Total < 80),
+                        Below90Count = group.Count(grade => grade.Total >= 80 && grade.Total < 90),
+                        Below100Count = group.Count(grade => grade.Total >= 90 && grade.Total < 100),
+                        Equal100Count = group.Count(grade => grade.Total == 100)
+                    })
+                    .ToListAsync();
+
+                var lectureIds = gradeStats.Select(item => item.LectuerId).ToList();
+                var lectureNames = await _context.Lectuers.AsNoTracking()
+                    .Where(lecture => lecture.IdSchool == schoolId && lectureIds.Contains(lecture.Id) &&
+                        !lecture.IsDeleted && !lecture.IsDeletedSchool)
+                    .Select(lecture => new { lecture.Id, lecture.Name })
+                    .ToDictionaryAsync(lecture => lecture.Id, lecture => lecture.Name);
+
+                return Ok(gradeStats.Select(item => new
+                {
+                    LectuerName = lectureNames.GetValueOrDefault(item.LectuerId, "Unknown"),
+                    item.TotalStudents,
+                    Below50 = item.Below50Count * 100.0 / item.TotalStudents,
+                    Below60 = item.Below60Count * 100.0 / item.TotalStudents,
+                    Below70 = item.Below70Count * 100.0 / item.TotalStudents,
+                    Below80 = item.Below80Count * 100.0 / item.TotalStudents,
+                    Below90 = item.Below90Count * 100.0 / item.TotalStudents,
+                    Below100 = item.Below100Count * 100.0 / item.TotalStudents,
+                    Equal100 = item.Equal100Count * 100.0 / item.TotalStudents
+                }));
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogAsync(ex, "TeacherApi/GetGradeDistribution");
+                return StatusCode(StatusCodes.Status500InternalServerError,
+                    new { error = "Unable to load grade statistics." });
+            }
+        }
+
+        [HttpGet("attendance-summary")]
+        [AuthorizeRoles(RoleNames.Teacher)]
+        public async Task<IActionResult> GetAttendanceSummary(Guid? idTeacher)
+        {
+            if (!idTeacher.HasValue || idTeacher.Value == Guid.Empty)
+                return BadRequest(new { error = "A valid teacher id is required." });
+
+            try
+            {
+                var (isValid, teacherId, schoolId, _) = await _sessionValidatorService
+                    .ValidateTeacherSessionAsync(HttpContext, idTeacher.Value,
+                        "TeacherApi/GetAttendanceSummary");
+                if (!isValid)
+                    return Forbid();
+
+                var attendanceStats = await _context.Attendances.AsNoTracking()
+                    .Where(attendance => attendance.IdSchool == schoolId &&
+                        attendance.IdTeacher == teacherId && attendance.IdLectuer.HasValue &&
+                        !attendance.IsDeletedAttendance && !attendance.IsDeletedStudent &&
+                        !attendance.IsDeletedLectuer && !attendance.IsDeletedTeacher &&
+                        !attendance.IsDeletedSchool && !attendance.IsTeacherRemovedFromLectuer)
+                    .GroupBy(attendance => attendance.IdLectuer!.Value)
+                    .Select(group => new
+                    {
+                        LectuerId = group.Key,
+                        TotalSessions = group.Count(),
+                        AttendanceCount = group.Count(item => item.AttendanceStatus == "1"),
+                        AbsenceCount = group.Count(item => item.AttendanceStatus == "0"),
+                        ExcusedAbsenceCount = group.Count(item => item.AttendanceStatus == "m")
+                    })
+                    .ToListAsync();
+
+                var lectureIds = attendanceStats.Select(item => item.LectuerId).ToList();
+                var lectureNames = await _context.Lectuers.AsNoTracking()
+                    .Where(lecture => lecture.IdSchool == schoolId && lectureIds.Contains(lecture.Id) &&
+                        !lecture.IsDeleted && !lecture.IsDeletedSchool)
+                    .Select(lecture => new { lecture.Id, lecture.Name })
+                    .ToDictionaryAsync(lecture => lecture.Id, lecture => lecture.Name);
+
+                return Ok(attendanceStats.Select(item => new
+                {
+                    LectuerName = lectureNames.GetValueOrDefault(item.LectuerId, "Unknown"),
+                    item.TotalSessions,
+                    AttendancePercentage = item.AttendanceCount * 100.0 / item.TotalSessions,
+                    AbsencePercentage = item.AbsenceCount * 100.0 / item.TotalSessions,
+                    ExcusedAbsencePercentage = item.ExcusedAbsenceCount * 100.0 / item.TotalSessions
+                }));
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogAsync(ex, "TeacherApi/GetAttendanceSummary");
+                return StatusCode(StatusCodes.Status500InternalServerError,
+                    new { error = "Unable to load attendance statistics." });
+            }
+        }
+
+        [NonAction]
         public async Task<IActionResult> GetStudentCountPerGrades(Guid? idTeacher)
         {
             Guid Id;
@@ -749,7 +883,7 @@ namespace SchoolSystem.Controllers
             return Json(data);
         }
 
-        [HttpGet]
+        [NonAction]
         public async Task<IActionResult> GetStudentCountPerAttendance(Guid? idTeacher)
         {
             Guid Id;
@@ -789,7 +923,7 @@ namespace SchoolSystem.Controllers
         }
 
         // شهادة قيد لمعلم
-        [AuthorizeRoles(RoleNames.Teacher, RoleNames.Admin, RoleNames.Manager)]
+        [NonAction]
         public async Task<IActionResult> DownloadTeacherCertificate(Guid? idTeacher)
         {
             Guid Id;
@@ -861,6 +995,7 @@ namespace SchoolSystem.Controllers
 
         // POST: Teacher/Delete/5
         [HttpDelete("Delete")]
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
         public async Task<IActionResult> DeleteTeacher([FromBody] DeleteInSchool deleteTeacherInSchool)
         {
             var (isValid, school, Message) = await _sessionValidatorService.ValidateManagerSessionAsync(HttpContext, "TeacherApi/DeleteTeacher");

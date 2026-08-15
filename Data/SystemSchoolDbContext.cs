@@ -57,13 +57,18 @@ public partial class SystemSchoolDbContext : IdentityDbContext<ApplicationUser, 
 
             entity.HasIndex(e => e.IdSchool, "IX_Attendance_IdSchool");
 
+            entity.HasIndex(e => new { e.IdSchool, e.IdTeacher },
+                "IX_Attendance_IdSchool_IdTeacher");
+
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.AttendanceStatus)
                 .HasMaxLength(1)
                 .IsUnicode(false)
                 .HasDefaultValue("0")
                 .IsFixedLength();
-            entity.Property(e => e.Excuse).HasColumnType("text");
+            // SQL Server's legacy text type cannot be sorted and has limited comparison support.
+            // nvarchar(max) preserves existing content while supporting search and ordering.
+            entity.Property(e => e.Excuse).HasColumnType("nvarchar(max)");
 
             entity.HasOne(d => d.IdClassNavigation).WithMany(p => p.Attendances)
                 .HasForeignKey(d => d.IdClass)

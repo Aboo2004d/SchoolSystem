@@ -176,7 +176,7 @@ namespace SchoolSystem.Controllers
             return View();
         }
 
-        [HttpGet]
+        [NonAction]
         public async Task<IActionResult> GetStudentCountPerGrades(Guid? idTeacher)
         {
             Guid Id;
@@ -227,7 +227,7 @@ namespace SchoolSystem.Controllers
             return Json(data);
         }
 
-        [HttpGet]
+        [NonAction]
         public async Task<IActionResult> GetStudentCountPerAttendance(Guid? idTeacher)
         {
             Guid Id;
@@ -244,76 +244,138 @@ namespace SchoolSystem.Controllers
                 return RedirectToAction("ManagerMenegarTeacherView","Menegar");
             }
 
-            var schoolId = HttpContext.Session.GetGuid("School");
+            try
+            {
+                var (isValid, teacherId, schoolId, _) = await _sessionValidatorService
+                    .ValidateTeacherSessionAsync(HttpContext, Id, "Teacher/GetStudentCountPerAttendance");
+                if (!isValid)
+                    return Forbid();
 
-            var data = _context.Attendances
-                .Where(g => g.IdSchool == schoolId
-                            && g.IdTeacher == Id
-                            && g.IdStudentNavigation != null
-                            && g.IdStudentNavigation.IsDeletedStudent == false
-                            && g.IdLectuerNavigation != null)
-                .GroupBy(g => new { g.IdLectuer, g.IdLectuerNavigation.Name })
-                .Select(g => new
+                var attendanceStats = await _context.Attendances
+                    .AsNoTracking()
+                    .Where(a => a.IdSchool == schoolId && a.IdTeacher == teacherId &&
+                        a.IdLectuer.HasValue && !a.IsDeletedAttendance && !a.IsDeletedStudent &&
+                        !a.IsDeletedLectuer && !a.IsDeletedTeacher && !a.IsDeletedSchool &&
+                        !a.IsTeacherRemovedFromLectuer)
+                    .GroupBy(a => a.IdLectuer!.Value)
+                    .Select(group => new
+                    {
+                        LectuerId = group.Key,
+                        TotalSessions = group.Count(),
+                        AttendanceCount = group.Count(a => a.AttendanceStatus == "1"),
+                        AbsenceCount = group.Count(a => a.AttendanceStatus == "0"),
+                        ExcusedAbsenceCount = group.Count(a => a.AttendanceStatus == "m")
+                    })
+                    .ToListAsync();
+
+                var lectureIds = attendanceStats.Select(item => item.LectuerId).ToList();
+                var lectureNames = await _context.Lectuers
+                    .AsNoTracking()
+                    .Where(lecture => lecture.IdSchool == schoolId && lectureIds.Contains(lecture.Id))
+                    .Select(lecture => new { lecture.Id, lecture.Name })
+                    .ToDictionaryAsync(lecture => lecture.Id, lecture => lecture.Name);
+
+                var data = attendanceStats.Select(item => new
                 {
-                    LectuerName = g.Key.Name,
-                    TotalSessions = g.Count(),
-                    AttendancePercentage = g.Count(x => x.AttendanceStatus == "1") * 100.0 / g.Count(),
-                    AbsencePercentage = g.Count(x => x.AttendanceStatus == "0") * 100.0 / g.Count(),
-                    ExcusedAbsencePercentage = g.Count(x => x.AttendanceStatus == "m") * 100.0 / g.Count()
-                })
-                .ToList();
+                    LectuerName = lectureNames.GetValueOrDefault(item.LectuerId, "Unknown"),
+                    item.TotalSessions,
+                    AttendancePercentage = item.TotalSessions == 0
+                        ? 0
+                        : item.AttendanceCount * 100.0 / item.TotalSessions,
+                    AbsencePercentage = item.TotalSessions == 0
+                        ? 0
+                        : item.AbsenceCount * 100.0 / item.TotalSessions,
+                    ExcusedAbsencePercentage = item.TotalSessions == 0
+                        ? 0
+                        : item.ExcusedAbsenceCount * 100.0 / item.TotalSessions
+                });
 
-            return Json(data);
+                return Json(data);
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogAsync(ex, "Teacher/GetStudentCountPerAttendance");
+                return StatusCode(StatusCodes.Status500InternalServerError,
+                    new { error = "Unable to load attendance statistics." });
+            }
         }
 
         // شهادة قيد لطالب
         [AuthorizeRoles(RoleNames.Teacher, RoleNames.Admin, RoleNames.Manager)]
+        [HttpGet]
         public async Task<IActionResult> DownloadTeacherCertificate(Guid? idTeacher)
         {
-            Guid Id;
+            var id = idTeacher ?? Guid.Empty;
+            if (id == Guid.Empty)
+                return BadRequest();
 
             try
             {
-                Id = idTeacher ?? Guid.Empty;
+                Guid? allowedSchoolId = null;
+                if (User.IsInRole(RoleNames.Teacher))
+                {
+                    var (isValid, _, schoolId, _) = await _sessionValidatorService
+                        .ValidateTeacherSessionAsync(HttpContext, id, "Teacher/DownloadTeacherCertificate");
+                    if (!isValid) return Forbid();
+                    allowedSchoolId = schoolId;
+                }
+                else if (User.IsInRole(RoleNames.Manager))
+                {
+                    var (isValid, schoolId, _) = await _sessionValidatorService
+                        .ValidateManagerSessionAsync(HttpContext, "Teacher/DownloadTeacherCertificate");
+                    if (!isValid) return Forbid();
+                    allowedSchoolId = schoolId;
+                }
+
+                var teacherQuery = _context.Teachers.AsNoTracking()
+                    .Where(t => t.Id == id && !t.IsDeleted && !t.IsDeletedSchool)
+                    .Include(t => t.IdSchoolNavigation)
+                    .AsQueryable();
+                if (allowedSchoolId.HasValue)
+                    teacherQuery = teacherQuery.Where(t => t.IdSchool == allowedSchoolId.Value);
+
+                var teacher = await teacherQuery.SingleOrDefaultAsync();
+                if (teacher == null)
+                {
+                    return NotFound();
+                }
+
+                var managerName = await _context.Menegars.AsNoTracking()
+                    .Where(m => m.IdSchool == teacher.IdSchool && !m.IsDeleted && !m.IsDeletedSchool)
+                    .OrderBy(m => m.Id)
+                    .Select(m => m.Name)
+                    .FirstOrDefaultAsync() ?? "لم يتم اعتماده بعد.";
+
+                var subjects = await _context.TeacherLectuerClasses.AsNoTracking()
+                    .Where(tl => tl.IdTeacher == id && tl.IdSchool == teacher.IdSchool &&
+                        !tl.IsDeletedTeacherLectuerClass && !tl.IsDeletedTeacher &&
+                        !tl.IsDeletedLectuer && !tl.IsDeletedSchool &&
+                        !tl.IsTeacherRemovedFromLectuer && tl.IdLectuerNavigation != null)
+                    .Select(tl => tl.IdLectuerNavigation!.Name)
+                    .Where(name => name != null && name != string.Empty)
+                    .Distinct()
+                    .ToListAsync();
+                if (subjects.Count == 0)
+                    subjects.Add("غير محددة");
+
+                var document = new TeacherEnrollmentCertificate(
+                    teacher.Name ?? "غير معرف",
+                    teacher.IdNumber ?? 0,
+                    teacher.IdSchoolNavigation?.Name ?? "غير معرف",
+                    managerName,
+                    subjects!);
+                var stream = new MemoryStream();
+                document.GeneratePdf(stream);
+                stream.Position = 0;
+
+                return File(stream, "application/pdf", $"شهادة_قيد_{teacher.Name ?? "غير معرف"}.pdf");
 
             }
             catch (Exception ex)
             {
                 await _logger.LogAsync(ex, "Teacher/DownloadTeacherCertificate");
-                _notyf.Error("حدث خطأ غير متوقع.");
-                return RedirectToAction("ManagerMenegarTeacherView","Menegar");
-            }
-            try
-            {
-                Teacher? teacher = _context.Teachers
-                .Where(s => s.Id == Id && s.IsDeleted == false && s.IdSchool == HttpContext.Session.GetGuid("School"))
-                .Include(s => s.IdSchoolNavigation).SingleOrDefault();
-                if (teacher == null)
-                {
-                    await _logger.LogAsync(new Exception("انتهت صلاحية الجلسة"), "Teacher/DownloadTeacherCertificate");
-                    _notyf.Error("انتهت الجلسة.");
-                    return RedirectToAction("Logout", "Account");
-                }
-                Menegar? menegar = _context.Menegars.SingleOrDefault(m => m.IdSchool == teacher.IdSchool);
-
-                var document = new TeacherEnrollmentCertificate(
-                    teacher?.Name ?? "غير معرف",
-                    teacher?.IdNumber ?? 0,
-                    teacher?.IdSchoolNavigation?.Name ?? "غير معرف",
-                    menegar?.Name ?? "لم يتم اعتماده بعد.",
-                    _context.TeacherLectuerClasses.Where(tl => tl.IdTeacher == Id && teacher.IdSchool == teacher.IdSchool).Select(name => name.IdLectuerNavigation.Name).ToList());
-                var stream = new MemoryStream();
-                document.GeneratePdf(stream);
-                stream.Position = 0;
-
-                return File(stream, "application/pdf", $"شهادة_قيد_{teacher?.Name ?? "غير معرف"}.pdf");
-
-            }
-            catch (Exception ex)
-            {
-                await _logger.LogAsync(ex, "Student/DownloadStudentCertificate");
                 _notyf.Error("حدث خطا اثناء انشاء شهادة قيد.\nيرجى المحاولة لاحقا");
-                return View(nameof(Index));
+                return RedirectToAction(nameof(Index));
             }
         }
         
