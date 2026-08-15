@@ -230,7 +230,7 @@ namespace SchoolSystem.Controllers
         // POST: Student/Delete/5
         
         
-        [AuthorizeRoles("Student")]
+        [NonAction]
         public JsonResult GetStudentCountPerGrades(Guid? idStudent)
         {
             var schoolId = HttpContext.Session.GetGuid("School");
@@ -251,7 +251,7 @@ namespace SchoolSystem.Controllers
             return Json(data);
         }
 
-        [AuthorizeRoles("Student")]
+        [NonAction]
         public JsonResult GetStudentCountPerAttendance(Guid? idStudent)
         {
             var schoolId = HttpContext.Session.GetGuid("School");
@@ -294,40 +294,55 @@ namespace SchoolSystem.Controllers
 
         // شهادة قيد لطالب
         [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager, RoleNames.Student)]
-        public IActionResult DownloadStudentCertificate(Guid? idStudent)
+        [HttpGet]
+        public async Task<IActionResult> DownloadStudentCertificate(Guid? idStudent)
         {
+            var requestedStudentId = idStudent ?? Guid.Empty;
+            if (requestedStudentId == Guid.Empty)
+                return BadRequest();
+
             try
             {
-                Student? student = _context.Students
-                .Where(s => s.Id == idStudent && s.IsDeletedStudent == false && s.IdSchool == HttpContext.Session.GetGuid("School"))
-                .Include(s => s.IdClassNavigation).Include(s => s.IdSchoolNavigation).SingleOrDefault();
+                var (isValid, studentId, schoolId, sessionIsActive) =
+                    await _sessionValidatorService.ValidateStudentDataAccessAsync(
+                        HttpContext, requestedStudentId, "Student/DownloadStudentCertificate");
+                if (!isValid)
+                    return sessionIsActive ? Forbid() : RedirectToAction("Login", "Account");
+
+                var student = await _context.Students.AsNoTracking()
+                    .Where(s => s.Id == studentId && s.IdSchool == schoolId &&
+                        !s.IsDeletedStudent && !s.IsDeletedSchool)
+                    .Include(s => s.IdClassNavigation)
+                    .Include(s => s.IdSchoolNavigation)
+                    .SingleOrDefaultAsync();
                 if (student == null)
-                {
-                    _logger.LogAsync(new Exception("انتهت صلاحية الجلسة"), "Student/DownloadStudentCertificate");
-                    _notyf.Error("انتهت الجلسة.");
-                    return RedirectToAction("Logout", "Account");
-                }
-                Menegar? menegar = _context.Menegars.SingleOrDefault(m => m.IdSchool == student.IdSchool);
+                    return NotFound();
+
+                var managerName = await _context.Menegars.AsNoTracking()
+                    .Where(m => m.IdSchool == schoolId && !m.IsDeleted && !m.IsDeletedSchool)
+                    .OrderBy(m => m.Id)
+                    .Select(m => m.Name)
+                    .FirstOrDefaultAsync() ?? "لم يتم اعتماده بعد.";
 
                 var document = new StudentEnrollmentCertificate(
-                    student?.Name??"غير معرف", student?.IdNumber ?? 0,
-                    student?.IdClassNavigation?.Name??"غير معرف",
-                    student?.IdSchoolNavigation?.Name??"غير معرف",
-                    menegar?.Name??"لم يتم اعتماده بعد.");
+                    student.Name ?? "غير معرف", student.IdNumber ?? 0,
+                    student.IdClassNavigation?.Name ?? "غير معرف",
+                    student.IdSchoolNavigation?.Name ?? "غير معرف",
+                    managerName);
                 var stream = new MemoryStream();
                 document.GeneratePdf(stream);
                 stream.Position = 0;
 
-                return File(stream, "application/pdf", $"شهادة_قيد_{student?.Name??"غير معرف"}.pdf");
+                return File(stream, "application/pdf", $"شهادة_قيد_{student.Name ?? "غير معرف"}.pdf");
 
             }
             catch (Exception ex)
             {
-                _logger.LogAsync(ex, "Student/DownloadStudentCertificate");
+                await _logger.LogAsync(ex, "Student/DownloadStudentCertificate");
                 _notyf.Error("حدث خطا اثناء انشاء شهادة قيد.\nيرجى المحاولة لاحقا");
-                if (HttpContext.Session.GetString("Role") == "Student")
-                    return View(nameof(Index));
-                return View(nameof(Details));
+                return User.IsInRole(RoleNames.Student)
+                    ? RedirectToAction(nameof(Index))
+                    : RedirectToAction("ManagerMenegarStudentView", "Menegar");
             }
         }
 

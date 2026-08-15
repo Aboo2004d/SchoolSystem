@@ -616,9 +616,12 @@ namespace SchoolSystem.Controllers
                 }
             }
             
-            var name = _context.Students.FirstOrDefault(c => c.Id == studentid);
-            ViewBag.name = name?.Name??"Null";
-            ViewBag.IdStudent = Request.Query["studentid"];
+            var student = await _context.Students.AsNoTracking().FirstOrDefaultAsync(c =>
+                c.Id == studentid && !c.IsDeletedStudent && !c.IsDeletedSchool);
+            if (student == null)
+                return NotFound();
+            ViewBag.name = student.Name ?? "غير معرف";
+            ViewBag.IdStudent = studentid.ToString("D");
             return View();
         }
 

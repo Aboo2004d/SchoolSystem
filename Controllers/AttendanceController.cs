@@ -581,10 +581,56 @@ namespace SchoolSystem.Controllers
                     return RedirectToAction("Index", "Student");
                 }
             }
-            Student? student =await _context.Students.Where(s => s.Id == studentid).Include(s=>s.IdClassNavigation).SingleOrDefaultAsync();
+            Student? student = await _context.Students.AsNoTracking()
+                .Where(s => s.Id == studentid && !s.IsDeletedStudent && !s.IsDeletedSchool)
+                .Include(s => s.IdClassNavigation)
+                .SingleOrDefaultAsync();
+            if (student == null)
+                return NotFound();
             ViewBag.StdClass = student?.IdClassNavigation?.Name ?? string.Empty;
-            ViewBag.Role = HttpContext.Session.GetString("Role");
-            ViewBag.StdId = Request.Query["studentid"];
+            ViewBag.Role = User.IsInRole(RoleNames.Admin) ? RoleNames.Admin
+                : User.IsInRole(RoleNames.Manager) ? RoleNames.Manager : RoleNames.Student;
+            ViewBag.StdId = studentid.ToString("D");
+            return View();
+        }
+
+        [HttpGet]
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager, RoleNames.Student)]
+        public async Task<IActionResult> StudentAttendanceDetails(
+            Guid studentid, Guid teacherId, Guid lectuerId)
+        {
+            var (isValid, studentId, schoolId, sessionIsActive) =
+                await _sessionValidatorService.ValidateStudentDataAccessAsync(
+                    HttpContext, studentid, "Attendance/StudentAttendanceDetails");
+            if (!isValid)
+                return sessionIsActive ? Forbid() : RedirectToAction("Login", "Account");
+
+            if (teacherId == Guid.Empty || lectuerId == Guid.Empty)
+                return BadRequest();
+
+            var header = await _context.Attendances.AsNoTracking()
+                .Where(a => a.IdStudent == studentId && a.IdSchool == schoolId &&
+                    a.IdTeacher == teacherId && a.IdLectuer == lectuerId &&
+                    !a.IsDeletedAttendance && !a.IsDeletedStudent && !a.IsDeletedTeacher &&
+                    !a.IsDeletedLectuer && !a.IsDeletedSchool &&
+                    a.IdStudentNavigation != null && a.IdTeacherNavigation != null &&
+                    a.IdLectuerNavigation != null)
+                .Select(a => new
+                {
+                    StudentName = a.IdStudentNavigation!.Name,
+                    TeacherName = a.IdTeacherNavigation!.Name,
+                    LectuerName = a.IdLectuerNavigation!.Name
+                })
+                .FirstOrDefaultAsync();
+            if (header == null)
+                return NotFound();
+
+            ViewBag.StudentId = studentId.ToString("D");
+            ViewBag.TeacherId = teacherId.ToString("D");
+            ViewBag.LectuerId = lectuerId.ToString("D");
+            ViewBag.StudentName = header.StudentName;
+            ViewBag.TeacherName = header.TeacherName;
+            ViewBag.LectuerName = header.LectuerName;
             return View();
         }
         

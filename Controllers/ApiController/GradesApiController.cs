@@ -274,13 +274,20 @@ namespace SchoolSystem.Controllers
                 // الترتيب
                 query = (orderColumnIndex, orderDir) switch
                 {
-                    ("0", "asc") => query.OrderBy(s => s.StudentName),
-                    ("0", "desc") => query.OrderByDescending(s => s.StudentName),
-                    ("1", "asc") => query.OrderBy(s => s.ClassroomName),
-                    ("1", "desc") => query.OrderByDescending(s => s.ClassroomName),
-                    ("2", "asc") => query.OrderBy(s => s.LectuerName),
-                    ("2", "desc") => query.OrderByDescending(s => s.LectuerName),
-                    _ => query.OrderBy(s => s.StudentName)
+                    ("0", "desc") => query.OrderByDescending(s => s.LectuerName),
+                    ("1", "asc") => query.OrderBy(s => s.f_m),
+                    ("1", "desc") => query.OrderByDescending(s => s.f_m),
+                    ("2", "asc") => query.OrderBy(s => s.mid),
+                    ("2", "desc") => query.OrderByDescending(s => s.mid),
+                    ("3", "asc") => query.OrderBy(s => s.s_m),
+                    ("3", "desc") => query.OrderByDescending(s => s.s_m),
+                    ("4", "asc") => query.OrderBy(s => s.Act),
+                    ("4", "desc") => query.OrderByDescending(s => s.Act),
+                    ("5", "asc") => query.OrderBy(s => s.final),
+                    ("5", "desc") => query.OrderByDescending(s => s.final),
+                    ("6", "asc") => query.OrderBy(s => s.total),
+                    ("6", "desc") => query.OrderByDescending(s => s.total),
+                    _ => query.OrderBy(s => s.LectuerName)
                 };
 
                 // التقطيع (Pagination)

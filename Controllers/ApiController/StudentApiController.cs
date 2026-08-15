@@ -389,82 +389,82 @@ namespace SchoolSystem.Controllers
             }
         }
 
-        [AuthorizeRoles("Student")]
-        public async Task<IActionResult> GetStudentCountPerGrades(Guid? idStudent)
+        [HttpGet("grade-chart")]
+        [AuthorizeRoles(RoleNames.Student)]
+        public async Task<IActionResult> GetStudentGradeChart(Guid idStudent)
         {
-            var school = HttpContext.Session.GetGuid("School") ?? Guid.Empty;
-            if (school == Guid.Empty)
+            try
             {
-                await _logger.LogAsync(new Exception("انتهت صلاحية الدخول"), "StudentApi/Create");
-                HttpContext.Session.Clear(); // مسح الجلسة
-                // تسجيل الخروج باستخدام ملفات تعريف الارتباط
-                await HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
-                return Unauthorized(new { success = false, message = "انتهت صلاحية تسجيل الدخول" });
+                var (isValid, studentId, schoolId, _) = await _sessionValidatorService
+                    .ValidateStudentDataAccessAsync(HttpContext, idStudent, "StudentApi/GradeChart");
+                if (!isValid) return Forbid();
+
+                var data = await _context.Grades.AsNoTracking()
+                    .Where(g => g.IdSchool == schoolId && g.IdStudent == studentId &&
+                        !g.IsDeletedGrades && !g.IsDeletedStudent && !g.IsDeletedLectuer &&
+                        !g.IsDeletedSchool && g.IdLectuerNavigation != null)
+                    .GroupBy(g => new { g.IdLectuer, g.IdLectuerNavigation!.Name })
+                    .Select(group => new
+                    {
+                        lectuerName = group.Key.Name,
+                        totalGrade = group.Average(g => (double?)(g.Total ?? 0)) ?? 0
+                    })
+                    .OrderBy(item => item.lectuerName)
+                    .ToListAsync();
+
+                return Ok(data);
             }
-
-            var data = _context.Grades
-                .Where(g => g.IdSchool == school
-                            && g.IdStudent == idStudent
-                            && g.IdStudentNavigation != null
-                            && (g.IdStudentNavigation.IsDeletedStudent == false)
-                            && g.IdLectuerNavigation != null)
-                .Select(g => new
-                {
-                    LectuerName = g.IdLectuerNavigation.Name,
-                    TotalSessions = g.Total
-                })
-                .ToList();
-
-            return Ok(data);
+            catch (Exception ex)
+            {
+                await _logger.LogAsync(ex, "StudentApi/GradeChart");
+                return StatusCode(StatusCodes.Status500InternalServerError,
+                    new { message = "تعذر تحميل الرسم البياني للعلامات." });
+            }
         }
 
-        [AuthorizeRoles("Student")]
-        public async Task<IActionResult> GetStudentCountPerAttendance(Guid? idStudent)
+        [HttpGet("attendance-chart")]
+        [AuthorizeRoles(RoleNames.Student)]
+        public async Task<IActionResult> GetStudentAttendanceChart(Guid idStudent)
         {
-            var school = HttpContext.Session.GetGuid("School") ?? Guid.Empty;
-            if (school == Guid.Empty)
+            try
             {
-                await _logger.LogAsync(new Exception("انتهت صلاحية الدخول"), "StudentApi/Create");
-                HttpContext.Session.Clear(); // مسح الجلسة
-                // تسجيل الخروج باستخدام ملفات تعريف الارتباط
-                await HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
-                return Unauthorized(new { success = false, message = "انتهت صلاحية تسجيل الدخول" });
-            }
+                var (isValid, studentId, schoolId, _) = await _sessionValidatorService
+                    .ValidateStudentDataAccessAsync(HttpContext, idStudent, "StudentApi/AttendanceChart");
+                if (!isValid) return Forbid();
 
-            var studentAttendances = _context.Attendances
-                .Where(g => g.IdSchool == school
-                            && g.IdStudent == idStudent
-                            && g.IdStudentNavigation != null
-                            && (g.IdStudentNavigation.IsDeletedStudent == false)
-                            && g.IdLectuerNavigation != null).Include(l => l.IdLectuerNavigation)
-                .ToList();
-            Console.WriteLine($"Student Attendances Count: {studentAttendances.Count}");
-            Console.WriteLine($"Student Attendances Lectuer: {studentAttendances[0].IdLectuerNavigation?.Name ?? "Null"}");
-
-            var result = studentAttendances
-                .GroupBy(a => new { a.IdLectuer, a.IdLectuerNavigation.Name }) // التجميع حسب اسم المادة
-                .Select(g =>
-                {
-                    int totalSessions = g.Count();
-                    int presentCount = g.Count(x => x.AttendanceStatus == "1");
-                    int excusedCount = g.Count(x => x.AttendanceStatus == "m");
-
-                    double presentPercentage = totalSessions > 0 ? (presentCount * 100.0) / totalSessions : 0;
-                    double excusedPercentage = totalSessions > 0 ? (excusedCount * 100.0) / totalSessions : 0;
-
-                    return new
+                var result = await _context.Attendances.AsNoTracking()
+                    .Where(a => a.IdSchool == schoolId && a.IdStudent == studentId &&
+                        !a.IsDeletedAttendance && !a.IsDeletedStudent && !a.IsDeletedLectuer &&
+                        !a.IsDeletedSchool && a.IdLectuerNavigation != null)
+                    .GroupBy(a => new { a.IdLectuer, a.IdLectuerNavigation!.Name })
+                    .Select(group => new
                     {
-                        SubjectName = g.Key.Name,
-                        TotalSessions = totalSessions,
-                        PresentCount = presentCount,
-                        ExcusedCount = excusedCount,
-                        PresentPercentage = Math.Round(presentPercentage, 2),
-                        ExcusedPercentage = Math.Round(excusedPercentage, 2)
-                    };
-                })
-                .ToList();
+                        subjectName = group.Key.Name,
+                        totalSessions = group.Count(),
+                        presentCount = group.Count(a => a.AttendanceStatus == "1"),
+                        excusedCount = group.Count(a => a.AttendanceStatus == "m")
+                    })
+                    .OrderBy(item => item.subjectName)
+                    .ToListAsync();
 
-            return Ok(result);
+                var data = result.Select(item => new
+                {
+                    item.subjectName,
+                    item.totalSessions,
+                    item.presentCount,
+                    item.excusedCount,
+                    presentPercentage = item.totalSessions == 0 ? 0 : Math.Round(item.presentCount * 100.0 / item.totalSessions, 2),
+                    excusedPercentage = item.totalSessions == 0 ? 0 : Math.Round(item.excusedCount * 100.0 / item.totalSessions, 2)
+                });
+
+                return Ok(data);
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogAsync(ex, "StudentApi/AttendanceChart");
+                return StatusCode(StatusCodes.Status500InternalServerError,
+                    new { message = "تعذر تحميل الرسم البياني للحضور." });
+            }
         }
 
         [HttpDelete("Delete")]
@@ -553,7 +553,7 @@ namespace SchoolSystem.Controllers
         }
 
         // شهادة قيد لطالب
-        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager, RoleNames.Student)]
+        [NonAction]
         public IActionResult DownloadStudentCertificate(Guid? idStudent)
         {
             try

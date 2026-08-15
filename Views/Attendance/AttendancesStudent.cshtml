@@ -15,15 +15,15 @@
 
     <hr>
 
-    <!-- جدول الحضور والغياب -->
+    <!-- ملخص الحضور حسب المادة والمعلم -->
     <div class="table-responsive">
         <table class="table table-bordered table-striped text-center align-middle" id="attendancesTable">
             <thead class="table-dark">
                 <tr>
                     <th>المادة</th>
-                    <th>الحالة</th>
-                    <th>التاريخ</th>
-                    <th>العذر</th>
+                    <th>المعلم</th>
+                    <th>أيام الحضور / الأيام الكلية</th>
+                    <th>التفاصيل</th>
                 </tr>
             </thead>
         </table>
@@ -33,13 +33,15 @@
 @section Scripts {
     <script>
         $(document).ready(function () {
-            var idStudent = @Html.Raw(ViewBag.StdId);
+            const idStudent = '@ViewBag.StdId';
+            const role = '@ViewBag.Role';
             $('#attendancesTable').DataTable({
                 "deferRender": true,
                 "processing": true,
                 "serverSide": true,
+                "order": [[0, "asc"]],
                 "ajax": {
-                    "url": "/api/Attendance/student-records?studentid=" + encodeURIComponent(idStudent),
+                    "url": "/api/Attendance/student-summary?studentid=" + encodeURIComponent(idStudent),
                     "type": "GET",
                     "dataSrc": function (json) {
                             if (json.error) {
@@ -48,7 +50,7 @@
                                 if (!json.status) {
                                     window.location.href = "/Account/Login";
                                 } else {
-                                    if (role === "Menegar") {
+                                    if (role === "Manager" || role === "Admin") {
                                         window.location.href = "/Menegar/Index";
                                     } else {
                                         window.location.href = "/Student/Index";
@@ -63,19 +65,25 @@
                 },
                 "columns": [
                     { "data": "lectuerName" },
+                    { "data": "teacherName" },
                     {
-                        "data": "attendanceStatus",
-                        "render": function (data) {
-                            switch (data) {
-                                case '1': return "حضور";
-                                case '0': return "غياب";
-                                case 'm': return "غياب بعذر";
-                                default: return "قيمة غير صالحة";
-                            }
+                        "data": null,
+                        "render": function (_, type, row) {
+                            return `${row.attendanceDays} / ${row.totalDays}`;
                         }
                     },
-                    { "data": "dateAndTime" },
-                    { "data": "excuse" }
+                    {
+                        "data": null,
+                        "orderable": false,
+                        "searchable": false,
+                        "render": function (_, type, row) {
+                            const url = '/Attendance/StudentAttendanceDetails'
+                                + '?studentid=' + encodeURIComponent(idStudent)
+                                + '&teacherId=' + encodeURIComponent(row.teacherId)
+                                + '&lectuerId=' + encodeURIComponent(row.lectuerId);
+                            return `<a class="btn btn-outline-info btn-sm" href="${url}">عرض التفاصيل</a>`;
+                        }
+                    }
                 ],
                 "language": {
                     "search": "🔍 بحث: ",

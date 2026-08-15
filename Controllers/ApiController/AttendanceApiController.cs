@@ -258,6 +258,170 @@ namespace SchoolSystem.Controllers
         }
 
         [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager, RoleNames.Student)]
+        [HttpGet("student-summary")]
+        public async Task<IActionResult> StudentAttendanceSummary(
+            Guid studentid,
+            [FromQuery] int draw,
+            [FromQuery] int start,
+            [FromQuery] int length = 10,
+            [FromQuery(Name = "search[value]")] string searchValue = "")
+        {
+            try
+            {
+                var (isValid, studentId, schoolId, _) = await _sessionValidatorService
+                    .ValidateStudentDataAccessAsync(HttpContext, studentid, "AttendanceApi/StudentSummary");
+                if (!isValid) return Forbid();
+
+                start = Math.Max(start, 0);
+                length = Math.Clamp(length <= 0 ? 10 : length, 1, 100);
+                var orderColumn = Request.Query["order[0][column]"].ToString();
+                var orderDirection = Request.Query["order[0][dir]"].ToString().ToLowerInvariant();
+
+                var records = _context.Attendances.AsNoTracking().Where(a =>
+                    a.IdStudent == studentId && a.IdSchool == schoolId &&
+                    a.IdTeacher.HasValue && a.IdLectuer.HasValue && a.DateAndTime.HasValue &&
+                    !a.IsDeletedAttendance && !a.IsDeletedStudent && !a.IsDeletedTeacher &&
+                    !a.IsDeletedLectuer && !a.IsDeletedSchool &&
+                    a.IdTeacherNavigation != null && a.IdLectuerNavigation != null);
+
+                var query = records
+                    .GroupBy(a => new
+                    {
+                        TeacherId = a.IdTeacher!.Value,
+                        TeacherName = a.IdTeacherNavigation!.Name,
+                        LectuerId = a.IdLectuer!.Value,
+                        LectuerName = a.IdLectuerNavigation!.Name
+                    })
+                    .Select(group => new
+                    {
+                        teacherId = group.Key.TeacherId,
+                        teacherName = group.Key.TeacherName,
+                        lectuerId = group.Key.LectuerId,
+                        lectuerName = group.Key.LectuerName,
+                        attendanceDays = group.Where(a => a.AttendanceStatus == "1")
+                            .Select(a => a.DateAndTime).Distinct().Count(),
+                        totalDays = group.Select(a => a.DateAndTime).Distinct().Count()
+                    });
+
+                var totalRecords = await query.CountAsync();
+                if (!string.IsNullOrWhiteSpace(searchValue))
+                {
+                    searchValue = searchValue.Trim();
+                    query = query.Where(item =>
+                        item.lectuerName.Contains(searchValue) ||
+                        item.teacherName.Contains(searchValue));
+                }
+
+                var filteredRecords = string.IsNullOrWhiteSpace(searchValue)
+                    ? totalRecords
+                    : await query.CountAsync();
+
+                query = (orderColumn, orderDirection) switch
+                {
+                    ("0", "desc") => query.OrderByDescending(x => x.lectuerName),
+                    ("1", "asc") => query.OrderBy(x => x.teacherName),
+                    ("1", "desc") => query.OrderByDescending(x => x.teacherName),
+                    ("2", "asc") => query.OrderBy(x => x.attendanceDays).ThenBy(x => x.totalDays),
+                    ("2", "desc") => query.OrderByDescending(x => x.attendanceDays).ThenByDescending(x => x.totalDays),
+                    _ => query.OrderBy(x => x.lectuerName)
+                };
+
+                var data = await query.Skip(start).Take(length).ToListAsync();
+                return Ok(new { draw, recordsTotal = totalRecords, recordsFiltered = filteredRecords, data });
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogAsync(ex, "AttendanceApi/StudentSummary");
+                return StatusCode(StatusCodes.Status500InternalServerError,
+                    new { message = "تعذر تحميل ملخص حضور الطالب." });
+            }
+        }
+
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager, RoleNames.Student)]
+        [HttpGet("student-details")]
+        public async Task<IActionResult> StudentAttendanceDetails(
+            Guid studentid,
+            Guid teacherId,
+            Guid lectuerId,
+            [FromQuery] int draw,
+            [FromQuery] int start,
+            [FromQuery] int length = 10,
+            [FromQuery(Name = "search[value]")] string searchValue = "")
+        {
+            try
+            {
+                var (isValid, studentId, schoolId, _) = await _sessionValidatorService
+                    .ValidateStudentDataAccessAsync(HttpContext, studentid, "AttendanceApi/StudentDetails");
+                if (!isValid) return Forbid();
+                if (teacherId == Guid.Empty || lectuerId == Guid.Empty)
+                    return BadRequest(new { message = "المعلم أو المادة غير صالحين." });
+
+                start = Math.Max(start, 0);
+                length = Math.Clamp(length <= 0 ? 10 : length, 1, 100);
+                var orderColumn = Request.Query["order[0][column]"].ToString();
+                var orderDirection = Request.Query["order[0][dir]"].ToString().ToLowerInvariant();
+
+                var query = _context.Attendances.AsNoTracking().Where(a =>
+                    a.IdStudent == studentId && a.IdSchool == schoolId &&
+                    a.IdTeacher == teacherId && a.IdLectuer == lectuerId &&
+                    !a.IsDeletedAttendance && !a.IsDeletedStudent && !a.IsDeletedTeacher &&
+                    !a.IsDeletedLectuer && !a.IsDeletedSchool);
+                var totalRecords = await query.CountAsync();
+                if (totalRecords == 0)
+                    return NotFound(new { message = "لا توجد سجلات حضور لهذه المادة والمعلم." });
+
+                if (!string.IsNullOrWhiteSpace(searchValue))
+                {
+                    searchValue = searchValue.Trim();
+                    var statuses = new List<string>();
+                    if ("حضور".Contains(searchValue, StringComparison.OrdinalIgnoreCase)) statuses.Add("1");
+                    if ("غياب".Contains(searchValue, StringComparison.OrdinalIgnoreCase)) statuses.Add("0");
+                    if ("غياب بعذر".Contains(searchValue, StringComparison.OrdinalIgnoreCase) ||
+                        "بعذر".Contains(searchValue, StringComparison.OrdinalIgnoreCase)) statuses.Add("m");
+                    var hasDate = DateOnly.TryParse(searchValue, out var date);
+
+                    query = statuses.Count == 0
+                        ? query.Where(a => (a.Excuse != null && a.Excuse.Contains(searchValue)) ||
+                            (hasDate && a.DateAndTime == date))
+                        : query.Where(a => (a.Excuse != null && a.Excuse.Contains(searchValue)) ||
+                            statuses.Contains(a.AttendanceStatus) || (hasDate && a.DateAndTime == date));
+                }
+
+                var filteredRecords = string.IsNullOrWhiteSpace(searchValue)
+                    ? totalRecords
+                    : await query.CountAsync();
+
+                query = (orderColumn, orderDirection) switch
+                {
+                    ("0", "asc") => query.OrderBy(a => a.DateAndTime),
+                    ("1", "asc") => query.OrderBy(a => a.AttendanceStatus),
+                    ("1", "desc") => query.OrderByDescending(a => a.AttendanceStatus),
+                    ("2", "asc") => query.OrderBy(a => a.Excuse),
+                    ("2", "desc") => query.OrderByDescending(a => a.Excuse),
+                    _ => query.OrderByDescending(a => a.DateAndTime)
+                };
+
+                var data = await query.Skip(start).Take(length)
+                    .Select(a => new
+                    {
+                        id = a.Id,
+                        dateAndTime = a.DateAndTime,
+                        attendanceStatus = a.AttendanceStatus,
+                        excuse = a.Excuse
+                    })
+                    .ToListAsync();
+
+                return Ok(new { draw, recordsTotal = totalRecords, recordsFiltered = filteredRecords, data });
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogAsync(ex, "AttendanceApi/StudentDetails");
+                return StatusCode(StatusCodes.Status500InternalServerError,
+                    new { message = "تعذر تحميل تفاصيل حضور الطالب." });
+            }
+        }
+
+        [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager, RoleNames.Student)]
         [HttpGet("student-records")]
         public async Task<JsonResult> AttendancesStudentData(
             Guid studentid,
@@ -345,15 +509,15 @@ namespace SchoolSystem.Controllers
                 // الترتيب
                 query = (orderColumnIndex, orderDir) switch
                 {
-                    ("0", "asc") => query.OrderBy(s => s.StudentName),
-                    ("0", "desc") => query.OrderByDescending(s => s.StudentName),
-                    ("1", "asc") => query.OrderBy(s => s.ClassroomName),
-                    ("1", "desc") => query.OrderByDescending(s => s.ClassroomName),
-                    ("2", "asc") => query.OrderBy(s => s.LectuerName),
-                    ("2", "desc") => query.OrderByDescending(s => s.LectuerName),
+                    ("0", "asc") => query.OrderBy(s => s.LectuerName),
+                    ("0", "desc") => query.OrderByDescending(s => s.LectuerName),
+                    ("1", "asc") => query.OrderBy(s => s.Status),
+                    ("1", "desc") => query.OrderByDescending(s => s.Status),
+                    ("2", "asc") => query.OrderBy(s => s.Date),
+                    ("2", "desc") => query.OrderByDescending(s => s.Date),
                     ("3", "asc") => query.OrderBy(s => s.excuse),
                     ("3", "desc") => query.OrderByDescending(s => s.excuse),
-                    _ => query.OrderBy(s => s.StudentName)
+                    _ => query.OrderByDescending(s => s.Date)
                 };
 
                 // التقطيع (Pagination)

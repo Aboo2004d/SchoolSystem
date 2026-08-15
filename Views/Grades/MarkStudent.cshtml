@@ -1,4 +1,5 @@
 @model SchoolSystem.Data.Grade
+@using SchoolSystem.Data
 
 @{
     ViewData["Title"] = "علاماتي";
@@ -8,7 +9,7 @@
     <div class="row mb-3">
         <div class="col-12 d-flex justify-content-between align-items-center flex-wrap">
             <h4 class="mb-2">علامات الطالب: @ViewBag.name</h4>
-            @if ((Context.Session.GetString("Role") ?? "Null") == "admin")
+            @if (User.IsInRole(RoleNames.Admin) || User.IsInRole(RoleNames.Manager))
             {
                 <a class="btn btn-outline-dark mb-2" asp-action="ManagerMenegarStudentView" asp-controller="Menegar">
                     <i class="bi bi-arrow-left"></i> عودة
@@ -41,41 +42,36 @@
         </table>
     </div>
 </div>
-@{
-    var role = Context.Session.GetString("Role");
-}
 @section Scripts {
     <script>
         $(document).ready(function () {
-            var idStudent = @Html.Raw(ViewBag.IdStudent);
-            var role = "@role";
+            const idStudent = '@ViewBag.IdStudent';
+            const role = '@(User.IsInRole(RoleNames.Admin) ? RoleNames.Admin : User.IsInRole(RoleNames.Manager) ? RoleNames.Manager : RoleNames.Student)';
             $('#studentsTable').DataTable({
                 "deferRender": true,
                 "processing": true,
                 "serverSide": true,
                 "ajax": {
-                    "ajax": {
-                        "url": "/api/Grades/student-records?studentid=" + encodeURIComponent(idStudent),
-                        "type": "GET",
-                        "dataSrc": function (json) {
-                            if (json.error) {
-                                alert(json.error);
+                    "url": "/api/Grades/student-records?studentid=" + encodeURIComponent(idStudent),
+                    "type": "GET",
+                    "dataSrc": function (json) {
+                        if (json.error) {
+                            alert(json.error);
 
-                                if (!json.status) {
-                                    window.location.href = "/Account/Login";
+                            if (!json.status) {
+                                window.location.href = "/Account/Login";
+                            } else {
+                                if (role === "Manager" || role === "Admin") {
+                                    window.location.href = "/Menegar/Index";
                                 } else {
-                                    if (role === "Menegar") {
-                                        window.location.href = "/Menegar/Index";
-                                    } else {
-                                        window.location.href = "/Student/Index";
-                                    }
+                                    window.location.href = "/Student/Index";
                                 }
-
-                                return []; // توقف تحميل البيانات
                             }
 
-                            return json.data; // في حال عدم وجود خطأ، أرجع البيانات للجدول
+                            return [];
                         }
+
+                        return json.data;
                     }
                 },
                 columns: [

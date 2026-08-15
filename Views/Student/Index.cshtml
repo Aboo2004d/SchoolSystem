@@ -69,11 +69,14 @@
     <script>
         document.addEventListener("DOMContentLoaded", function () {
             // جلب بيانات الدرجات
-            fetch('@Url.Action("GetStudentCountPerGrades", "Student", new { idStudent = Model.Id })')
-                .then(response => response.json())
+            fetch('/api/student/grade-chart?idStudent=@Model.Id', { credentials: 'same-origin' })
+                .then(response => {
+                    if (!response.ok) throw new Error('تعذر تحميل بيانات العلامات.');
+                    return response.json();
+                })
                 .then(data => {
                     const labels = data.map(item => item.lectuerName);
-                    const grades = data.map(item => item.totalSessions);
+                    const grades = data.map(item => item.totalGrade);
 
                     const ctxGrades = document.getElementById('gradesChart').getContext('2d');
                     new Chart(ctxGrades, {
@@ -106,11 +109,15 @@
                             }
                         }
                     });
-                });
+                })
+                .catch(error => console.error(error));
 
             // جلب بيانات الحضور والغياب
-            fetch('@Url.Action("GetStudentCountPerAttendance", "Student", new { idStudent = Model.Id })')
-                .then(response => response.json())
+            fetch('/api/student/attendance-chart?idStudent=@Model.Id', { credentials: 'same-origin' })
+                .then(response => {
+                    if (!response.ok) throw new Error('تعذر تحميل بيانات الحضور.');
+                    return response.json();
+                })
                 .then(data => {
                     const labels = data.map(item => item.subjectName);
                     const present = data.map(item => item.presentPercentage);
@@ -168,7 +175,8 @@
                             }
                         }
                     });
-                });
+                })
+                .catch(error => console.error(error));
         });
     </script>
 

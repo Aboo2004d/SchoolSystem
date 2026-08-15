@@ -1,0 +1,94 @@
+@{
+    ViewData["Title"] = "تفاصيل الحضور والغياب";
+}
+
+<div class="container mt-3" dir="rtl">
+    <div class="d-flex justify-content-between align-items-center flex-wrap mb-3">
+        <div>
+            <h4>تفاصيل الحضور والغياب</h4>
+            <div class="text-muted">
+                الطالب: @ViewBag.StudentName |
+                المادة: @ViewBag.LectuerName |
+                المعلم: @ViewBag.TeacherName
+            </div>
+        </div>
+        <a class="btn btn-outline-dark"
+           asp-action="AttendancesStudent"
+           asp-route-studentid="@ViewBag.StudentId">
+            <i class="bi bi-arrow-left"></i> عودة
+        </a>
+    </div>
+
+    <hr />
+    <div class="table-responsive">
+        <table id="attendanceDetailsTable" class="table table-bordered table-striped align-middle" style="width:100%">
+            <thead class="table-dark">
+                <tr>
+                    <th>التاريخ</th>
+                    <th>الحالة</th>
+                    <th>العذر</th>
+                </tr>
+            </thead>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(function () {
+            const studentId = '@ViewBag.StudentId';
+            const teacherId = '@ViewBag.TeacherId';
+            const lectuerId = '@ViewBag.LectuerId';
+
+            $('#attendanceDetailsTable').DataTable({
+                processing: true,
+                serverSide: true,
+                pageLength: 10,
+                lengthMenu: [10, 25, 50, 100],
+                order: [[0, 'desc']],
+                ajax: {
+                    url: '/api/Attendance/student-details'
+                        + '?studentid=' + encodeURIComponent(studentId)
+                        + '&teacherId=' + encodeURIComponent(teacherId)
+                        + '&lectuerId=' + encodeURIComponent(lectuerId),
+                    type: 'GET',
+                    dataSrc: function (json) {
+                        if (json.message && !json.data) {
+                            alert(json.message);
+                            return [];
+                        }
+                        return json.data;
+                    }
+                },
+                columns: [
+                    { data: 'dateAndTime' },
+                    {
+                        data: 'attendanceStatus',
+                        render: function (value) {
+                            if (value === '1') return 'حضور';
+                            if (value === '0') return 'غياب';
+                            if (value === 'm') return 'غياب بعذر';
+                            return 'غير معروف';
+                        }
+                    },
+                    { data: 'excuse', defaultContent: '-' }
+                ],
+                language: {
+                    search: '🔍 بحث: ',
+                    lengthMenu: 'عرض _MENU_ سجل',
+                    info: 'عرض من _START_ إلى _END_ من أصل _TOTAL_ سجل',
+                    zeroRecords: 'لم يتم العثور على سجلات',
+                    paginate: { next: 'التالية', previous: 'السابقة' }
+                }
+            });
+        });
+    </script>
+    <style>
+        #attendanceDetailsTable_wrapper,
+        #attendanceDetailsTable th,
+        #attendanceDetailsTable td {
+            direction: rtl;
+            text-align: right !important;
+        }
+    </style>
+}
