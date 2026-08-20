@@ -7,6 +7,7 @@ public sealed class LoadTestSeedOptions
 {
     public bool Enabled { get; set; }
     public int Schools { get; set; } = 3;
+    public int Directorates { get; set; } = 2;
     public int ManagersPerSchool { get; set; } = 2;
     public int TeachersPerSchool { get; set; } = 30;
     public int ClassesPerSchool { get; set; } = 12;
@@ -29,16 +30,64 @@ public static class LoadTestDataSeeder
         static void Progress(string message) =>
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [LOAD-SEED] {message}");
 
-        Progress($"Starting: {options.Schools} schools, {options.StudentsPerSchool} students/school.");
+        if (options.Directorates < 1)
+            throw new InvalidOperationException("LoadTestSeed:Directorates must be at least 1.");
+        Progress($"Starting: {options.Directorates} directorates, {options.Schools} schools, {options.StudentsPerSchool} students/school.");
         var db = services.GetRequiredService<SystemSchoolDbContext>();
         db.Database.SetCommandTimeout(TimeSpan.FromMinutes(5));
 
-        var roles = await db.Roles.Where(x => x.Name == RoleNames.Manager || x.Name == RoleNames.Teacher || x.Name == RoleNames.Student)
+        var roles = await db.Roles.Where(x => x.Name == RoleNames.DirectorateManager || x.Name == RoleNames.Manager || x.Name == RoleNames.Teacher || x.Name == RoleNames.Student)
             .ToDictionaryAsync(x => x.Name!, x => x.Id, cancellationToken);
         var hasher = services.GetRequiredService<IPasswordHasher<ApplicationUser>>();
         var normalizer = services.GetRequiredService<ILookupNormalizer>();
         var passwordTemplate = new ApplicationUser();
         var sharedHash = hasher.HashPassword(passwordTemplate, options.Password);
+
+        var directorates = new List<Directorate>(options.Directorates);
+        for (var index = 1; index <= options.Directorates; index++)
+        {
+            var code = $"LOAD-DIR-{index:00}";
+            var directorate = await db.Directorates.SingleOrDefaultAsync(x => x.Code == code, cancellationToken);
+            if (directorate is null)
+            {
+                directorate = new Directorate
+                {
+                    Id = Guid.NewGuid(), Code = code, Name = $"مديرية الاختبار {index}",
+                    City = $"مدينة {index}", Area = $"منطقة {index}", IsActive = true
+                };
+                db.Directorates.Add(directorate);
+            }
+            else
+            {
+                directorate.IsActive = true;
+            }
+            directorates.Add(directorate);
+        }
+        await db.SaveChangesAsync(cancellationToken);
+
+        for (var index = 1; index <= directorates.Count; index++)
+        {
+            var directorate = directorates[index - 1];
+            var existingProfile = await db.DirectorateManagers
+                .SingleOrDefaultAsync(x => x.DirectorateId == directorate.Id, cancellationToken);
+            if (existingProfile is not null) continue;
+
+            var userName = $"directorate{index}";
+            var user = await db.Users.SingleOrDefaultAsync(x => x.UserName == userName, cancellationToken);
+            user ??= MakeUser(userName, $"{userName}@loadtest.local", sharedHash, normalizer);
+            if (db.Entry(user).State == EntityState.Detached) db.Users.Add(user);
+            if (!await db.UserRoles.AnyAsync(x => x.UserId == user.Id && x.RoleId == roles[RoleNames.DirectorateManager], cancellationToken))
+                db.UserRoles.Add(new IdentityUserRole<Guid> { UserId = user.Id, RoleId = roles[RoleNames.DirectorateManager] });
+            db.DirectorateManagers.Add(new DirectorateManager
+            {
+                Id = Guid.NewGuid(), DirectorateId = directorate.Id, ApplicationUserId = user.Id,
+                Name = $"مسؤول المديرية {index}", Email = user.Email, Phone = $"058{index:0000000}",
+                IdNumber = 400000000 + index
+            });
+        }
+        await db.SaveChangesAsync(cancellationToken);
+        db.ChangeTracker.Clear();
+        Progress("Directorates and their Identity manager accounts are ready.");
 
         var status = await db.StatusSchools.FirstOrDefaultAsync(x => x.TheType == "Active", cancellationToken)
             ?? new StatusSchool { Id = Guid.NewGuid(), Condition = true, TheType = "Active" };
@@ -61,8 +110,14 @@ public static class LoadTestDataSeeder
         for (var schoolIndex = 1; schoolIndex <= options.Schools; schoolIndex++)
         {
             var schoolName = $"LoadTest School {schoolIndex}";
-            if (await db.Schools.AnyAsync(x => x.Name == schoolName && !x.IsDeleted, cancellationToken))
+            var directorateId = directorates[(schoolIndex - 1) % directorates.Count].Id;
+            var completeSchool = await db.Schools.AsNoTracking()
+                .SingleOrDefaultAsync(x => x.Name == schoolName && !x.IsDeleted, cancellationToken);
+            if (completeSchool is not null)
             {
+                await db.Schools.Where(x => x.Id == completeSchool.Id).ExecuteUpdateAsync(setters => setters
+                    .SetProperty(x => x.DirectorateId, directorateId).SetProperty(x => x.IsActive, true), cancellationToken);
+                await ApplyCommonSubjectNamesAsync(db, completeSchool.Id, cancellationToken);
                 Progress($"School {schoolIndex}/{options.Schools} already complete; skipped.");
                 continue;
             }
@@ -70,6 +125,9 @@ public static class LoadTestDataSeeder
                 .SingleOrDefaultAsync(x => x.Name == schoolName && x.IsDeleted, cancellationToken);
             if (incompleteSchool is not null)
             {
+                await db.Schools.Where(x => x.Id == incompleteSchool.Id).ExecuteUpdateAsync(setters => setters
+                    .SetProperty(x => x.DirectorateId, directorateId).SetProperty(x => x.IsActive, true), cancellationToken);
+                await ApplyCommonSubjectNamesAsync(db, incompleteSchool.Id, cancellationToken);
                 Progress($"School {schoolIndex}/{options.Schools} is incomplete; resuming missing rows...");
                 await ResumeIncompleteSchoolAsync(db, incompleteSchool, options, schoolIndex, Progress, cancellationToken);
                 continue;
@@ -78,6 +136,7 @@ public static class LoadTestDataSeeder
             var school = new School
             {
                 Id = Guid.NewGuid(), Name = schoolName, IdStatusSchool = status.Id,
+                DirectorateId = directorateId, IsActive = true,
                 IdGender = gender.Id, IdStage = stage.Id, MinClass = 1, MaxClass = 12, IsDeleted = true
             };
             db.Schools.Add(school);
@@ -87,9 +146,10 @@ public static class LoadTestDataSeeder
                 Id = Guid.NewGuid(), Name = $"Class {i}", IdSchool = school.Id, IdStage = stage.Id,
                 IdBranch = branch.Id, NumberClass = ((i - 1) % 12) + 1, Section = ((i - 1) / 12) + 1
             }).ToArray();
-            var subjects = Enumerable.Range(1, options.SubjectsPerSchool).Select(i => new Lectuer
+            var commonSubjects = new[] { "اللغة العربية", "الرياضيات", "اللغة الإنجليزية", "التربية الإسلامية" };
+            var subjects = Enumerable.Range(1, Math.Max(options.SubjectsPerSchool, commonSubjects.Length)).Select(i => new Lectuer
             {
-                Id = Guid.NewGuid(), Name = $"Subject {i}", IdSchool = school.Id
+                Id = Guid.NewGuid(), Name = i <= commonSubjects.Length ? commonSubjects[i - 1] : $"مادة تجريبية {i}", IdSchool = school.Id
             }).ToArray();
             db.AddRange(classes);
             db.AddRange(subjects);
@@ -191,6 +251,17 @@ public static class LoadTestDataSeeder
             Progress($"School {schoolIndex}/{options.Schools} committed successfully.");
         }
         Progress("Load-test seed completed successfully.");
+    }
+
+    private static async Task ApplyCommonSubjectNamesAsync(SystemSchoolDbContext db, Guid schoolId,
+        CancellationToken cancellationToken)
+    {
+        var names = new[] { "اللغة العربية", "الرياضيات", "اللغة الإنجليزية", "التربية الإسلامية" };
+        var subjects = await db.Lectuers.Where(x => x.IdSchool == schoolId).OrderBy(x => x.Name)
+            .Take(names.Length).ToListAsync(cancellationToken);
+        for (var i = 0; i < subjects.Count; i++) subjects[i].Name = names[i];
+        if (subjects.Count > 0) await db.SaveChangesAsync(cancellationToken);
+        db.ChangeTracker.Clear();
     }
 
     private static async Task ResumeIncompleteSchoolAsync(SystemSchoolDbContext db, School school,

@@ -1,0 +1,32 @@
+@{ ViewData["Title"] = "مدارس المديرية"; }
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" />
+<style>
+    .school-table-scroll { width: 100%; max-width: 100%; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; direction: rtl; }
+    .school-table-scroll.no-horizontal-overflow { overflow-x: hidden; }
+    .school-table-scroll::-webkit-scrollbar { height: 10px; }
+    .school-table-scroll::-webkit-scrollbar-thumb { background: #9eacba; border-radius: 50rem; }
+    #schoolsTable { direction: rtl !important; min-width: 1050px; width: 100% !important; }
+    #schoolsTable thead, #schoolsTable tbody, #schoolsTable tr { direction: rtl !important; }
+    #schoolsTable th, #schoolsTable td { white-space: nowrap; text-align: right !important; }
+    table.dataTable thead > tr > th.sorting { padding-right: .75rem !important; padding-left: 28px !important; }
+    table.dataTable thead > tr > th.sorting::before,
+    table.dataTable thead > tr > th.sorting::after { right: auto !important; left: 10px !important; }
+</style>
+<div class="container py-4" dir="rtl">
+    @Html.AntiForgeryToken()
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3"><h1 class="mb-0">مدارس المديرية</h1><div class="d-flex gap-2"><a class="btn btn-outline-success" asp-action="CreateSchool"><i class="bi bi-building-add"></i> إضافة مدرسة</a><a class="btn btn-outline-secondary" asp-action="Index"><i class="bi bi-arrow-right-circle"></i> عودة</a></div></div>
+    <p class="small text-muted mb-2"><i class="bi bi-arrows-expand-vertical"></i> يمكنك التمرير أفقيًا لعرض جميع بيانات الجدول.</p>
+    <table id="schoolsTable" class="table table-bordered table-hover align-middle w-100"><thead class="table-light"><tr><th>المدرسة</th><th>المرحلة</th><th>المديرون</th><th>المعلمون</th><th>الطلاب</th><th>الحالة</th><th>الإجراءات</th></tr></thead><tbody></tbody></table>
+</div>
+@section Scripts {
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script><script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script>
+const token=()=>document.querySelector('input[name="__RequestVerificationToken"]').value;let schoolsTable;
+$(async function(){const savedNotification=sessionStorage.getItem('directorateNotification');if(savedNotification){sessionStorage.removeItem('directorateNotification');notifySuccess(savedNotification)}schoolsTable=$('#schoolsTable').DataTable({data:[],pageLength:10,lengthMenu:[[5,10,25,50],[5,10,25,50]],order:[[0,'asc']],autoWidth:false,columns:[{data:'name',render:data=>`<span class="fw-semibold">${escapeHtml(data)}</span>`},{data:'stage',render:data=>escapeHtml(data||'-')},{data:'managers'},{data:'teachers'},{data:'students'},{data:'isActive',render:data=>`<span class="badge ${data?'bg-success':'bg-secondary'}">${data?'فعالة':'معطلة'}</span>`},{data:null,orderable:false,searchable:false,width:'285px',render:school=>`<div class="d-flex flex-nowrap gap-1"><a class="btn btn-sm btn-outline-info" href="/Directorate/SchoolDetails/${school.id}"><i class="bi bi-file-earmark-bar-graph"></i> تفاصيل</a><a class="btn btn-sm btn-outline-primary" href="/Directorate/EditSchool/${school.id}"><i class="bi bi-pencil-square"></i> تعديل</a><button type="button" class="btn btn-sm btn-outline-warning toggle-school" data-id="${school.id}" data-active="${!school.isActive}"><i class="bi ${school.isActive?'bi-pause-circle':'bi-play-circle'}"></i> ${school.isActive?'تعطيل':'تفعيل'}</button></div>`}],language:{search:'بحث: 🔍',searchPlaceholder:'اسم المدرسة أو المرحلة',lengthMenu:'عرض _MENU_ سجل',info:'عرض _START_ إلى _END_ من أصل _TOTAL_ سجل',infoEmpty:'لا توجد سجلات لعرضها',infoFiltered:'(تمت التصفية من _MAX_ سجل)',loadingRecords:'جارٍ التحميل...',processing:'جارٍ المعالجة...',zeroRecords:'لم يتم العثور على مدارس مطابقة',emptyTable:'لا توجد مدارس مسجلة',paginate:{next:'التالي',previous:'السابق',first:'الأول',last:'الأخير'}},dom:"<'row align-items-center mb-3'<'col-12 col-md-6 mb-2 mb-md-0'l><'col-12 col-md-6'f>>"+"<'row'<'col-12'tr>>"+"<'row align-items-center mt-3'<'col-12 col-md-5 mb-2 mb-md-0'i><'col-12 col-md-7'p>>"});$(schoolsTable.table().node()).wrap('<div class="school-table-scroll"></div>');await loadSchools(true)});
+function updateTableOverflow(){const wrapper=document.querySelector('.school-table-scroll');if(!wrapper)return;wrapper.classList.toggle('no-horizontal-overflow',wrapper.scrollWidth<=wrapper.clientWidth+1)}
+async function loadSchools(resetPaging=false){try{const response=await fetch('/api/directorate/schools');if(!response.ok)throw new Error('تعذر تحميل المدارس');const rows=await response.json();schoolsTable.clear().rows.add(rows).draw(resetPaging);schoolsTable.columns.adjust();requestAnimationFrame(updateTableOverflow)}catch(error){notifyError(error.message)}}
+window.addEventListener('resize',updateTableOverflow);
+$('#schoolsTable').on('click','.toggle-school',async function(){const button=this;button.disabled=true;try{const response=await fetch(`/api/directorate/schools/${button.dataset.id}/activation`,{method:'PATCH',headers:{'Content-Type':'application/json','RequestVerificationToken':token()},body:JSON.stringify({isActive:button.dataset.active==='true'})});if(!response.ok)throw new Error('تعذر تغيير حالة المدرسة');notifySuccess('تم تحديث حالة المدرسة بنجاح.');await loadSchools(false)}catch(error){notifyError(error.message);button.disabled=false}});
+function escapeHtml(value){return String(value??'').replace(/[&<>'"]/g,character=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[character]))}
+</script>
+}

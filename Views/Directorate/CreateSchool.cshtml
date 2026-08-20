@@ -1,0 +1,4 @@
+@{ ViewData["Title"] = "إضافة مدرسة"; }
+<div class="container py-4" dir="rtl"><h1>إضافة مدرسة</h1>@Html.AntiForgeryToken()
+<form id="schoolForm" class="card card-body shadow-sm"><partial name="_SchoolFields"/><div class="mt-3"><button class="btn btn-success">حفظ</button> <a class="btn btn-outline-secondary" asp-action="Schools">إلغاء</a></div></form></div>
+@section Scripts { <partial name="_SchoolFormScript" /> <script>setupSchoolForm(null);</script> }

@@ -1,0 +1,41 @@
+@{ ViewData["Title"] = ViewBag.ReportTitle; }
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" />
+<style>
+    .directory-table-scroll { width: 100%; max-width: 100%; overflow-x: auto; overflow-y: hidden; direction: rtl; }
+    #directoryTable { direction: rtl !important; min-width: 1050px; width: 100% !important; }
+    #directoryTable th, #directoryTable td { white-space: nowrap; text-align: right !important; }
+    table.dataTable thead > tr > th.sorting { padding-right: .75rem !important; padding-left: 28px !important; }
+    table.dataTable thead > tr > th.sorting::before,
+    table.dataTable thead > tr > th.sorting::after { right: auto !important; left: 10px !important; }
+</style>
+<div class="container py-4" dir="rtl">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-2">
+        <div><h1 class="mb-1">@ViewBag.ReportTitle</h1><p class="text-muted mb-0">@ViewBag.ReportDescription</p></div>
+        <div class="d-flex gap-2">
+            @if (ViewBag.CreateAction is not null) { <a class="btn btn-outline-success" asp-action="@ViewBag.CreateAction"><i class="bi bi-person-plus-fill"></i> @ViewBag.CreateLabel</a> }
+            <a class="btn btn-outline-secondary" asp-action="Index"><i class="bi bi-arrow-right-circle"></i> عودة إلى لوحة المديرية</a>
+        </div>
+    </div>
+    <p class="small text-muted mt-3"><i class="bi bi-arrows-expand-vertical"></i> يمكنك البحث والترتيب والتمرير أفقيًا عند الحاجة.</p>
+    <table id="directoryTable" class="table table-bordered table-hover align-middle w-100"><thead class="table-light"><tr></tr></thead><tbody></tbody></table>
+</div>
+@section Scripts {
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script>
+const reportType='@ViewBag.ReportType';
+const reportConfigs={
+ activeSchools:{url:'/api/directorate/active-schools',headers:['المدرسة','المرحلة','المديرون','المعلمون','الطلاب','التفاصيل'],columns:[{data:'name'},{data:'stage'},{data:'managers'},{data:'teachers'},{data:'students'},{data:'id',orderable:false,searchable:false,render:id=>`<a class="btn btn-sm btn-outline-info" href="/Directorate/SchoolDetails/${id}"><i class="bi bi-file-earmark-bar-graph"></i> تقرير المدرسة</a>`}]},
+ managers:{url:'/api/directorate/managers',headers:['الاسم','المدرسة','البريد الإلكتروني','الهاتف','الحساب'],columns:[{data:'name'},{data:'school'},{data:'email'},{data:'phone'},{data:'isActive',render:status=>status?'<span class="badge bg-success">فعال</span>':'<span class="badge bg-secondary">غير فعال</span>'}]},
+ teachers:{url:'/api/directorate/teachers',headers:['الاسم','المدرسة','البريد الإلكتروني','الهاتف','المواد','الصفوف','الحساب'],columns:[{data:'name'},{data:'school'},{data:'email'},{data:'phone'},{data:'subjects'},{data:'classes'},{data:'isActive',render:status=>status?'<span class="badge bg-success">فعال</span>':'<span class="badge bg-secondary">غير فعال</span>'}]},
+ students:{url:'/api/directorate/students',headers:['الاسم','المدرسة','الصف','البريد الإلكتروني','الهاتف','الحساب'],columns:[{data:'name'},{data:'school'},{data:'className'},{data:'email'},{data:'phone'},{data:'isActive',render:status=>status?'<span class="badge bg-success">فعال</span>':'<span class="badge bg-secondary">غير فعال</span>'}]},
+ classes:{url:'/api/directorate/classes',headers:['الصف','المدرسة','المرحلة','الرقم','الشعبة','الفرع','الطلاب','المعلمون'],columns:[{data:'name'},{data:'school'},{data:'stage'},{data:'numberClass'},{data:'section'},{data:'branch'},{data:'students'},{data:'teachers'}]}
+};
+const config=reportConfigs[reportType];
+const safe=value=>value===null||value===undefined||value===''?'-':value;
+const safeHtml=value=>String(safe(value)).replace(/[&<>'"]/g,character=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[character]));
+config.columns.forEach(column=>{if(!column.render)column.render=data=>safeHtml(data)});
+document.querySelector('#directoryTable thead tr').innerHTML=config.headers.map(header=>`<th>${header}</th>`).join('');
+$(async function(){const savedNotification=sessionStorage.getItem('directorateNotification');if(savedNotification){sessionStorage.removeItem('directorateNotification');notifySuccess(savedNotification)}try{const response=await fetch(config.url);if(!response.ok)throw new Error('تعذر تحميل البيانات.');const rows=await response.json();const table=$('#directoryTable').DataTable({data:rows,pageLength:10,lengthMenu:[[5,10,25,50],[5,10,25,50]],order:[[0,'asc']],autoWidth:false,columns:config.columns,language:{search:'بحث: 🔍',searchPlaceholder:'ابحث في البيانات',lengthMenu:'عرض _MENU_ سجل',info:'عرض _START_ إلى _END_ من أصل _TOTAL_ سجل',infoEmpty:'لا توجد سجلات لعرضها',infoFiltered:'(تمت التصفية من _MAX_ سجل)',zeroRecords:'لم يتم العثور على نتائج مطابقة',emptyTable:'لا توجد بيانات مسجلة',paginate:{next:'التالي',previous:'السابق',first:'الأول',last:'الأخير'}},dom:"<'row align-items-center mb-3'<'col-12 col-md-6 mb-2 mb-md-0'l><'col-12 col-md-6'f>>"+"<'row'<'col-12'tr>>"+"<'row align-items-center mt-3'<'col-12 col-md-5 mb-2 mb-md-0'i><'col-12 col-md-7'p>>"});$(table.table().node()).wrap('<div class="directory-table-scroll"></div>')}catch(error){notifyError(error.message)}});
+</script>
+}

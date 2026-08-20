@@ -90,6 +90,11 @@ public class AccountController : Controller
             return View(model);
 
         model.Role = RoleNames.Normalize(model.Role) ?? string.Empty;
+        if (model.Role == RoleNames.DirectorateManager)
+        {
+            ModelState.AddModelError(nameof(model.Role), "حساب مسؤول المديرية يُنشأ إداريًا ولا يسمح بالتسجيل العام.");
+            return View(model);
+        }
         var validation = await _accountService.RegisterUserAsync(model);
         if (!validation.IsSuccess)
         {
@@ -248,11 +253,11 @@ public class AccountController : Controller
     }
 
     [HttpGet]
-    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager + "," + RoleNames.Student + "," + RoleNames.Teacher)]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.DirectorateManager + "," + RoleNames.Manager + "," + RoleNames.Student + "," + RoleNames.Teacher)]
     public IActionResult NewPassword() => View();
 
     [HttpPost]
-    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager + "," + RoleNames.Student + "," + RoleNames.Teacher)]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.DirectorateManager + "," + RoleNames.Manager + "," + RoleNames.Student + "," + RoleNames.Teacher)]
     public async Task<IActionResult> NewPassword(NewPasswordViewModel model)
     {
         if (!ModelState.IsValid)
@@ -284,6 +289,8 @@ public class AccountController : Controller
     {
         switch (role)
         {
+            case RoleNames.DirectorateManager:
+                return false; // Directorate accounts are provisioned administratively, never by public registration.
             case RoleNames.Admin:
             case RoleNames.Manager:
                 var manager = await _context.Menegars.SingleOrDefaultAsync(x => x.Id == profileId);
@@ -315,6 +322,13 @@ public class AccountController : Controller
 
         switch (role)
         {
+            case RoleNames.DirectorateManager:
+                var directorateManager = await _context.DirectorateManagers.AsNoTracking()
+                    .SingleOrDefaultAsync(x => x.ApplicationUserId == user.Id && !x.IsDeleted && x.Directorate.IsActive);
+                if (directorateManager is null) return false;
+                (id, school, name) = (directorateManager.Id, Guid.Empty, directorateManager.Name);
+                HttpContext.Session.SetGuid("Directorate", directorateManager.DirectorateId);
+                break;
             case RoleNames.Admin:
             case RoleNames.Manager:
                 var manager = await _context.Menegars.AsNoTracking().SingleOrDefaultAsync(x => x.ApplicationUserId == user.Id && !x.IsDeleted);

@@ -7,6 +7,10 @@ public partial class School
 {
     public Guid Id { get; set; }
 
+    public Guid DirectorateId { get; set; }
+
+    public bool IsActive { get; set; } = true;
+
     public string Name { get; set; } = null!;
 
     public Guid? IdStatusSchool { get; set; }
@@ -44,4 +48,6 @@ public partial class School
     public virtual ICollection<Teacher> Teachers { get; set; } = new List<Teacher>();
 
     public virtual ICollection<TheClass> TheClasses { get; set; } = new List<TheClass>();
+
+    public virtual Directorate Directorate { get; set; } = null!;
 }

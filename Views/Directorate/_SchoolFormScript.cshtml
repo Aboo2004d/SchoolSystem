@@ -1,0 +1,11 @@
+<script>
+async function setupSchoolForm(id){try{
+ const optionsResponse=await fetch('/api/directorate/school-options');
+ if(!optionsResponse.ok){notifyError('تعذر تحميل خيارات المدرسة.');return;}
+ const options=await optionsResponse.json(); fill('stage',options.stages);fill('gender',options.genders);fill('status',options.statuses);
+ if(id){const r=await fetch(`/api/directorate/schools/${id}`);if(!r.ok){notifyError('تعذر تحميل المدرسة.');return;}const x=await r.json();set('name',x.name);set('stage',x.idStage);set('gender',x.idGender);set('status',x.idStatusSchool);set('minClass',x.minClass);set('maxClass',x.maxClass);}
+ document.getElementById('schoolForm').addEventListener('submit',async e=>{e.preventDefault();try{const body={name:value('name'),idStage:value('stage')||null,idGender:value('gender')||null,idStatusSchool:value('status')||null,minClass:number('minClass'),maxClass:number('maxClass')};const r=await fetch(id?`/api/directorate/schools/${id}`:'/api/directorate/schools',{method:id?'PUT':'POST',headers:{'Content-Type':'application/json','RequestVerificationToken':document.querySelector('input[name="__RequestVerificationToken"]').value},body:JSON.stringify(body)});if(r.ok){sessionStorage.setItem('directorateNotification',id?'تم تحديث بيانات المدرسة بنجاح.':'تمت إضافة المدرسة بنجاح.');location.href='/Directorate/Schools';return;}notifyError((await r.json().catch(()=>null))?.message??'تعذر حفظ المدرسة. تحقق من الحقول.')}catch(error){notifyError('تعذر الاتصال بالخادم. يرجى المحاولة مرة أخرى.')}});
+}catch(error){notifyError('تعذر تحميل بيانات النموذج. يرجى المحاولة مرة أخرى.')}
+}
+function fill(id,items){document.getElementById(id).insertAdjacentHTML('beforeend',items.map(x=>`<option value="${x.id}">${x.name}</option>`).join(''));} function set(id,v){document.getElementById(id).value=v??'';} function value(id){return document.getElementById(id).value;} function number(id){const x=value(id);return x?Number(x):null;}
+</script>

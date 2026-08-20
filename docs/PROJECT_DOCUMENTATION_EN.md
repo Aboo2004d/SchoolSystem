@@ -349,7 +349,7 @@ Track requests/sec, p95/p99 latency, 4xx/5xx rate, SQL connections, CPU/RAM, Red
 
 ### 20.1 Conventions and response contracts
 
-- Development origin: `http://localhost:1004`. Use the active environment origin in deployed clients.
+- Development origin: `http://localhost:1908`. Use the active environment origin in deployed clients.
 - Authentication uses the ASP.NET Core Identity application cookie. Browser calls send `credentials: 'same-origin'`.
 - `POST`, `PUT`, and `DELETE` requests send the antiforgery value in the `RequestVerificationToken` header.
 - Domain identifiers are canonical GUID strings: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`.
@@ -517,3 +517,89 @@ if (!response.ok) {
 - Never return stack traces, tokens, credentials, or connection strings.
 - Update the Razor/JavaScript caller and this reference in the same change whenever a contract changes.
 - Add integration tests for 200, 400, 401, 403, and 404, including cross-user access attempts.
+
+## 21. Directorate layer
+
+- `Directorate` owns multiple schools, and every school has a mandatory directorate relationship.
+- `DirectorateManager` is distinct from the school `Manager`; unique constraints permit one manager profile and one Identity account per directorate.
+- Directorate managers may create, edit, activate, and deactivate their schools. The API never accepts a replacement `DirectorateId`, reserving transfers for the future Ministry role.
+- Deactivation uses `School.IsActive`; it does not delete data, and session validation rejects accounts in an inactive school.
+- The dashboard exposes aggregate counts without personal records.
+- Load-test seeding creates `directorate1`, `directorate2`, ... and distributes seeded schools in round-robin order.
+- Shared subjects are Arabic, Mathematics, English, and Islamic Education; they remain school-scoped until a Ministry catalog is designed.
+
+### 21.1 Directorate API
+
+| Method and route | Purpose | Response |
+|---|---|---|
+| `GET /api/directorate/dashboard` | Directorate identity and statistics | Aggregate JSON object |
+| `GET /api/directorate/schools` | Current directorate's schools | School array |
+| `GET /api/directorate/active-schools` | Active schools in the current directorate | Active-school array with aggregate counts |
+| `GET /api/directorate/managers` | School managers in the current directorate | School, contact, join-date, and account-state rows |
+| `GET /api/directorate/teachers` | Teachers in the current directorate | School, contact, subject/class coverage, and account-state rows |
+| `GET /api/directorate/students` | Students in the current directorate | School, class, contact, join-date, and account-state rows |
+| `GET /api/directorate/classes` | Classes in the current directorate | School, stage, class metadata, student counts, and teacher counts |
+| `GET /api/directorate/directory-options?schoolId={id}&personType={type}` | Active schools and owned-school classes; `manager` excludes schools that already have a manager | Create-form options |
+| `POST /api/directorate/managers` | Create a school-manager profile in directorate scope | 201 and manager ID |
+| `POST /api/directorate/teachers` | Create a teacher profile in directorate scope | 201 and teacher ID |
+| `POST /api/directorate/students` | Create a student and current class-assignment links | 201 and student ID |
+| `GET /api/directorate/schools/{id}` | Read an owned school | School object or 403 |
+| `GET /api/directorate/schools/{id}/report` | Aggregate operational and academic report for an owned school | Profile, metrics, attendance, grades, classes, and subjects, or 403 |
+| `GET /api/directorate/school-options` | Status, gender, and stage choices | Options object |
+| `POST /api/directorate/schools` | Create a school | 201 and school ID |
+| `PUT /api/directorate/schools/{id}` | Edit without transferring | 204 |
+| `PATCH /api/directorate/schools/{id}/activation` | Activate/deactivate without deletion | 204 |
+
+Write endpoints enforce Identity, role, ownership, and CSRF; client-supplied directorate identifiers are never trusted. Read routes also re-check school ownership; possession of a valid GUID is not authorization.
+
+### 21.2 MVC routes and user experience
+
+| Route | Purpose |
+|---|---|
+| `GET /Directorate` | Accessible linked statistic cards with hover/focus motion for each directorate directory. |
+| `GET /Directorate/Schools` | Searchable, pageable school table with edit, activation, and report actions. |
+| `GET /Directorate/ActiveSchools` | Active-school list with aggregate indicators and report links. |
+| `GET /Directorate/Managers` | School-manager directory and account states. |
+| `GET /Directorate/Teachers` | Teacher directory with subject and class coverage. |
+| `GET /Directorate/Students` | Student directory with school, class, and account state. |
+| `GET /Directorate/Classes` | Class distribution with student and teacher counts. |
+| `GET /Directorate/CreateManager` | Complete owned-school manager profile form. |
+| `GET /Directorate/CreateTeacher` | Complete owned-school teacher profile form. |
+| `GET /Directorate/CreateStudent` | Complete student form with owned school and class selection. |
+| `GET /Directorate/CreateSchool` | Create-school form. |
+| `GET /Directorate/EditSchool/{id}` | Edit an owned school. |
+| `GET /Directorate/SchoolDetails/{id}` | Printable aggregate school report. |
+
+The school table uses client-side DataTables over `GET /api/directorate/schools`. It defaults to 10 rows, offers 5/10/25/50 page sizes, and preserves the current page after an activation change. DataTables `scrollX`, an `overflow-x: auto` wrapper, and a minimum table width keep columns and action buttons readable on narrow screens.
+
+Directorate create forms add the complete operational profile after school/class ownership, age, identity-number, and email checks. Username/password creation and Identity role linkage remain in the existing `Account/SetCredentials` flow keyed by identity number; directorate forms never store passwords.
+
+### 21.3 School report contract
+
+`SchoolDetails.cshtml` consumes one endpoint:
+
+```text
+GET /api/directorate/schools/{schoolId}/report
+```
+
+The JSON response contains:
+
+- `school`: name, activation, official status, gender, stage, and minimum/maximum class.
+- `summary`: active manager, teacher, student, class, and subject counts.
+- `attendance`: total records, present (`1`), absent (`0`), excused (`m`), and `attendanceRate`. The rate is `(present + excused) / total`, or `null` when no records exist.
+- `academic`: grade-record count, average `Total`, and `distribution` buckets: below 50, 50-59, 60-69, 70-79, 80-89, and 90-100. Each bucket returns `label`, `count`, and `percentage`.
+- `classes`: class name, stage, number, section, branch, and non-deleted student count.
+- `subjects`: subject name plus distinct active teacher and class assignment counts derived from `TeacherLectuerClass`.
+- `generatedAt`: UTC report-generation timestamp.
+
+The report intentionally excludes student/teacher names, identity numbers, and contact details. Both MVC and API routes call `ValidateDirectorateSchoolAccessAsync`.
+
+The UI provides loading, error, and empty states; horizontally scrollable report tables; and a print button bound through JavaScript to `window.print()`. Print styles hide navigation/actions and remove unnecessary shadows.
+
+### 21.4 Directorate directory pages
+
+The five detailed directory routes share an RTL DataTables view with search, page-size selection, sorting, pagination, empty states, conditional horizontal scrolling, and project-standard Notyf errors. Dashboard cards are full links and support both pointer hover and keyboard focus. Every API derives the directorate from the authenticated manager session and never trusts a client-supplied directorate identifier.
+
+### 21.5 Reuse in other clients
+
+The Razor layer is an API client for `/api/directorate/*`, so the contracts can support another web or mobile client. The endpoint is not public: a new client must provide the configured authentication context and adapt Identity/Session and CSRF behavior while preserving server-side role and ownership checks. Contract changes must update the client, this reference, and integration tests together.

@@ -112,11 +112,11 @@ if (app.Environment.IsDevelopment())
         await db.Database.MigrateAsync();
 
         var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
-        foreach (var role in new[] { RoleNames.Admin, RoleNames.Manager, RoleNames.Teacher, RoleNames.Student })
+        foreach (var role in new[] { RoleNames.Admin, RoleNames.DirectorateManager, RoleNames.Manager, RoleNames.Teacher, RoleNames.Student })
             if (!await roleManager.RoleExistsAsync(role))
                 await roleManager.CreateAsync(new IdentityRole<Guid>(role));
 
-        await IdentityDataSeeder.SeedMainAdminAsync(scope.ServiceProvider, app.Configuration);
+        //await IdentityDataSeeder.SeedMainAdminAsync(scope.ServiceProvider, app.Configuration);
         await LoadTestDataSeeder.SeedAsync(scope.ServiceProvider, app.Configuration);
 
         if (args.Contains("--seed-only", StringComparer.OrdinalIgnoreCase))

@@ -246,7 +246,11 @@
                                     @username
                                 </a>
                                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-                                    @if (role == "Manager")
+                                    @if (role == "DirectorateManager")
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="Directorate" asp-action="Index">لوحة المديرية</a></li>
+                                    }
+                                    else if (role == "Manager")
                                     {
                                         <li><a class="dropdown-item" asp-controller="Menegar" asp-action="Index">لوحة القيادة</a></li>
                                     }

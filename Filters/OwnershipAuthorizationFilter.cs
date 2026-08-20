@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.EntityFrameworkCore;
@@ -20,7 +21,10 @@ public sealed class OwnershipAuthorizationFilter : IAsyncActionFilter
 
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
-        if (context.HttpContext.User.Identity?.IsAuthenticated != true ||
+        // Resource ownership is irrelevant to public endpoints. In particular, never turn the
+        // AccessDenied endpoint itself into another Forbid response (which causes a redirect loop).
+        if (context.ActionDescriptor.EndpointMetadata.OfType<IAllowAnonymous>().Any() ||
+            context.HttpContext.User.Identity?.IsAuthenticated != true ||
             context.HttpContext.User.IsInRole(RoleNames.Admin))
         {
             await next();
@@ -48,7 +52,9 @@ public sealed class OwnershipAuthorizationFilter : IAsyncActionFilter
                 ? await IsStudentRequestAllowedAsync(user.Id, controller, ids)
                 : context.HttpContext.User.IsInRole(RoleNames.Manager)
                     ? await IsManagerRequestAllowedAsync(user.Id, controller, ids)
-                    : false;
+                    : context.HttpContext.User.IsInRole(RoleNames.DirectorateManager)
+                        ? await IsDirectorateManagerRequestAllowedAsync(user.Id, controller, ids)
+                        : false;
 
         if (!allowed)
         {
@@ -115,6 +121,42 @@ public sealed class OwnershipAuthorizationFilter : IAsyncActionFilter
             if (item.Name.Contains("class") && !await _db.TheClasses.AnyAsync(x => x.Id == item.Id && x.IdSchool == school)) return false;
             if (item.Name.Contains("lectuer") && !await _db.Lectuers.AnyAsync(x => x.Id == item.Id && x.IdSchool == school)) return false;
         }
+        return true;
+    }
+
+    private async Task<bool> IsDirectorateManagerRequestAllowedAsync(Guid userId, string controller,
+        (string Name, Guid Id)[] ids)
+    {
+        var profile = await _db.DirectorateManagers.AsNoTracking()
+            .Where(x => x.ApplicationUserId == userId && !x.IsDeleted && x.Directorate.IsActive)
+            .Select(x => new { x.Id, x.DirectorateId })
+            .SingleOrDefaultAsync();
+        if (profile is null) return false;
+
+        // Actions without resource identifiers are still protected by their Identity role policy.
+        if (ids.Length == 0) return true;
+
+        foreach (var item in ids)
+        {
+            if (controller.Contains("Profile", StringComparison.OrdinalIgnoreCase))
+            {
+                if (item.Name == "id" && item.Id != profile.Id) return false;
+                continue;
+            }
+
+            if (controller.Contains("Directorate", StringComparison.OrdinalIgnoreCase) &&
+                (item.Name == "id" || item.Name.Contains("school")))
+            {
+                var ownsSchool = await _db.Schools.AsNoTracking().AnyAsync(x =>
+                    x.Id == item.Id && x.DirectorateId == profile.DirectorateId && !x.IsDeleted);
+                if (!ownsSchool) return false;
+                continue;
+            }
+
+            // Directorate managers have no detailed resource access outside their own module.
+            return false;
+        }
+
         return true;
     }
 }

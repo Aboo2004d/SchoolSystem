@@ -8,12 +8,14 @@ public sealed class ApplicationUser : IdentityUser<Guid>
     public Student? Student { get; set; }
     public Teacher? Teacher { get; set; }
     public Menegar? Menegar { get; set; }
+    public DirectorateManager? DirectorateManager { get; set; }
 }
 
 public static class RoleNames
 {
     public const string Admin = "Admin";
     public const string Manager = "Manager";
+    public const string DirectorateManager = "DirectorateManager";
     public const string Teacher = "Teacher";
     public const string Student = "Student";
 
@@ -21,6 +23,7 @@ public static class RoleNames
     {
         "admin" => Admin,
         "manager" or "menegar" => Manager,
+        "directoratemanager" or "directorate" => DirectorateManager,
         "teacher" => Teacher,
         "student" => Student,
         _ => null

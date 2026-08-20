@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using SchoolSystem.Data;
 using SchoolSystem.Models;
 
-[Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager + "," + RoleNames.Teacher + "," + RoleNames.Student)]
+[Authorize(Roles = RoleNames.Admin + "," + RoleNames.DirectorateManager + "," + RoleNames.Manager + "," + RoleNames.Teacher + "," + RoleNames.Student)]
 public class ProfileController : Controller
 {
     private readonly SystemSchoolDbContext _context;
@@ -78,7 +78,15 @@ public class ProfileController : Controller
         Guid id = Guid.Empty;
         int idNumber = 0;
         DateOnly date = default;
-        if (role is RoleNames.Admin or RoleNames.Manager)
+        if (role == RoleNames.DirectorateManager)
+        {
+            var p = await _context.DirectorateManagers.Include(x => x.Directorate).AsNoTracking()
+                .SingleOrDefaultAsync(x => x.ApplicationUserId == user.Id && !x.IsDeleted);
+            if (p is null) return null;
+            (id, name, phone, email, city, area, idNumber, school) =
+                (p.Id, p.Name, p.Phone, p.Email, p.City, p.Area, p.IdNumber ?? 0, p.Directorate.Name);
+        }
+        else if (role is RoleNames.Admin or RoleNames.Manager)
         {
             var p = await _context.Menegars.Include(x => x.IdSchoolNavigation).AsNoTracking().SingleOrDefaultAsync(x => x.ApplicationUserId == user.Id);
             if (p is null) return null;
@@ -112,6 +120,15 @@ public class ProfileController : Controller
 
     private async Task<bool> UpdateLinkedProfileAsync(Guid userId, string? role, Guid requestedId, EditProfileViewModel model)
     {
+        if (role == RoleNames.DirectorateManager)
+        {
+            var p = await _context.DirectorateManagers.SingleOrDefaultAsync(x =>
+                x.ApplicationUserId == userId && x.Id == requestedId && !x.IsDeleted);
+            if (p is null) return false;
+            (p.Name, p.Phone, p.Email, p.City, p.Area) =
+                (model.Name, model.Phone, model.Email, model.City, model.Area);
+            return true;
+        }
         if (role is RoleNames.Admin or RoleNames.Manager)
         {
             var p = await _context.Menegars.SingleOrDefaultAsync(x => x.ApplicationUserId == userId && x.Id == requestedId);

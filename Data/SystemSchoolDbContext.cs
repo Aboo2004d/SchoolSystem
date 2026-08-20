@@ -45,9 +45,43 @@ public partial class SystemSchoolDbContext : IdentityDbContext<ApplicationUser, 
 
     public virtual DbSet<TheClass> TheClasses { get; set; }
 
+    public virtual DbSet<Directorate> Directorates { get; set; }
+
+    public virtual DbSet<DirectorateManager> DirectorateManagers { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<Directorate>(entity =>
+        {
+            entity.ToTable("Directorate");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.Code).IsUnique();
+            entity.Property(x => x.Code).HasMaxLength(30).IsRequired();
+            entity.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.City).HasMaxLength(100);
+            entity.Property(x => x.Area).HasMaxLength(100);
+            entity.Property(x => x.Phone).HasMaxLength(30);
+            entity.Property(x => x.Email).HasMaxLength(256);
+        });
+
+        modelBuilder.Entity<DirectorateManager>(entity =>
+        {
+            entity.ToTable("DirectorateManager");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.DirectorateId).IsUnique();
+            entity.HasIndex(x => x.ApplicationUserId).IsUnique().HasFilter("[ApplicationUserId] IS NOT NULL");
+            entity.Property(x => x.Name).HasMaxLength(150).IsRequired();
+            entity.Property(x => x.Phone).HasMaxLength(30);
+            entity.Property(x => x.Email).HasMaxLength(256);
+            entity.Property(x => x.City).HasMaxLength(100);
+            entity.Property(x => x.Area).HasMaxLength(100);
+            entity.HasOne(x => x.Directorate).WithOne(x => x.Manager)
+                .HasForeignKey<DirectorateManager>(x => x.DirectorateId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.ApplicationUser).WithOne(x => x.DirectorateManager)
+                .HasForeignKey<DirectorateManager>(x => x.ApplicationUserId).OnDelete(DeleteBehavior.SetNull);
+        });
 
         modelBuilder.Entity<Attendance>(entity =>
         {
@@ -172,8 +206,7 @@ public partial class SystemSchoolDbContext : IdentityDbContext<ApplicationUser, 
 
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.Name)
-                .HasMaxLength(50)
-                .IsUnicode(false);
+                .HasMaxLength(100);
 
             entity.HasOne(d => d.IdSchoolNavigation).WithMany(p => p.Lectuers)
                 .HasForeignKey(d => d.IdSchool)
@@ -229,6 +262,11 @@ public partial class SystemSchoolDbContext : IdentityDbContext<ApplicationUser, 
             entity.ToTable("School");
 
             entity.Property(e => e.Name).HasMaxLength(200);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+
+            entity.HasIndex(e => e.DirectorateId);
+            entity.HasOne(e => e.Directorate).WithMany(e => e.Schools)
+                .HasForeignKey(e => e.DirectorateId).OnDelete(DeleteBehavior.Restrict);
 
             entity.HasOne(d => d.IdGenderNavigation).WithMany(p => p.Schools)
                 .HasForeignKey(d => d.IdGender)

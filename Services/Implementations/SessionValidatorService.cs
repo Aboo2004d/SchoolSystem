@@ -27,7 +27,8 @@ public sealed class SessionValidatorService : ISessionValidatorService
         var user = await GetAuthorizedUserAsync(httpContext, RoleNames.Teacher, source);
         if (user is null) return (false, Guid.Empty, Guid.Empty, false);
         var profile = await _context.Teachers.AsNoTracking()
-            .SingleOrDefaultAsync(x => x.ApplicationUserId == user.Id && !x.IsDeleted);
+            .SingleOrDefaultAsync(x => x.ApplicationUserId == user.Id && !x.IsDeleted &&
+                x.IdSchoolNavigation != null && x.IdSchoolNavigation.IsActive && !x.IdSchoolNavigation.IsDeleted);
         if (profile is null || profile.Id != teacherId || !profile.IdSchool.HasValue)
             return await RejectAsync(source, (false, Guid.Empty, Guid.Empty, true));
         return (true, profile.Id, profile.IdSchool.Value, true);
@@ -39,7 +40,8 @@ public sealed class SessionValidatorService : ISessionValidatorService
         var user = await GetAuthorizedUserAsync(httpContext, RoleNames.Student, source);
         if (user is null) return (false, Guid.Empty, Guid.Empty, false);
         var profile = await _context.Students.AsNoTracking()
-            .SingleOrDefaultAsync(x => x.ApplicationUserId == user.Id && !x.IsDeletedStudent);
+            .SingleOrDefaultAsync(x => x.ApplicationUserId == user.Id && !x.IsDeletedStudent &&
+                x.IdSchoolNavigation != null && x.IdSchoolNavigation.IsActive && !x.IdSchoolNavigation.IsDeleted);
         if (profile is null || profile.Id != studentId || !profile.IdSchool.HasValue)
             return await RejectAsync(source, (false, Guid.Empty, Guid.Empty, true));
         return (true, profile.Id, profile.IdSchool.Value, true);
@@ -53,7 +55,8 @@ public sealed class SessionValidatorService : ISessionValidatorService
             return (false, Guid.Empty, Guid.Empty, false);
 
         var student = await _context.Students.AsNoTracking().SingleOrDefaultAsync(x =>
-            x.Id == studentId && !x.IsDeletedStudent && !x.IsDeletedSchool && x.IdSchool.HasValue);
+            x.Id == studentId && !x.IsDeletedStudent && !x.IsDeletedSchool && x.IdSchool.HasValue &&
+            x.IdSchoolNavigation != null && x.IdSchoolNavigation.IsActive && !x.IdSchoolNavigation.IsDeleted);
         if (student is null)
             return await RejectAsync(source, (false, Guid.Empty, Guid.Empty, true));
         var targetSchoolId = student.IdSchool!.Value;
@@ -92,10 +95,37 @@ public sealed class SessionValidatorService : ISessionValidatorService
         var user = await GetAuthorizedUserAsync(httpContext, RoleNames.Manager, source);
         if (user is null) return (false, Guid.Empty, "انتهت صلاحية تسجيل الدخول.");
         var profile = await _context.Menegars.AsNoTracking()
-            .SingleOrDefaultAsync(x => x.ApplicationUserId == user.Id && !x.IsDeleted);
+            .SingleOrDefaultAsync(x => x.ApplicationUserId == user.Id && !x.IsDeleted &&
+                x.IdSchoolNavigation != null && x.IdSchoolNavigation.IsActive && !x.IdSchoolNavigation.IsDeleted);
         if (profile is null || !profile.IdSchool.HasValue)
             return await RejectAsync(source, (false, Guid.Empty, "ملف المدير غير صالح."));
         return (true, profile.IdSchool.Value, string.Empty);
+    }
+
+    public async Task<(bool IsValid, Guid DirectorateId, string Message)> ValidateDirectorateManagerSessionAsync(
+        HttpContext httpContext, string source)
+    {
+        var user = await GetAuthorizedUserAsync(httpContext, RoleNames.DirectorateManager, source);
+        if (user is null) return (false, Guid.Empty, "انتهت صلاحية تسجيل الدخول.");
+        var profile = await _context.DirectorateManagers.AsNoTracking()
+            .Where(x => x.ApplicationUserId == user.Id && !x.IsDeleted && x.Directorate.IsActive)
+            .Select(x => new { x.DirectorateId })
+            .SingleOrDefaultAsync();
+        return profile is null
+            ? await RejectAsync(source, (false, Guid.Empty, "ملف مسؤول المديرية غير صالح."))
+            : (true, profile.DirectorateId, string.Empty);
+    }
+
+    public async Task<(bool IsValid, Guid DirectorateId, string Message)> ValidateDirectorateSchoolAccessAsync(
+        HttpContext httpContext, Guid schoolId, string source)
+    {
+        var access = await ValidateDirectorateManagerSessionAsync(httpContext, source);
+        if (!access.IsValid) return access;
+        var ownsSchool = await _context.Schools.AsNoTracking().AnyAsync(x =>
+            x.Id == schoolId && x.DirectorateId == access.DirectorateId && !x.IsDeleted);
+        return ownsSchool
+            ? access
+            : await RejectAsync(source, (false, Guid.Empty, "المدرسة لا تتبع لهذه المديرية."));
     }
 
     private async Task<ApplicationUser?> GetAuthorizedUserAsync(HttpContext context, string role, string source)
