@@ -31,9 +31,10 @@ namespace SchoolSystem.Controllers
         private readonly ISessionValidatorService _sessionValidatorService;
         private readonly IDistributedCache _cache;
         private readonly IEmailValidationService _emailValidator;
+        private readonly IAutomaticAccountService _accounts;
 
 
-        public StudentApiController(SystemSchoolDbContext context, IDistributedCache cache, IEmailValidationService emailValidator, ISessionValidatorService sessionValidatorService, INotyfService notyf, IErrorLoggerService logger)
+        public StudentApiController(SystemSchoolDbContext context, IDistributedCache cache, IEmailValidationService emailValidator, ISessionValidatorService sessionValidatorService, INotyfService notyf, IErrorLoggerService logger, IAutomaticAccountService accounts)
         {
             _logger = logger;
             _context = context;
@@ -41,6 +42,7 @@ namespace SchoolSystem.Controllers
             _sessionValidatorService = sessionValidatorService;
             _emailValidator = emailValidator;
             _cache = cache;
+            _accounts = accounts;
 
         }
 
@@ -60,7 +62,7 @@ namespace SchoolSystem.Controllers
                 
                 if (ModelState.IsValid)
                 {
-                    if (student.Name != null && student.Phone != null && student.Email != null
+                    if (student.Name != null && student.Phone != null
                     && student.TheDate != null && student.IdClass != null && student.IdNumber != null && student.City != null && student.Area != null)
                     {
                         if (_context.Students.Any(s => s.IdNumber == student.IdNumber))
@@ -95,11 +97,15 @@ namespace SchoolSystem.Controllers
                             return Conflict(new ApiResponse { Success = false, Message = "الاسم موجود مسبقا" });
                         }
 
-                        if (!await _emailValidator.IsEmailValidAsync(student.Email))
+                        if (!string.IsNullOrWhiteSpace(student.Email) && !await _emailValidator.IsEmailValidAsync(student.Email))
                         {
                             return BadRequest(new ApiResponse { Success = false, Message = "البريد الالكتروني غير سليم" });
                         }
 
+                        var account = await _accounts.CreateAsync(student.IdNumber!.Value, student.Email, RoleNames.Student);
+                        if (!account.Success) return Conflict(new ApiResponse { Success = false, Message = account.Message });
+                        student.ApplicationUserId = account.User!.Id;
+                        student.Email = account.Email;
                         student.IdSchool = school;
                         student.IsDeletedClass = false;
                         student.IsDeletedStudent = false;
@@ -772,3 +778,4 @@ namespace SchoolSystem.Controllers
         }
     }
 }
+

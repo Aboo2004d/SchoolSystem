@@ -65,6 +65,7 @@ builder.Services.AddScoped<IErrorLoggerService, ErrorLoggerService>();
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IEmailValidationService, EmailValidationService>();
 builder.Services.AddScoped<ISessionValidatorService, SessionValidatorService>();
+builder.Services.AddScoped<IAutomaticAccountService, AutomaticAccountService>();
 
 builder.Services.AddSession(options =>
 {
@@ -159,3 +160,4 @@ app.MapControllerRoute(name: "default", pattern: "{controller=Home}/{action=Inde
 app.Run();
 
 public partial class Program;
+

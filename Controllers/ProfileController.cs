@@ -51,6 +51,15 @@ public class ProfileController : Controller
         var user = await _userManager.GetUserAsync(User);
         if (user is null || !user.IsActive) return Challenge();
         var role = (await _userManager.GetRolesAsync(user)).SingleOrDefault();
+        var userWithSameName = await _userManager.FindByNameAsync(model.UserName.Trim());
+        if (userWithSameName is not null && userWithSameName.Id != user.Id)
+            ModelState.AddModelError(nameof(model.UserName), "اسم المستخدم مستخدم مسبقًا، يرجى اختيار اسم آخر.");
+        var userWithSameEmail = await _userManager.FindByEmailAsync(model.Email.Trim());
+        if (userWithSameEmail is not null && userWithSameEmail.Id != user.Id)
+            ModelState.AddModelError(nameof(model.Email), "البريد الإلكتروني مستخدم مسبقًا، يرجى إدخال بريد آخر.");
+        if (!ModelState.IsValid) return View(model);
+        model.UserName = model.UserName.Trim();
+        model.Email = model.Email.Trim();
         if (!await UpdateLinkedProfileAsync(user.Id, role, model.Id, model)) return Forbid();
 
         var oldName = user.UserName;
@@ -174,6 +183,7 @@ public class ProfileController : Controller
         foreach (var error in result.Errors) ModelState.AddModelError(string.Empty, error.Description);
     }
 }
+
 
 
 

@@ -15,7 +15,8 @@ public sealed class DirectorateApiController : ControllerBase
 {
     private readonly SystemSchoolDbContext _db;
     private readonly ISessionValidatorService _sessionValidator;
-    public DirectorateApiController(SystemSchoolDbContext db, ISessionValidatorService sessionValidator) { _db = db; _sessionValidator = sessionValidator; }
+    private readonly IAutomaticAccountService _accounts;
+    public DirectorateApiController(SystemSchoolDbContext db, ISessionValidatorService sessionValidator, IAutomaticAccountService accounts) { _db = db; _sessionValidator = sessionValidator; _accounts = accounts; }
 
     [HttpGet("dashboard")]
     public async Task<IActionResult> Dashboard(CancellationToken cancellationToken)
@@ -44,11 +45,12 @@ public sealed class DirectorateApiController : ControllerBase
     {
         var validation = await ValidatePersonRequestAsync(request, false, cancellationToken); if (validation.Error is not null) return validation.Error;
         if (await _db.Menegars.AnyAsync(x => x.IdSchool == request.SchoolId && !x.IsDeleted && !x.IsDeletedSchool, cancellationToken)) return Conflict(new { message = "يوجد مدير مسجل لهذه المدرسة بالفعل." });
-        var manager = new Menegar { Id = Guid.NewGuid(), Name = request.Name.Trim(), IdNumber = validation.IdNumber, Phone = request.Phone.Trim(), Email = request.Email.Trim(), TheDate = request.BirthDate, City = request.City.Trim(), Area = request.Area.Trim(), IdSchool = request.SchoolId, IsDeleted = false, IsDeletedSchool = false };
+        var account = await _accounts.CreateAsync(validation.IdNumber, request.Email, RoleNames.Manager); if (!account.Success) return Conflict(new { message = account.Message });
+        var manager = new Menegar { Id = Guid.NewGuid(), ApplicationUserId = account.User!.Id, Name = request.Name.Trim(), IdNumber = validation.IdNumber, Phone = request.Phone.Trim(), Email = account.Email, TheDate = request.BirthDate, City = request.City.Trim(), Area = request.Area.Trim(), IdSchool = request.SchoolId, IsDeleted = false, IsDeletedSchool = false };
         _db.Menegars.Add(manager);
         _db.SchoolManagerAssignments.Add(new SchoolManagerAssignment { Id = Guid.NewGuid(), ManagerId = manager.Id,
             SchoolId = request.SchoolId!.Value, IsPrimary = true, IsActive = true, StartedAtUtc = DateTime.UtcNow });
-        await _db.SaveChangesAsync(cancellationToken); return Created(string.Empty, new { manager.Id });
+        await _db.SaveChangesAsync(cancellationToken); return Created(string.Empty, new { manager.Id, account.UserName, account.InitialPassword, account.Email });
     }
 
     [HttpPost("teachers")]
@@ -63,7 +65,7 @@ public sealed class DirectorateApiController : ControllerBase
         {
             if (!existing.IsDeleted && !existing.IsDeletedSchool)
                 return Conflict(new { message = "المعلم فعال بالفعل؛ استخدم التكليف أو طلب النقل لإضافة مدرسة أخرى." });
-            existing.Name = request.Name.Trim(); existing.Phone = request.Phone.Trim(); existing.Email = request.Email.Trim();
+            existing.Name = request.Name.Trim(); existing.Phone = request.Phone.Trim(); existing.Email = string.IsNullOrWhiteSpace(request.Email) ? existing.Email : request.Email.Trim();
             existing.TheDate = request.BirthDate; existing.City = request.City.Trim(); existing.Area = request.Area.Trim();
             existing.IdSchool = request.SchoolId; existing.IsDeleted = false; existing.IsDeletedSchool = false;
             var activePrimary = await _db.TeacherPlacements.Where(x => x.TeacherId == existing.Id && x.IsActive && x.IsPrimary).ToListAsync(cancellationToken);
@@ -72,30 +74,32 @@ public sealed class DirectorateApiController : ControllerBase
                 SchoolId = request.SchoolId!.Value, IsPrimary = true, IsActive = true, StartedAtUtc = DateTime.UtcNow });
             if (existing.ApplicationUserId.HasValue)
             {
-                var account = await _db.Users.FindAsync(new object[] { existing.ApplicationUserId.Value }, cancellationToken);
-                if (account is not null) account.IsActive = true;
+                var existingAccount = await _db.Users.FindAsync(new object[] { existing.ApplicationUserId.Value }, cancellationToken);
+                if (existingAccount is not null) existingAccount.IsActive = true;
             }
             await _db.SaveChangesAsync(cancellationToken);
             return Ok(new { existing.Id, reactivated = true, message = "تمت إعادة تفعيل المعلم وربطه بالمدرسة الجديدة." });
         }
-        var teacher = new Teacher { Id = Guid.NewGuid(), Name = request.Name.Trim(), IdNumber = validation.IdNumber, Phone = request.Phone.Trim(), Email = request.Email.Trim(), TheDate = request.BirthDate, City = request.City.Trim(), Area = request.Area.Trim(), IdSchool = request.SchoolId, IsDeleted = false, IsDeletedSchool = false };
+        var account = await _accounts.CreateAsync(validation.IdNumber, request.Email, RoleNames.Teacher); if (!account.Success) return Conflict(new { message = account.Message });
+        var teacher = new Teacher { Id = Guid.NewGuid(), ApplicationUserId = account.User!.Id, Name = request.Name.Trim(), IdNumber = validation.IdNumber, Phone = request.Phone.Trim(), Email = account.Email, TheDate = request.BirthDate, City = request.City.Trim(), Area = request.Area.Trim(), IdSchool = request.SchoolId, IsDeleted = false, IsDeletedSchool = false };
         _db.Teachers.Add(teacher);
         _db.TeacherPlacements.Add(new TeacherPlacement { Id = Guid.NewGuid(), TeacherId = teacher.Id,
             SchoolId = request.SchoolId!.Value, IsPrimary = true, IsActive = true, StartedAtUtc = DateTime.UtcNow });
-        await _db.SaveChangesAsync(cancellationToken); return Created(string.Empty, new { teacher.Id });
+        await _db.SaveChangesAsync(cancellationToken); return Created(string.Empty, new { teacher.Id, account.UserName, account.InitialPassword, account.Email });
     }
 
     [HttpPost("students")]
     public async Task<IActionResult> CreateStudent(DirectoratePersonRequest request, CancellationToken cancellationToken)
     {
         var validation = await ValidatePersonRequestAsync(request, true, cancellationToken); if (validation.Error is not null) return validation.Error;
-        var student = new Student { Id = Guid.NewGuid(), Name = request.Name.Trim(), IdNumber = validation.IdNumber, Phone = request.Phone.Trim(), Email = request.Email.Trim(), TheDate = request.BirthDate, City = request.City.Trim(), Area = request.Area.Trim(), IdSchool = request.SchoolId, IdClass = request.ClassId, IsDeletedStudent = false, IsDeletedClass = false, IsDeletedSchool = false };
+        var account = await _accounts.CreateAsync(validation.IdNumber, request.Email, RoleNames.Student); if (!account.Success) return Conflict(new { message = account.Message });
+        var student = new Student { Id = Guid.NewGuid(), ApplicationUserId = account.User!.Id, Name = request.Name.Trim(), IdNumber = validation.IdNumber, Phone = request.Phone.Trim(), Email = account.Email, TheDate = request.BirthDate, City = request.City.Trim(), Area = request.Area.Trim(), IdSchool = request.SchoolId, IdClass = request.ClassId, IsDeletedStudent = false, IsDeletedClass = false, IsDeletedSchool = false };
         _db.Students.Add(student);
         _db.StudentEnrollments.Add(new StudentEnrollment { Id = Guid.NewGuid(), StudentId = student.Id,
             SchoolId = request.SchoolId!.Value, ClassId = request.ClassId!.Value, IsActive = true, StartedAtUtc = DateTime.UtcNow });
         var assignments = await _db.TeacherLectuerClasses.AsNoTracking().Where(x => x.IdSchool == request.SchoolId && x.IdClass == request.ClassId && !x.IsDeletedTeacherLectuerClass && !x.IsDeletedTeacher && !x.IsDeletedLectuer && !x.IsDeletedClass && !x.IsDeletedSchool).ToListAsync(cancellationToken);
         foreach (var assignment in assignments) _db.StudentLectuerTeachers.Add(new StudentLectuerTeacher { Id = Guid.NewGuid(), IdStudent = student.Id, IdClass = student.IdClass, IdTeacher = assignment.IdTeacher, IdLectuer = assignment.IdLectuer, IdSchool = student.IdSchool, IsDeletedClass = false, IsDeletedLectuer = false, IsDeletedStudent = false, IsDeletedTeacher = false, IsDeletedStudentLectuerTeacher = false });
-        await _db.SaveChangesAsync(cancellationToken); return Created(string.Empty, new { student.Id });
+        await _db.SaveChangesAsync(cancellationToken); return Created(string.Empty, new { student.Id, account.UserName, account.InitialPassword, account.Email });
     }
 
     private async Task<(IActionResult? Error, int IdNumber)> ValidatePersonRequestAsync(DirectoratePersonRequest request, bool student, CancellationToken cancellationToken, Guid? ignoredTeacherId = null)
@@ -104,8 +108,8 @@ public sealed class DirectorateApiController : ControllerBase
         if (!request.SchoolId.HasValue || !await _db.Schools.AnyAsync(x => x.Id == request.SchoolId && x.DirectorateId == access.DirectorateId && !x.IsDeleted && x.IsActive, cancellationToken)) return (BadRequest(new { message = "المدرسة المحددة غير متاحة." }), 0);
         if (!int.TryParse(request.IdNumber, out var idNumber)) return (BadRequest(new { message = "رقم الهوية غير صالح." }), 0);
         if (await _db.Menegars.AnyAsync(x => x.IdNumber == idNumber, cancellationToken) || await _db.Teachers.AnyAsync(x => x.IdNumber == idNumber && (!ignoredTeacherId.HasValue || x.Id != ignoredTeacherId.Value), cancellationToken) || await _db.Students.AnyAsync(x => x.IdNumber == idNumber, cancellationToken)) return (Conflict(new { message = "رقم الهوية مستخدم مسبقًا." }), 0);
-        var email = request.Email.Trim();
-        if (await _db.Menegars.AnyAsync(x => x.Email == email && !x.IsDeleted, cancellationToken) || await _db.Teachers.AnyAsync(x => x.Email == email && !x.IsDeleted && (!ignoredTeacherId.HasValue || x.Id != ignoredTeacherId.Value), cancellationToken) || await _db.Students.AnyAsync(x => x.Email == email && !x.IsDeletedStudent, cancellationToken)) return (Conflict(new { message = "البريد الإلكتروني مستخدم مسبقًا." }), 0);
+        var email = request.Email?.Trim();
+        if (await _db.Menegars.AnyAsync(x => !string.IsNullOrWhiteSpace(email) && x.Email == email && !x.IsDeleted, cancellationToken) || await _db.Teachers.AnyAsync(x => !string.IsNullOrWhiteSpace(email) && x.Email == email && !x.IsDeleted && (!ignoredTeacherId.HasValue || x.Id != ignoredTeacherId.Value), cancellationToken) || await _db.Students.AnyAsync(x => !string.IsNullOrWhiteSpace(email) && x.Email == email && !x.IsDeletedStudent, cancellationToken)) return (Conflict(new { message = "البريد الإلكتروني مستخدم مسبقًا." }), 0);
         if (!request.BirthDate.HasValue) return (BadRequest(new { message = "تاريخ الميلاد مطلوب." }), 0);
         var today = DateOnly.FromDateTime(DateTime.Today); var age = today.Year - request.BirthDate.Value.Year; if (request.BirthDate.Value > today.AddYears(-age)) age--;
         if (request.BirthDate > today || (student ? age < 5 : age < 18 || age >= 65)) return (BadRequest(new { message = student ? "يجب ألا يقل عمر الطالب عن 5 سنوات." : "يجب أن يكون العمر بين 18 و64 سنة." }), 0);
@@ -269,3 +273,6 @@ public sealed class DirectorateApiController : ControllerBase
 
     private Task<(bool IsValid, Guid DirectorateId, string Message)> AccessAsync(string source) => _sessionValidator.ValidateDirectorateManagerSessionAsync(HttpContext, source);
 }
+
+
+

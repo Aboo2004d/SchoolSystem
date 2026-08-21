@@ -28,16 +28,18 @@ namespace SchoolSystem.Controllers
         private readonly IErrorLoggerService _logger;
         private readonly ISessionValidatorService _sessionValidatorService;
         private readonly IDistributedCache _cache;
+        private readonly IAutomaticAccountService _accounts;
         
 
 
-        public MenegarApiController(SystemSchoolDbContext context, IDistributedCache cache, ISessionValidatorService sessionValidatorService, INotyfService notyf, IErrorLoggerService logger)
+        public MenegarApiController(SystemSchoolDbContext context, IDistributedCache cache, ISessionValidatorService sessionValidatorService, INotyfService notyf, IErrorLoggerService logger, IAutomaticAccountService accounts)
         {
             _logger = logger;
             _context = context;
             _notyf = notyf;
             _sessionValidatorService = sessionValidatorService;
             _cache = cache;
+            _accounts = accounts;
         }
 
         [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
@@ -930,6 +932,15 @@ namespace SchoolSystem.Controllers
             return Json(data);
         }
 
+        [HttpPost("reset-student-password")]
+        [AuthorizeRoles(RoleNames.Manager)]
+        public async Task<IActionResult> ResetStudentPassword([FromBody] ResetStudentPasswordRequest request)
+        {
+            if (!int.TryParse(request.IdentityNumber, out var identityNumber)) return BadRequest(new ApiResponse { Success = false, Message = "رقم الهوية غير صالح." });
+            var userId = Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+            var result = await _accounts.ResetStudentPasswordAsync(userId, identityNumber);
+            return result.Success ? Ok(new ApiResponse { Success = true, Message = result.Message }) : NotFound(new ApiResponse { Success = false, Message = result.Message });
+        }
         [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager)]
         private bool MenegarExists(Guid id)
         {
@@ -938,3 +949,4 @@ namespace SchoolSystem.Controllers
 
     }
 }
+

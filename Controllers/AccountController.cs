@@ -85,10 +85,12 @@ public class AccountController : Controller
 
     [HttpGet]
     [AllowAnonymous]
+    [NonAction]
     public IActionResult Register() => CheckUser() ? RedirectToAction("Index", "Home") : View();
 
     [HttpPost]
     [AllowAnonymous]
+    [NonAction]
     public async Task<IActionResult> Register(RegisterViewModel model)
     {
         if (!ModelState.IsValid)
@@ -117,6 +119,7 @@ public class AccountController : Controller
 
     [HttpGet]
     [AllowAnonymous]
+    [NonAction]
     public IActionResult SetCredentials()
     {
         if (CheckUser())
@@ -140,6 +143,7 @@ public class AccountController : Controller
 
     [HttpPost]
     [AllowAnonymous]
+    [NonAction]
     public async Task<IActionResult> SetCredentials(SetCredentialsViewModel model)
     {
         var pendingEmail = HttpContext.Session.GetString("PendingEmail");
@@ -204,10 +208,12 @@ public class AccountController : Controller
 
     [HttpGet]
     [AllowAnonymous]
+    [NonAction]
     public IActionResult ForgotPassword() => CheckUser() ? RedirectToAction("Index", "Home") : View();
 
     [HttpPost]
     [AllowAnonymous]
+    [NonAction]
     public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model)
     {
         if (!ModelState.IsValid)
@@ -228,6 +234,7 @@ public class AccountController : Controller
 
     [HttpGet]
     [AllowAnonymous]
+    [NonAction]
     public IActionResult ResetPassword(Guid userId, string token)
     {
         if (userId == Guid.Empty || string.IsNullOrWhiteSpace(token))
@@ -237,6 +244,7 @@ public class AccountController : Controller
 
     [HttpPost]
     [AllowAnonymous]
+    [NonAction]
     public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model)
     {
         if (!ModelState.IsValid)
@@ -404,3 +412,4 @@ public class AccountController : Controller
         await smtp.DisconnectAsync(true);
     }
 }
+

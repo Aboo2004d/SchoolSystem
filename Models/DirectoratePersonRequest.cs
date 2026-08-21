@@ -30,3 +30,4 @@ public sealed class DirectoratePersonRequest
 
     public Guid? ClassId { get; set; }
 }
+

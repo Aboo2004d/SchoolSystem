@@ -13,7 +13,8 @@
     <a class="btn btn-outline-info" href="#">
         <i class="bi bi-box-arrow-up"></i> ترفيع الطلاب
     </a>
-    <button id="exportBtn" class="btn btn-outline-success">
+<button id="resetStudentPasswordBtn" class="btn btn-outline-warning"><i class="bi bi-key-fill"></i> إعادة كلمة مرور طالب</button>
+        <button id="exportBtn" class="btn btn-outline-success">
         <i class="bi bi-file-earmark-arrow-up"></i> تصدير الطلاب
     </button>
     <a class="btn btn-outline-secondary" asp-action="Index">
@@ -49,6 +50,13 @@
 
 
     <script>
+        document.getElementById('resetStudentPasswordBtn').addEventListener('click', async () => {
+            const result = await Swal.fire({title:'إعادة كلمة مرور طالب',text:'أدخل رقم هوية الطالب المكون من 9 أرقام',input:'text',inputAttributes:{inputmode:'numeric',maxlength:'9'},showCancelButton:true,confirmButtonText:'إعادة التعيين',cancelButtonText:'إلغاء',inputValidator:value=>/^[1-9][0-9]{8}$/.test(value||'')?undefined:'أدخل رقم هوية صحيحًا'});
+            if (!result.isConfirmed) return;
+            const response = await fetch('/api/menegar/reset-student-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({identityNumber:result.value})});
+            const data = await response.json().catch(()=>null);
+            response.ok ? notifySuccess(data?.message||'تمت إعادة كلمة المرور.') : notifyError(data?.message||'تعذر إعادة كلمة المرور.');
+        });
         $(document).ready(function () {
             $('#studentsTable').DataTable({
                 "responsive": true,
@@ -310,3 +318,4 @@
         }
     </style>
 }
+

@@ -572,7 +572,7 @@ Write endpoints enforce Identity, role, ownership, and CSRF; client-supplied dir
 
 The school table uses client-side DataTables over `GET /api/directorate/schools`. It defaults to 10 rows, offers 5/10/25/50 page sizes, and preserves the current page after an activation change. DataTables `scrollX`, an `overflow-x: auto` wrapper, and a minimum table width keep columns and action buttons readable on narrow screens.
 
-Directorate create forms add the complete operational profile after school/class ownership, age, identity-number, and email checks. Username/password creation and Identity role linkage remain in the existing `Account/SetCredentials` flow keyed by identity number; directorate forms never store passwords.
+Directorate creation forms create the operational profile and its linked Identity account in the same workflow. A school manager, teacher, or student initially uses the identity number as username and `{identityNumber}@Aa` as password. Email is optional for these roles; a unique `@users.schoolsystem.local` placeholder is generated when omitted. Directorate-manager accounts are administrative and require an explicit username, password, and email.
 
 ### 21.3 School report contract
 
@@ -605,7 +605,7 @@ The five detailed directory routes share an RTL DataTables view with search, pag
 The Razor layer is an API client for `/api/directorate/*`, so the contracts can support another web or mobile client. The endpoint is not public: a new client must provide the configured authentication context and adapt Identity/Session and CSRF behavior while preserving server-side role and ownership checks. Contract changes must update the client, this reference, and integration tests together.
 ## 22. Ministry layer
 
-The existing `Admin` role currently represents the Ministry layer to preserve compatibility with existing accounts and authorization rules. This layer is system-wide and supervisory; it does not grant Ministry users the daily operational routes assigned to directorate or school managers.
+The Ministry layer supports the scoped `MinistryManager` role, while `Admin` retains system-wide administrative access. This layer is system-wide and supervisory; it does not grant Ministry users the daily operational routes assigned to directorate or school managers.
 
 ### 22.1 Ministry UI routes
 
@@ -626,7 +626,7 @@ The pages use RTL layout, shared project components, and project-standard Notyf 
 | `GET /api/ministry/directorates/{id}` | One directorate report and its schools. |
 | `PATCH /api/ministry/directorates/{id}/activation` | Activate or deactivate a directorate without deletion. |
 
-All Ministry MVC and API routes require `Admin`. Deactivation preserves all records and causes the existing directorate-session validation to reject a directorate manager when `Directorate.IsActive` is false. Ministry pages do not reuse the school report protected for `DirectorateManager`; a Ministry-specific school report is deferred to its own phase so authorization boundaries remain explicit.
+Ministry MVC and API routes require either the ministry-scoped `MinistryManager` role or system-wide `Admin`, as appropriate. Deactivation preserves all records and causes the existing directorate-session validation to reject a directorate manager when `Directorate.IsActive` is false. Ministry pages do not reuse the school report protected for `DirectorateManager`; a Ministry-specific school report is deferred to its own phase so authorization boundaries remain explicit.
 ## 23. Organization hierarchy and transfers
 
 The organizational hierarchy is now `Ministry -> Directorate -> School`. The current local development database contains two ministries (`MIN-01`, `MIN-02`) and two directorates (`LOAD-DIR-01`, `LOAD-DIR-02`); these are development data and are not part of production migrations. The empty `LEGACY` directorate was removed after an emptiness check. Load-test schools 1 and 3 belong to the first directorate, school 2 belongs to the second, and the existing Yibna boys school remains in the first directorate.
@@ -652,3 +652,50 @@ Migrations are structural only and do not add sample ministries, directorates, s
 `LoadTestDataSeeder` is protected by two conditions: the environment must be `Development` and `LoadTestSeed:Enabled` must be `true`. It therefore cannot run in Production even if configuration is added accidentally. `IdentityDataSeeder.SeedMainAdminAsync` is the only production seed. It runs only when `SeedAdmin:Enabled=true` and the official account values and password are supplied through secure deployment configuration, environment variables, or a secret store. The administrator password is never committed to the repository.
 
 Application initialization applies migrations, ensures required roles, and creates or updates only the configured official administrator. The legacy migration creates `LEGACY` only while upgrading a database that already contains schools; a clean production database receives no transitional row.
+## 25. Automatic accounts and profile updates
+
+### 25.1 Account provisioning
+
+The shared `IAutomaticAccountService` / `AutomaticAccountService` provisions Identity accounts when a school manager, teacher, or student operational profile is created:
+
+- `ApplicationUserId` is linked immediately to the operational profile.
+- The initial username is the nine-digit identity number.
+- The initial password is `{identityNumber}@Aa` (for example, `123456789@Aa`).
+- The account receives the matching `Manager`, `Teacher`, or `Student` role.
+- Email is optional. If omitted, the service generates `{identityNumber}@users.schoolsystem.local`.
+- Creation pages display the initial credentials after success.
+- Reactivating an existing teacher reuses the existing profile and account.
+
+This applies to creation initiated by school-manager, directorate, and ministry workflows. Migrations do not retroactively provision historical profiles that have no account; legacy backfills require a controlled administrative process to resolve identity/account conflicts.
+
+### 25.2 Ministry and directorate accounts
+
+`MinistryManager` and `DirectorateManager` are administrative accounts and do not use the identity-derived default-password rule. Creating a directorate manager from the Ministry UI requires an explicit username, password, and email. Official Ministry accounts are provisioned administratively or by an authorized seeder, never through public registration.
+
+### 25.3 Public registration and recovery
+
+The Register and Forgot Password links were removed from the login page. The legacy `Register`, `SetCredentials`, `ForgotPassword`, and `ResetPassword` actions are marked `NonAction` and are no longer public MVC endpoints. Authenticated users can still change their own password through `Account/NewPassword`.
+
+### 25.4 School-manager student-password reset
+
+A school manager can reset a student password by entering the student's identity number:
+
+```text
+POST /api/menegar/reset-student-password
+Content-Type: application/json
+
+{ "identityNumber": "123456789" }
+```
+
+The server verifies the active manager account, the student's active membership in the same school, and the linked Identity account. On success, the password becomes `{identityNumber}@Aa` and failed-access counters are cleared. Cross-school resets are rejected.
+
+### 25.5 Ministry/directorate profiles and uniqueness
+
+`ProfileController` supports `MinistryManager` and `DirectorateManager`. The UI labels the linked organization as Ministry or Directorate, supports allowed edits, profile images, and authenticated password changes. Ownership filtering permits only the required profile/image/account controllers and verifies the current profile identifier.
+
+Before an edit is committed, `UserManager` checks the requested username and email while excluding the current account. Field-level Arabic validation messages are displayed for duplicates and no profile data is saved until conflicts are resolved. Profile-image upload also verifies that the submitted username matches the authenticated session.
+
+### 25.6 Teacher/class/subject uniqueness
+
+When a school manager assigns a teacher to a class and subject, subjects with an active assignment for that class are excluded from the choices. The API returns `409 Conflict` with a clear message for competing assignments, while the filtered unique database index on `(IdSchool, IdClass, IdLectuer)` remains the concurrency safeguard.
+

@@ -33,7 +33,7 @@
                                 </div>
 
                                 <div class="col-md-6 mb-3">
-                                    <label for="emailAddressTeacher" class="form-label">البريد الالكتروني:</label>
+                                    <label for="emailAddressTeacher" class="form-label">البريد الإلكتروني (اختياري):</label>
                                     <input id="emailAddressTeacher" name="emailAddressTeacher" class="form-control" type="email" />
                                 </div>
                                 
@@ -98,7 +98,7 @@
                 contentType: "application/json",
                 data: JSON.stringify(data),
                 success: function (res) {
-                    notifySuccess("تم الحفظ بنجاح");
+                    notifySuccess(`تم الحفظ وإنشاء الحساب. اسم المستخدم: ${$("#idNumber").val()} — كلمة المرور: ${$("#idNumber").val()}@@Aa`);
 
                     setTimeout(() => {
                         window.location.href = "/Menegar/ManagerMenegarTeacherView";
@@ -113,3 +113,5 @@
         });
     </script>
 }
+
+
