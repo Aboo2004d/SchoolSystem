@@ -23,9 +23,11 @@ public class ImageProfileApiController : Controller
     }
 
     [HttpPost]
-    [AuthorizeRoles(RoleNames.Admin, RoleNames.Manager, RoleNames.Student, RoleNames.Teacher)]
+    [AuthorizeRoles(RoleNames.Admin, RoleNames.MinistryManager, RoleNames.DirectorateManager, RoleNames.Manager, RoleNames.Student, RoleNames.Teacher)]
     public async Task<IActionResult> UploadProfileImage(UploadProfileImageViewModel model)
     {
+        var currentUserName = HttpContext.Session.GetString("UserName");
+        if (string.IsNullOrWhiteSpace(currentUserName) || !string.Equals(currentUserName, model.UserName, StringComparison.OrdinalIgnoreCase)) return Forbid();
         if (model.ProfileImage == null || model.ProfileImage.Length == 0)
         {
             _notyf.Error("يرجى اختيار صورة.");
@@ -114,3 +116,4 @@ public class ImageProfileApiController : Controller
         return RedirectToAction("IndexProfile", "Profile");
     }
 }
+

@@ -2,7 +2,10 @@
 
 @{
     ViewData["Title"] = "تعديل معلوماتي";
-    string Role = Context.Session.GetString("Role") ?? "Null";
+    string Role = Model.Role;
+    bool isMinistry = Role == SchoolSystem.Data.RoleNames.MinistryManager;
+    bool isDirectorate = Role == SchoolSystem.Data.RoleNames.DirectorateManager;
+    string organizationLabel = isMinistry ? "الوزارة" : isDirectorate ? "المديرية" : "المدرسة";
 }
 
 <div class="container mt-5">
@@ -47,23 +50,13 @@
                         </div>
                     </div>
                 </div>
-
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label asp-for="City" class="control-label">المدينة</label>
-                            <input asp-for="City" class="form-control" />
-                            <span asp-validation-for="City" class="text-danger"></span>
-                        </div>
+                @if (!isMinistry)
+                {
+                    <div class="row">
+                        <div class="col-md-6"><div class="form-group"><label asp-for="City" class="control-label">المدينة</label><input asp-for="City" class="form-control" /><span asp-validation-for="City" class="text-danger"></span></div></div>
+                        <div class="col-md-6"><div class="form-group"><label asp-for="Area" class="control-label">الحي</label><input asp-for="Area" class="form-control" /><span asp-validation-for="Area" class="text-danger"></span></div></div>
                     </div>
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label asp-for="Area" class="control-label">الحي</label>
-                            <input asp-for="Area" class="form-control" />
-                            <span asp-validation-for="Area" class="text-danger"></span>
-                        </div>
-                    </div>
-                </div>
+                }
 
                 <div class="row">
                     <div class="col-md-6">
@@ -80,52 +73,23 @@
                         </div>
                     </div>
                 </div>
-
-                @if (Role == "Student")
+                @if (Role == SchoolSystem.Data.RoleNames.Student)
                 {
-                    <!-- عرض المدرسة والصف -->
                     <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label asp-for="School" class="control-label">المدرسة</label>
-                                <input asp-for="School" class="form-control" readonly />
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label asp-for="TheClass" class="control-label">الصف</label>
-                                <input asp-for="TheClass" class="form-control" readonly />
-                            </div>
-                        </div>
+                        <div class="col-md-6"><div class="form-group"><label asp-for="School" class="control-label">المدرسة</label><input asp-for="School" class="form-control" readonly /></div></div>
+                        <div class="col-md-6"><div class="form-group"><label asp-for="TheClass" class="control-label">الصف</label><input asp-for="TheClass" class="form-control" readonly /></div></div>
                     </div>
-                    <!-- عرض تاريخ الميلاد في سطر مستقل -->
-                    <div class="row d-flex justify-content-center">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label asp-for="TheDate" class="control-label">تاريخ الميلاد</label>
-                                <input asp-for="TheDate" class="form-control" type="date" />
-                                <span asp-validation-for="TheDate" class="text-danger"></span>
-                            </div>
-                        </div>
-                    </div>
+                    <div class="row justify-content-center"><div class="col-md-6"><div class="form-group"><label asp-for="TheDate" class="control-label">تاريخ الميلاد</label><input asp-for="TheDate" class="form-control" type="date" /><span asp-validation-for="TheDate" class="text-danger"></span></div></div></div>
+                }
+                else if (isMinistry || isDirectorate)
+                {
+                    <div class="row justify-content-center"><div class="col-md-6"><div class="form-group"><label asp-for="School" class="control-label">@organizationLabel</label><input asp-for="School" class="form-control" readonly /></div></div></div>
                 }
                 else
                 {
-                    <!-- عرض المدرسة وتاريخ الميلاد بجانب بعض -->
                     <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label asp-for="School" class="control-label">المدرسة</label>
-                                <input asp-for="School" class="form-control" readonly />
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label asp-for="TheDate" class="control-label">تاريخ الميلاد</label>
-                                <input asp-for="TheDate" class="form-control" type="date" />
-                                <span asp-validation-for="TheDate" class="text-danger"></span>
-                            </div>
-                        </div>
+                        <div class="col-md-6"><div class="form-group"><label asp-for="School" class="control-label">المدرسة</label><input asp-for="School" class="form-control" readonly /></div></div>
+                        <div class="col-md-6"><div class="form-group"><label asp-for="TheDate" class="control-label">تاريخ الميلاد</label><input asp-for="TheDate" class="form-control" type="date" /><span asp-validation-for="TheDate" class="text-danger"></span></div></div>
                     </div>
                 }
 
@@ -145,3 +109,4 @@
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
 }
+

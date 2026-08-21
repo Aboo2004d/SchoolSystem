@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using SchoolSystem.Data;
 using SchoolSystem.Models;
 
-[Authorize(Roles = RoleNames.Admin + "," + RoleNames.DirectorateManager + "," + RoleNames.Manager + "," + RoleNames.Teacher + "," + RoleNames.Student)]
+[Authorize(Roles = RoleNames.Admin + "," + RoleNames.MinistryManager + "," + RoleNames.DirectorateManager + "," + RoleNames.Manager + "," + RoleNames.Teacher + "," + RoleNames.Student)]
 public class ProfileController : Controller
 {
     private readonly SystemSchoolDbContext _context;
@@ -78,7 +78,15 @@ public class ProfileController : Controller
         Guid id = Guid.Empty;
         int idNumber = 0;
         DateOnly date = default;
-        if (role == RoleNames.DirectorateManager)
+        if (role == RoleNames.MinistryManager)
+        {
+            var p = await _context.MinistryManagers.Include(x => x.Ministry).AsNoTracking()
+                .SingleOrDefaultAsync(x => x.ApplicationUserId == user.Id && !x.IsDeleted && x.Ministry.IsActive);
+            if (p is null) return null;
+            (id, name, phone, email, idNumber, school) =
+                (p.Id, p.Name, p.Phone, p.Email, p.IdNumber ?? 0, p.Ministry.Name);
+        }
+        else if (role == RoleNames.DirectorateManager)
         {
             var p = await _context.DirectorateManagers.Include(x => x.Directorate).AsNoTracking()
                 .SingleOrDefaultAsync(x => x.ApplicationUserId == user.Id && !x.IsDeleted);
@@ -120,6 +128,14 @@ public class ProfileController : Controller
 
     private async Task<bool> UpdateLinkedProfileAsync(Guid userId, string? role, Guid requestedId, EditProfileViewModel model)
     {
+        if (role == RoleNames.MinistryManager)
+        {
+            var p = await _context.MinistryManagers.SingleOrDefaultAsync(x =>
+                x.ApplicationUserId == userId && x.Id == requestedId && !x.IsDeleted);
+            if (p is null) return false;
+            (p.Name, p.Phone, p.Email) = (model.Name, model.Phone, model.Email);
+            return true;
+        }
         if (role == RoleNames.DirectorateManager)
         {
             var p = await _context.DirectorateManagers.SingleOrDefaultAsync(x =>
@@ -158,3 +174,6 @@ public class ProfileController : Controller
         foreach (var error in result.Errors) ModelState.AddModelError(string.Empty, error.Description);
     }
 }
+
+
+

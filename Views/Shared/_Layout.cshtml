@@ -272,6 +272,7 @@
                                     {
                                         <li><a class="dropdown-item" asp-controller="Student" asp-action="Index">لوحة القيادة</a></li>
                                     }
+                                    <li><a class="dropdown-item" asp-controller="Profile" asp-action="IndexProfile"><i class="bi bi-person-circle"></i> معلوماتي</a></li>
                                     <li><hr class="dropdown-divider"></li>
                                     <li>
                                         <form asp-controller="Account" asp-action="Logout" method="post">
@@ -357,3 +358,5 @@
     @await Component.InvokeAsync("Notyf")
 </body>
 </html>
+
+

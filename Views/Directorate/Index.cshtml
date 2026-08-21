@@ -16,6 +16,7 @@
     <div class="text-center mb-3 mb-md-4">
         <h2 class="mb-2"><i class="bi bi-speedometer2"></i> <span id="directorateName">لوحة المديرية</span></h2>
         <p class="text-muted mb-0">إحصاءات مجمعة لمدارس المديرية دون عرض بيانات شخصية.</p>
+        <a class="btn btn-outline-primary mt-3" asp-controller="Profile" asp-action="IndexProfile"><i class="bi bi-person-circle"></i> معلوماتي الشخصية</a>
     </div><div id="dashboardLoading" class="text-center text-muted py-5" aria-live="polite"><div class="spinner-border text-primary mb-2" role="status"><span class="visually-hidden">جارٍ التحميل</span></div><div>جارٍ تحميل إحصاءات المديرية...</div></div>
     <div class="row g-3 g-md-4 d-none" id="cards" aria-label="إحصاءات المديرية"></div>
 </div>
@@ -25,3 +26,5 @@
 (async()=>{const loading=document.getElementById('dashboardLoading'),cardsContainer=document.getElementById('cards');try{const response=await fetch('/api/directorate/dashboard');if(!response.ok)throw new Error('تعذر تحميل لوحة المديرية.');const data=await response.json();document.getElementById('directorateName').textContent=data.directorate.name;const cards=[{title:'المدارس',value:data.schools,icon:'bi-buildings-fill',color:'primary',href:'/Directorate/Schools'},{title:'المدارس الفعالة',value:data.activeSchools,icon:'bi-patch-check-fill',color:'success',href:'/Directorate/ActiveSchools'},{title:'مديرو المدارس',value:data.managers,icon:'bi-person-vcard-fill',color:'info',href:'/Directorate/Managers'},{title:'المعلمون',value:data.teachers,icon:'bi-person-badge-fill',color:'warning',href:'/Directorate/Teachers'},{title:'الطلاب',value:data.students,icon:'bi-mortarboard-fill',color:'primary',href:'/Directorate/Students'},{title:'الصفوف',value:data.classes,icon:'bi-columns-gap',color:'success',href:'/Directorate/Classes'}];cardsContainer.innerHTML=cards.map(card=>`<div class="col-6 col-lg-4"><a class="directorate-stat-link h-100" href="${card.href}" aria-label="فتح ${card.title}"><article class="card directorate-stat-card shadow-sm rounded-4 h-100"><div class="card-header bg-${card.color} ${card.color==='warning'||card.color==='info'?'text-dark':'text-white'} text-center rounded-top-4 py-2 py-md-3"><h5 class="mb-0 fs-6"><i class="bi ${card.icon}"></i> ${card.title}</h5></div><div class="card-body d-flex align-items-center justify-content-center p-3 p-md-4"><span class="display-6 fw-bold text-${card.color}">${card.value}</span></div></article></a></div>`).join('');cardsContainer.classList.remove('d-none')}catch(error){notifyError(error.message)}finally{loading.classList.add('d-none')}})();
 </script>
 }
+
+

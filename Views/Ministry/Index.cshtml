@@ -7,7 +7,7 @@
     @@media (prefers-reduced-motion:reduce){.ministry-card{transition:none}.ministry-card-link:hover .ministry-card{transform:none}}
 </style>
 <div class="container py-4" dir="rtl">
-    <div class="text-center mb-4"><h1 class="fw-bold"><i class="bi bi-bank2"></i> لوحة الوزارة</h1><p class="text-muted">مؤشرات إشرافية شاملة على المديريات والمدارس.</p></div>
+    <div class="text-center mb-4"><h1 class="fw-bold"><i class="bi bi-bank2"></i> لوحة الوزارة</h1><p class="text-muted">مؤشرات إشرافية شاملة على المديريات والمدارس.</p><a class="btn btn-outline-primary mt-2" asp-controller="Profile" asp-action="IndexProfile"><i class="bi bi-person-circle"></i> معلوماتي الشخصية</a></div>
     <div id="ministryLoading" class="text-center py-5"><div class="spinner-border text-primary"></div><div class="text-muted mt-2">جارٍ تحميل المؤشرات...</div></div>
     <div class="row g-3 d-none" id="ministryCards"></div>
 </div>
@@ -15,3 +15,5 @@
 <script>
 (async()=>{const loading=document.getElementById('ministryLoading'),container=document.getElementById('ministryCards');try{const response=await fetch('/api/ministry/dashboard');if(!response.ok)throw new Error('تعذر تحميل لوحة الوزارة.');const data=await response.json();const cards=[['المديريات',data.directorates,'bi-diagram-3-fill','primary','/Ministry/Directorates'],['المديريات الفعالة',data.activeDirectorates,'bi-patch-check-fill','success','/Ministry/Directorates?active=true'],['المدارس',data.schools,'bi-buildings-fill','info','/Ministry/Schools'],['المدارس الفعالة',data.activeSchools,'bi-building-check','success','/Ministry/ActiveSchools'],['مسؤولو المديريات',data.directorateManagers,'bi-person-vcard-fill','warning','/Ministry/DirectorateManagers'],['مديرو المدارس',data.schoolManagers,'bi-person-lines-fill','info','/Ministry/SchoolManagers'],['المعلمون',data.teachers,'bi-person-badge-fill','primary','/Ministry/Teachers'],['الطلاب',data.students,'bi-mortarboard-fill','info','/Ministry/Students']];container.innerHTML=cards.map(x=>`<div class="col-6 col-lg-4"><a class="ministry-card-link h-100" href="${x[4]}"><article class="card ministry-card h-100 shadow-sm rounded-4 border-0 overflow-hidden"><div class="card-header bg-${x[3]} ${x[3]==='warning'||x[3]==='info'?'text-dark':'text-white'} text-center py-3"><h2 class="h6 mb-0"><i class="bi ${x[2]}"></i> ${x[0]}</h2></div><div class="card-body text-center py-4"><span class="display-6 fw-bold text-${x[3]}">${x[1]}</span></div></article></a></div>`).join('');container.classList.remove('d-none')}catch(error){notifyError(error.message)}finally{loading.classList.add('d-none')}})();
 </script>}
+
+

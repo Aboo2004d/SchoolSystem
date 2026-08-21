@@ -41,9 +41,26 @@ public sealed class OwnershipAuthorizationFilter : IAsyncActionFilter
         if (await _users.IsInRoleAsync(user, RoleNames.MinistryManager))
         {
             var ministryController = context.Controller.GetType().Name.Replace("ApiController", "Controller");
-            var hasActiveMinistry = await _db.MinistryManagers.AsNoTracking()
-                .AnyAsync(x => x.ApplicationUserId == user.Id && !x.IsDeleted && x.Ministry.IsActive);
-            if (ministryController == "MinistryController" && hasActiveMinistry)
+            var ministryProfile = await _db.MinistryManagers.AsNoTracking()
+                .Where(x => x.ApplicationUserId == user.Id && !x.IsDeleted && x.Ministry.IsActive)
+                .Select(x => new { x.Id })
+                .SingleOrDefaultAsync();
+            if (ministryProfile is null)
+            {
+                context.Result = new ForbidResult();
+                return;
+            }
+
+            var ministryIds = context.ActionArguments
+                .Where(x => x.Value is Guid)
+                .Select(x => (Name: x.Key.ToLowerInvariant(), Id: (Guid)x.Value!))
+                .Where(x => x.Id != Guid.Empty)
+                .ToArray();
+            var allowedController = ministryController is "MinistryController" or "ImageProfileController" or "ImageController" or "AccountController";
+            var ownsProfile = ministryController == "ProfileController" &&
+                ministryIds.All(x => x.Name != "id" || x.Id == ministryProfile.Id);
+
+            if (allowedController || ownsProfile)
                 await next();
             else
                 context.Result = new ForbidResult();
@@ -171,3 +188,4 @@ public sealed class OwnershipAuthorizationFilter : IAsyncActionFilter
         return true;
     }
 }
+
