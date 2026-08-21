@@ -43,4 +43,6 @@ public partial class Student
     public virtual School? IdSchoolNavigation { get; set; }
 
     public virtual ICollection<StudentLectuerTeacher> StudentLectuerTeachers { get; set; } = new List<StudentLectuerTeacher>();
+
+    public virtual ICollection<StudentEnrollment> Enrollments { get; set; } = new List<StudentEnrollment>();
 }

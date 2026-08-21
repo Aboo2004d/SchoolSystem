@@ -39,4 +39,6 @@ public partial class Teacher
     public virtual ICollection<StudentLectuerTeacher> StudentLectuerTeachers { get; set; } = new List<StudentLectuerTeacher>();
 
     public virtual ICollection<TeacherLectuerClass> TeacherLectuerClasses { get; set; } = new List<TeacherLectuerClass>();
+
+    public virtual ICollection<TeacherPlacement> Placements { get; set; } = new List<TeacherPlacement>();
 }

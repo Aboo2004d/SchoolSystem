@@ -196,6 +196,17 @@ namespace SchoolSystem.Controllers
                                 return BadRequest(new ApiResponse { Success = false, Message = "تم التلاعب بالبيانات المرسلة." });
                             }
 
+                            var conflictingAssignment = await _context.TeacherLectuerClasses.AsNoTracking()
+                                .Where(tlc => tlc.IdSchool == school && tlc.IdClass == idClass && tlc.IdLectuer == idLectuer &&
+                                    tlc.IdTeacher != idTeacher && !tlc.IsDeletedTeacherLectuerClass && !tlc.IsDeletedTeacher &&
+                                    !tlc.IsDeletedClass && !tlc.IsDeletedLectuer && !tlc.IsDeletedSchool &&
+                                    !tlc.IsTeacherRemovedFromClass && !tlc.IsTeacherRemovedFromLectuer)
+                                .Select(tlc => tlc.IdTeacherNavigation != null ? tlc.IdTeacherNavigation.Name : null)
+                                .FirstOrDefaultAsync();
+                            if (conflictingAssignment != null)
+                            {
+                                return Conflict(new ApiResponse { Success = false, Message = $"لا يمكن إسناد المادة لهذا الصف؛ فهي مسندة بالفعل للمعلم {conflictingAssignment}." });
+                            }
                             if (_context.TeacherLectuerClasses.Any(tlc => tlc.IdTeacher == idTeacher && tlc.IdClass == idClass && tlc.IdLectuer == idLectuer && tlc.IdSchool == school) == false)
                             {
                                 TeacherLectuerClass teacherLectuerClass = new TeacherLectuerClass
@@ -1137,3 +1148,4 @@ namespace SchoolSystem.Controllers
         }
     }
 }
+

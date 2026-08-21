@@ -69,7 +69,9 @@ namespace SchoolSystem.Controllers
                     .Where(c => c.IdSchool == school && c.IsDeleted == false &&
                                 !_context.TeacherLectuerClasses.Any(l =>
                                 l.IdLectuer == c.Id && l.IdClass == Id && l.IsDeletedTeacherLectuerClass == false &&
-                                l.IsTeacherRemovedFromClass && l.IsTeacherRemovedFromLectuer)
+                                l.IdSchool == school && l.IsDeletedTeacher == false && l.IsDeletedClass == false &&
+                                l.IsDeletedLectuer == false && l.IsDeletedSchool == false &&
+                                l.IsTeacherRemovedFromClass == false && l.IsTeacherRemovedFromLectuer == false)
                     )
                     .Select(c => new
                     {
@@ -985,3 +987,5 @@ namespace SchoolSystem.Controllers
 
     }
 }
+
+

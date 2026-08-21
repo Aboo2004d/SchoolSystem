@@ -38,6 +38,17 @@ public sealed class OwnershipAuthorizationFilter : IAsyncActionFilter
             return;
         }
 
+        if (await _users.IsInRoleAsync(user, RoleNames.MinistryManager))
+        {
+            var ministryController = context.Controller.GetType().Name.Replace("ApiController", "Controller");
+            var hasActiveMinistry = await _db.MinistryManagers.AsNoTracking()
+                .AnyAsync(x => x.ApplicationUserId == user.Id && !x.IsDeleted && x.Ministry.IsActive);
+            if (ministryController == "MinistryController" && hasActiveMinistry)
+                await next();
+            else
+                context.Result = new ForbidResult();
+            return;
+        }
         var ids = context.ActionArguments
             // Nullable<Guid> with a value is boxed as Guid; null values are intentionally ignored.
             .Where(x => x.Value is Guid)

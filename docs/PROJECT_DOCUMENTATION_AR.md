@@ -50,10 +50,10 @@
 3. يسجل Identity وCookie وسياسات كلمات المرور والقفل.
 4. يسجل Session للتوافق القديم، وليس كمصدر صلاحيات.
 5. يسجل Redis وخدمات المشروع والفلاتر.
-6. في Development ينفذ `MigrateAsync`.
+6. ينفذ `MigrateAsync` على قاعدة البيئة الحالية.
 7. ينشئ الأدوار الناقصة.
-8. يشغل Seeder الأدمن الرئيسي.
-9. يشغل Seeder بيانات الضغط إذا كان مفعّلًا.
+8. يشغل Seeder الأدمن الرئيسي فقط عندما يكون `SeedAdmin:Enabled=true` وإعداداته الآمنة مكتملة.
+9. يشغل Seeder بيانات الضغط فقط في Development وعندما يكون `LoadTestSeed:Enabled=true`.
 10. يبني Middleware pipeline ثم يربط route الافتراضي.
 
 المسار الافتراضي:
@@ -250,7 +250,7 @@ dotnet user-secrets set "SeedAdmin:Password" "<strong-password>"
 
 ### بيانات الضغط
 
-`LoadTestDataSeeder` يعمل فقط عند `LoadTestSeed:Enabled=true` وفي مسار تشغيل Development الحالي. ينشئ بيانات مترابطة بحفظ مرحلي و`AddRange`:
+`LoadTestDataSeeder` محظور برمجيًا خارج Development، وداخل Development لا يعمل إلا عند `LoadTestSeed:Enabled=true`. ينشئ بيانات مترابطة بحفظ مرحلي و`AddRange`:
 
 - مدارس ومديرين ومعلمين وصفوف ومواد وطلاب.
 - حسابات Identity حقيقية وأدوار حقيقية.
@@ -296,11 +296,11 @@ dotnet ef migrations has-pending-model-changes
 dotnet ef database update
 ```
 
-في Development ينفذ التطبيق Migration تلقائيًا. لا تستخدم `database drop --force` إلا لقاعدة اختبار وبعد التأكد من عدم وجود بيانات لازمة.
+ينفذ التطبيق Migration تلقائيًا عند البدء في جميع البيئات، لذلك يجب أخذ نسخة احتياطية ومراجعة migrations قبل نشر إصدار Production. لا تستخدم `database drop --force` إلا لقاعدة اختبار وبعد التأكد من عدم وجود بيانات لازمة.
 
 ## 13. Migrations
 
-تبدأ قاعدة البيانات بـ`InitialGuidIdentity` التي تنشئ المخطط الكامل بمفاتيح GUID. أضيفت `AddAttendanceQueryIndex` لتحسين استعلامات الحضور، و`ConvertAttendanceExcuseToNvarcharMax` لتحويل العذر من نوع SQL القديم `text` إلى `nvarchar(max)` القابل للبحث والترتيب دون تقليص البيانات. عند تعديل نموذج EF:
+تبدأ قاعدة البيانات بـ`InitialGuidIdentity` التي تنشئ المخطط الكامل بمفاتيح GUID. أضيفت `AddAttendanceQueryIndex` لتحسين استعلامات الحضور، و`ConvertAttendanceExcuseToNvarcharMax` لتحويل العذر من نوع SQL القديم `text` إلى `nvarchar(max)` القابل للبحث والترتيب دون تقليص البيانات. تضيف `AddDirectorates` طبقة المديريات، وتضيف `AddMinistriesTransfersAndAssignments` الوزارات والتبعيات وطلبات النقل وتصنيفات المدارس، بينما تضيف `BackfillOrganizationAssignments` رقم الهوية للطلبات وترحّل ارتباطات قواعد البيانات القائمة فقط. لا تحتوي هذه migrations على بيانات اختبار لقاعدة نظيفة. عند تعديل نموذج EF:
 
 ```powershell
 dotnet ef migrations add DescriptiveName
@@ -313,7 +313,7 @@ dotnet ef database update
 
 `ErrorHandlingMiddleware` يلتقط الاستثناءات، و`ErrorLoggerService` يخزن التفاصيل في `ErrorLog`. في Development تظهر صفحة المطور؛ في Production يستخدم `/Home/Error` وHSTS.
 
-رسالة startup التي تقول "Database migration failed" قد تشمل خطأ Seeder أيضًا لأن Migration والSeeders داخل كتلة try واحدة؛ راجع inner exception دائمًا.
+رسالة startup التي تقول `Database initialization failed` قد تشمل خطأ migration أو إنشاء الأدوار أو Seeder الأدمن، وفي Development قد تشمل LoadTest Seeder؛ راجع inner exception دائمًا.
 
 ## 15. التصدير والشهادات والصور
 
@@ -357,13 +357,13 @@ dotnet ef database update
 - **AspNetRoles موجود مسبقًا:** قاعدة قديمة مع migration history غير متطابق؛ أعد إنشاء قاعدة الاختبار فقط بعد التأكد من البيانات.
 - **Redis لا يظهر مفاتيح:** افتح شاشة المدير التي تحمل القوائم أولًا، ثم افحص endpoint؛ أول طلب MISS والثاني HIT.
 - **403 بعد تحديث الحماية:** سجل الخروج والدخول لتجديد claim `active` والأدوار.
-- **Seeder لا يعمل:** تحقق من Enabled وكلمة المرور ووجود `LoadTest School` سابقًا.
+- **Seeder الأدمن لا يعمل:** تحقق من `SeedAdmin:Enabled` ومن إعدادات الحساب وكلمة المرور الآمنة. **LoadTest Seeder لا يعمل:** يجب أن تكون البيئة Development مع `LoadTestSeed:Enabled=true`.
 - **خطأ truncation:** راجع MaxLength في DbContext، خصوصًا الرموز ذات الحرف الواحد.
 - **Cookie لا تعمل على HTTP:** SecurePolicy=Always؛ استخدم عنوان HTTPS من launchSettings.
 
 ## 19. ملاحظات الإنتاج
 
-- عطّل LoadTestSeed قطعًا.
+- لا تعتمد على الإعداد وحده: الكود يمنع LoadTest Seeder خارج Development، ومع ذلك أبقِ `LoadTestSeed:Enabled=false` أو احذف قسمه من إعدادات Production.
 - انقل connection strings وSMTP وRedis والأسرار إلى secret store.
 - استخدم Redis connection من configuration بدل localhost الثابت.
 - فعّل TLS وreverse proxy موثوقًا.
@@ -569,7 +569,7 @@ if (!response.ok) {
 - مسؤول المديرية يستطيع إضافة مدارس مديريته وتعديلها وتفعيلها أو تعطيلها، ولا يستطيع تغيير `DirectorateId` أو نقل المدرسة إلى مديرية أخرى.
 - تعطيل المدرسة يستخدم `School.IsActive` ولا يحذف المدرسة أو بياناتها، وتحقق الجلسة يرفض حسابات المدرسة المعطلة.
 - تعرض لوحة المديرية إحصاءات مجمعة دون معلومات شخصية.
-- ينشئ Seeder حسابات `directorate1`, `directorate2`, ... ويوزع مدارس الاختبار عليها بالتناوب.
+- في Development فقط، ينشئ LoadTest Seeder وزارتين وحسابات `directorate1`, `directorate2`, ... ويوزع مدارس الاختبار عليها بالتناوب. لا تدخل هذه البيانات في migrations.
 - المواد المشتركة هي اللغة العربية والرياضيات واللغة الإنجليزية والتربية الإسلامية، وتبقى مرتبطة بالمدرسة حتى تصميم كتالوج الوزارة.
 
 ### 21.1 واجهات المديرية
@@ -643,3 +643,52 @@ GET /api/directorate/schools/{schoolId}/report
 ### 21.4 قابلية إعادة الاستخدام
 
 طبقة العرض مبنية كعميل لعقود `/api/directorate/*`، لذلك يمكن إعادة استخدام العقد في تطبيق ويب أو جوال آخر. إعادة الاستخدام لا تعني أن endpoint عام: يجب على العميل الجديد إرسال سياق المصادقة المعتمد وتكييف Identity/Session وCSRF حسب بيئته، مع الحفاظ على فحص الدور والملكية في الخادم. عند تغيير أسماء الحقول أو دلالات المؤشرات، يجب تحديث الواجهة وهذا القسم واختبارات التكامل معًا.
+## 22. طبقة الوزارة
+
+تمثل صلاحية `Admin` طبقة الوزارة حاليًا للمحافظة على توافق الحسابات وقواعد الصلاحيات الموجودة. الطبقة إشرافية على مستوى النظام ولا تمنح الوزارة مسارات التشغيل اليومي الخاصة بمدير المديرية أو المدرسة.
+
+### 22.1 واجهات الوزارة
+
+| المسار | الوظيفة |
+|---|---|
+| `GET /Ministry` | لوحة مؤشرات وطنية مجمعة. |
+| `GET /Ministry/Directorates` | دليل المديريات مع البحث والترتيب وحجم الصفحة وPagination. |
+| `GET /Ministry/DirectorateDetails/{id}` | ملف مديرية، مديرها، مؤشراتها، والمدارس التابعة لها. |
+
+تستخدم الصفحات اتجاه RTL ومكونات المشروع المشتركة وNotyf للإشعارات. جدول المديريات يدعم التمرير الأفقي عند الحاجة فقط، وتظهر البطاقات والروابط بحالات Hover وFocus واضحة.
+
+### 22.2 عقود API
+
+| الطريقة والمسار | الغرض |
+|---|---|
+| `GET /api/ministry/dashboard` | الإحصاءات المجمعة للمديريات والمدارس والمديرين والمعلمين والطلاب والصفوف. |
+| `GET /api/ministry/directorates` | دليل المديريات ومدير كل مديرية ومؤشراتها. |
+| `GET /api/ministry/directorates/{id}` | التقرير التفصيلي لمديرية محددة والمدارس التابعة لها. |
+| `PATCH /api/ministry/directorates/{id}/activation` | تفعيل أو تعطيل المديرية دون حذفها. |
+
+جميع مسارات MVC وAPI محمية بدور `Admin`. تعطيل المديرية لا يحذف بياناتها، كما يمنع تحقق جلسة مدير المديرية دخوله عندما تصبح `Directorate.IsActive` غير فعالة. ولا تعيد صفحات الوزارة استخدام تقرير المدرسة المحمي بدور مدير المديرية؛ سيضاف تقرير مدرسة خاص بالوزارة عند تنفيذ مرحلته مع إبقاء حدود التفويض مستقلة.
+## 23. الهيكل التنظيمي وطلبات النقل
+
+أصبح التسلسل التنظيمي `Ministry -> Directorate -> School`. تحتوي قاعدة التطوير المحلية الحالية وزارتين (`MIN-01`, `MIN-02`) ومديريتين (`LOAD-DIR-01`, `LOAD-DIR-02`)، وحذفت مديرية `LEGACY` فقط بعد التحقق من خلوها. هذه بيانات تطوير وليست جزءًا من migrations أو بيانات الإنتاج. تتبع المدارس 1 و3 المديرية الأولى، والمدرسة 2 المديرية الثانية، وحُفظت مدرسة «يبنا أ للبنين» ضمن المديرية الأولى.
+
+أضيفت الجداول `TeacherPlacement` لدعم عدة مدارس للمعلم مع تبعية أساسية واحدة، و`SchoolManagerAssignment` لدعم إدارة عدة مدارس، و`StudentEnrollment` مع فهرس يفرض تسجيلًا فعالًا واحدًا للطالب. رحّل migration `BackfillOrganizationAssignments` الارتباطات القائمة دون حذف الأشخاص: 90 تبعية معلم، 7 تكليفات مدير مدرسة، و3001 تسجيل طالب.
+
+طلبات النقل تستخدم رقم الهوية مع نوع الشخص (`Teacher`, `Student`, `SchoolManager`). النقل داخل المديرية ينفذ مباشرة، أما النقل بين مديريتين فينشئ طلبًا معلقًا لدى المديرية المصدر. الموافقة تغلق التبعية الأساسية السابقة، تنشئ التبعية الجديدة، تحدّث حقول التوافق القديمة، وتعيد تفعيل الحساب عند الحاجة.
+
+| المسار | الغرض |
+|---|---|
+| `GET /Transfers` | صفحة إنشاء ومتابعة طلبات النقل. |
+| `GET /api/transfers/options` | المدارس والصفوف المسموح بها للجهة الحالية. |
+| `GET /api/transfers?direction=incoming|outgoing` | الطلبات الواردة أو الصادرة. |
+| `POST /api/transfers` | إنشاء طلب برقم الهوية والمدرسة المستقبلة. |
+| `PATCH /api/transfers/{id}/decision` | الموافقة أو الرفض وتنفيذ النقل عند الموافقة. |
+| `GET /api/ministry/ministries` | الوزارات ومديرياتها ومدارسها ومؤشرات الأشخاص. |
+
+إعادة إضافة معلم معطل من واجهة المديرية تعيد تفعيل السجل والحساب نفسيهما وتنشئ تبعية مدرسية أساسية جديدة بدل إنشاء هوية مكررة. كما أصبحت عمليات إنشاء المدير والمعلم والطالب تكتب في جداول التبعية الجديدة والحقول القديمة معًا خلال فترة الانتقال.
+## 24. سياسة بيانات الإنتاج والبذر
+
+المهاجرات بنيوية فقط ولا تضيف وزارات أو مديريات أو مدارس أو أشخاصًا أو طلبات نقل تجريبية. تم التحقق بتطبيق سلسلة migrations كاملة على قاعدة LocalDB نظيفة، وكانت أعداد `Ministry`, `Directorate`, `School`, `Teacher`, `Student`, `Menegar`, و`TransferRequest` جميعها صفرًا.
+
+`LoadTestDataSeeder` محصور بشرطين معًا: أن تكون البيئة `Development` وأن تكون `LoadTestSeed:Enabled=true`. لذلك لا يمكن تشغيله في Production حتى لو أضيف الإعداد بالخطأ. أما `IdentityDataSeeder.SeedMainAdminAsync` فهو Seeder الإنتاج الوحيد؛ يعمل عندما يكون `SeedAdmin:Enabled=true` وتُمرر بيانات الحساب الرسمي وكلمة المرور من إعدادات نشر آمنة أو متغيرات البيئة/مخزن الأسرار. لا تحفظ كلمة مرور الأدمن داخل المستودع.
+
+عند بدء التطبيق تطبق migrations، تضمن الأدوار الأساسية، ثم تنشئ أو تحدّث حساب الأدمن الرسمي فقط. سجل `LEGACY` في migration القديم مشروط بوجود مدارس قبل الترقية لحماية قواعد قديمة؛ ولا يُنشأ في قاعدة إنتاج نظيفة.

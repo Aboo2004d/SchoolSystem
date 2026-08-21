@@ -31,4 +31,6 @@ public partial class Menegar
     public bool IsDeletedSchool { get; set; }
 
     public virtual School? IdSchoolNavigation { get; set; }
+
+    public virtual ICollection<SchoolManagerAssignment> SchoolAssignments { get; set; } = new List<SchoolManagerAssignment>();
 }

@@ -49,10 +49,10 @@ Core technologies:
 3. Configure Identity, cookies, password policy, and lockout.
 4. Register compatibility Session; it is not an authorization source.
 5. Register Redis, application services, and global filters.
-6. In Development, call `MigrateAsync`.
-7. create missing roles.
-8. seed the main Admin.
-9. run the load-test seeder when enabled.
+6. Call `MigrateAsync` against the current environment database.
+7. Create missing roles.
+8. Seed only the main Admin when `SeedAdmin:Enabled=true` and secure settings are complete.
+9. Run the load-test seeder only in Development and only when `LoadTestSeed:Enabled=true`.
 10. build the middleware pipeline and conventional route.
 
 Default route:
@@ -226,7 +226,7 @@ dotnet user-secrets set "SeedAdmin:Password" "<strong-password>"
 
 ### Load-test dataset
 
-`LoadTestDataSeeder` creates related data using `AddRange` and staged saves rather than UserManager calls per account:
+`LoadTestDataSeeder` is blocked in code outside Development. In Development it remains opt-in through `LoadTestSeed:Enabled=true` and creates related data using `AddRange` and staged saves rather than UserManager calls per account:
 
 - Schools, managers, teachers, classes, subjects, and students.
 - Real Identity accounts and role rows.
@@ -272,11 +272,11 @@ dotnet ef migrations has-pending-model-changes
 dotnet ef database update
 ```
 
-Development startup applies migrations automatically. Never run `database drop --force` against data that has not been explicitly verified as disposable.
+Application startup applies migrations automatically in every environment; back up the database and review migrations before a Production deployment. Never run `database drop --force` against data that has not been explicitly verified as disposable.
 
 ## 13. Migrations
 
-`InitialGuidIdentity` creates the complete GUID/Identity schema. `AddAttendanceQueryIndex` optimizes attendance queries. `ConvertAttendanceExcuseToNvarcharMax` changes the legacy SQL `text` excuse column to searchable and sortable `nvarchar(max)` without narrowing existing data.
+`InitialGuidIdentity` creates the complete GUID/Identity schema. `AddAttendanceQueryIndex` optimizes attendance queries. `ConvertAttendanceExcuseToNvarcharMax` changes the legacy SQL `text` excuse column to searchable and sortable `nvarchar(max)` without narrowing existing data. `AddDirectorates` introduces directorates. `AddMinistriesTransfersAndAssignments` adds ministries, association tables, transfer requests, and school classifications. `BackfillOrganizationAssignments` adds identity-number lookup for transfers and migrates associations only when upgrading existing data. These migrations seed no test data into a clean database.
 
 ```powershell
 dotnet ef migrations add DescriptiveName
@@ -289,7 +289,7 @@ Review production migrations and back up the database before applying them.
 
 `ErrorHandlingMiddleware` catches exceptions and `ErrorLoggerService` persists details in ErrorLog. Development uses the developer exception page; Production uses `/Home/Error` and HSTS.
 
-The startup log message “Database migration failed” wraps both migration and seeder failures because they share one try block. Always inspect the inner exception.
+The startup message `Database initialization failed` can represent migration, role creation, or main-Admin seeding failures; in Development it can also represent a load-test seeder failure. Always inspect the inner exception.
 
 ## 15. Exports, Certificates, and Images
 
@@ -331,13 +331,13 @@ Track requests/sec, p95/p99 latency, 4xx/5xx rate, SQL connections, CPU/RAM, Red
 - **AspNetRoles already exists:** old schema and migration history are inconsistent; recreate only a verified disposable test DB.
 - **No Redis keys:** first open the manager list endpoint; first request is MISS, second should be HIT.
 - **403 after an auth update:** sign out/in to refresh active and role claims.
-- **Seeder does not run:** verify Enabled, password secret, and whether LoadTest School already exists.
+- **Main Admin seeder does not run:** verify `SeedAdmin:Enabled` and secure account/password settings. **Load-test seeder does not run:** the environment must be Development and `LoadTestSeed:Enabled=true`.
 - **String truncation:** inspect EF MaxLength, especially one-character codes.
 - **Cookies fail over HTTP:** Cookie SecurePolicy is Always; use the HTTPS launch URL.
 
 ## 19. Production Checklist
 
-- Disable LoadTestSeed.
+- Load-test seeding is blocked outside Development; still keep `LoadTestSeed:Enabled=false` or omit the section entirely from Production configuration.
 - Move SQL, SMTP, Redis, and all secrets to a secure secret store.
 - Configure Redis through configuration rather than a hard-coded localhost value.
 - Use TLS and a trusted reverse proxy.
@@ -351,7 +351,7 @@ Track requests/sec, p95/p99 latency, 4xx/5xx rate, SQL connections, CPU/RAM, Red
 
 - Development origin: `http://localhost:1908`. Use the active environment origin in deployed clients.
 - Authentication uses the ASP.NET Core Identity application cookie. Browser calls send `credentials: 'same-origin'`.
-- `POST`, `PUT`, and `DELETE` requests send the antiforgery value in the `RequestVerificationToken` header.
+- `POST`, `PUT`, `PATCH`, and `DELETE` requests send the antiforgery value in the `RequestVerificationToken` header.
 - Domain identifiers are canonical GUID strings: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`.
 - DataTables sends `draw`, `start`, `length`, `search[value]`, `order[0][column]`, and `order[0][dir]`; modern endpoints cap pages at 100 records.
 
@@ -522,10 +522,10 @@ if (!response.ok) {
 
 - `Directorate` owns multiple schools, and every school has a mandatory directorate relationship.
 - `DirectorateManager` is distinct from the school `Manager`; unique constraints permit one manager profile and one Identity account per directorate.
-- Directorate managers may create, edit, activate, and deactivate their schools. The API never accepts a replacement `DirectorateId`, reserving transfers for the future Ministry role.
+- Directorate managers may create, edit, activate, and deactivate their schools. The API never accepts a replacement `DirectorateId`, while organized moves use `/Transfers` and `/api/transfers`.
 - Deactivation uses `School.IsActive`; it does not delete data, and session validation rejects accounts in an inactive school.
 - The dashboard exposes aggregate counts without personal records.
-- Load-test seeding creates `directorate1`, `directorate2`, ... and distributes seeded schools in round-robin order.
+- Development-only load-test seeding creates two ministries and `directorate1`, `directorate2`, ... accounts, then distributes seeded schools in round-robin order. None of this data is stored in migrations.
 - Shared subjects are Arabic, Mathematics, English, and Islamic Education; they remain school-scoped until a Ministry catalog is designed.
 
 ### 21.1 Directorate API
@@ -603,3 +603,52 @@ The five detailed directory routes share an RTL DataTables view with search, pag
 ### 21.5 Reuse in other clients
 
 The Razor layer is an API client for `/api/directorate/*`, so the contracts can support another web or mobile client. The endpoint is not public: a new client must provide the configured authentication context and adapt Identity/Session and CSRF behavior while preserving server-side role and ownership checks. Contract changes must update the client, this reference, and integration tests together.
+## 22. Ministry layer
+
+The existing `Admin` role currently represents the Ministry layer to preserve compatibility with existing accounts and authorization rules. This layer is system-wide and supervisory; it does not grant Ministry users the daily operational routes assigned to directorate or school managers.
+
+### 22.1 Ministry UI routes
+
+| Route | Purpose |
+|---|---|
+| `GET /Ministry` | National aggregate dashboard. |
+| `GET /Ministry/Directorates` | Searchable, sortable, pageable directorate directory. |
+| `GET /Ministry/DirectorateDetails/{id}` | Directorate profile, manager, aggregates, and owned schools. |
+
+The pages use RTL layout, shared project components, and project-standard Notyf notifications. The directorate table scrolls horizontally only when its content actually overflows, and linked cards provide visible hover and keyboard-focus states.
+
+### 22.2 API contracts
+
+| Method and route | Purpose |
+|---|---|
+| `GET /api/ministry/dashboard` | Aggregate directorate, school, manager, teacher, student, and class metrics. |
+| `GET /api/ministry/directorates` | Directorates with their managers and aggregate counts. |
+| `GET /api/ministry/directorates/{id}` | One directorate report and its schools. |
+| `PATCH /api/ministry/directorates/{id}/activation` | Activate or deactivate a directorate without deletion. |
+
+All Ministry MVC and API routes require `Admin`. Deactivation preserves all records and causes the existing directorate-session validation to reject a directorate manager when `Directorate.IsActive` is false. Ministry pages do not reuse the school report protected for `DirectorateManager`; a Ministry-specific school report is deferred to its own phase so authorization boundaries remain explicit.
+## 23. Organization hierarchy and transfers
+
+The organizational hierarchy is now `Ministry -> Directorate -> School`. The current local development database contains two ministries (`MIN-01`, `MIN-02`) and two directorates (`LOAD-DIR-01`, `LOAD-DIR-02`); these are development data and are not part of production migrations. The empty `LEGACY` directorate was removed after an emptiness check. Load-test schools 1 and 3 belong to the first directorate, school 2 belongs to the second, and the existing Yibna boys school remains in the first directorate.
+
+`TeacherPlacement` supports multiple school placements with one active primary placement, `SchoolManagerAssignment` supports multi-school management, and `StudentEnrollment` enforces one active student enrollment. The `BackfillOrganizationAssignments` migration preserved and migrated existing data: 90 teacher placements, 7 school-manager assignments, and 3,001 student enrollments.
+
+Transfer requests identify teachers, students, and school managers by identity number. Transfers inside one directorate complete immediately; cross-directorate moves create a request for the source directorate. Approval closes the previous primary association, creates the destination association, updates compatibility fields, and reactivates the Identity account when needed.
+
+| Route | Purpose |
+|---|---|
+| `GET /Transfers` | Create and manage transfer requests. |
+| `GET /api/transfers/options` | Schools and classes allowed for the current authority. |
+| `GET /api/transfers?direction=incoming|outgoing` | Incoming or outgoing requests. |
+| `POST /api/transfers` | Create a request by identity number and destination school. |
+| `PATCH /api/transfers/{id}/decision` | Approve/reject and execute an approved transfer. |
+| `GET /api/ministry/ministries` | Ministries with organization and person aggregates. |
+
+Re-adding a disabled teacher through the directorate flow now reactivates the same profile and account and creates a new primary placement instead of duplicating the identity. New manager, teacher, and student creation writes both the new association tables and the compatibility fields during the transition period.
+## 24. Production data and seeding policy
+
+Migrations are structural only and do not add sample ministries, directorates, schools, people, or transfer requests. The full migration chain was tested against a clean temporary LocalDB database; `Ministry`, `Directorate`, `School`, `Teacher`, `Student`, `Menegar`, and `TransferRequest` all contained zero rows afterward.
+
+`LoadTestDataSeeder` is protected by two conditions: the environment must be `Development` and `LoadTestSeed:Enabled` must be `true`. It therefore cannot run in Production even if configuration is added accidentally. `IdentityDataSeeder.SeedMainAdminAsync` is the only production seed. It runs only when `SeedAdmin:Enabled=true` and the official account values and password are supplied through secure deployment configuration, environment variables, or a secret store. The administrator password is never committed to the repository.
+
+Application initialization applies migrations, ensures required roles, and creates or updates only the configured official administrator. The legacy migration creates `LEGACY` only while upgrading a database that already contains schools; a clean production database receives no transitional row.

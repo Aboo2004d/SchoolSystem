@@ -1,0 +1,34 @@
+@{ ViewData["Title"] = ViewBag.ReportTitle; }
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" />
+<style>
+ .ministry-directory-scroll{width:100%;max-width:100%;overflow-x:auto;direction:rtl}.ministry-directory-scroll.no-overflow{overflow-x:hidden}
+ #ministryDirectory{direction:rtl!important;min-width:950px;width:100%!important}#ministryDirectory th,#ministryDirectory td{text-align:right!important;white-space:nowrap}
+</style>
+<div class="container py-4" dir="rtl">
+ <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-2">
+  <div><h1 class="mb-1">@ViewBag.ReportTitle</h1><p class="text-muted mb-0">@ViewBag.ReportDescription</p></div>
+  <div class="d-flex gap-2">
+   <a class="btn btn-outline-success" asp-action="@ViewBag.CreateAction"><i class="bi bi-plus-circle"></i> @ViewBag.CreateLabel</a>
+   <a class="btn btn-outline-secondary" asp-action="Index"><i class="bi bi-arrow-right-circle"></i> لوحة الوزارة</a>
+  </div>
+ </div>
+ <p class="small text-muted mt-3"><i class="bi bi-arrows-expand-vertical"></i> يمكنك البحث والترتيب والتمرير أفقيًا عند الحاجة.</p>
+ <table id="ministryDirectory" class="table table-bordered table-hover align-middle"><thead class="table-light"><tr></tr></thead><tbody></tbody></table>
+</div>
+@section Scripts {
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script>
+const type='@ViewBag.ReportType', esc=v=>String(v??'-').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+const status=v=>v?'<span class="badge bg-success">فعال</span>':'<span class="badge bg-secondary">غير فعال</span>';
+const configs={
+ schools:{h:['المدرسة','المديرية','المرحلة','المديرون','المعلمون','الطلاب','الحالة'],c:[{data:'name'},{data:'directorate'},{data:'stage'},{data:'managers'},{data:'teachers'},{data:'students'},{data:'isActive',render:status}]},
+ activeSchools:{h:['المدرسة','المديرية','المرحلة','المديرون','المعلمون','الطلاب','الحالة'],c:[{data:'name'},{data:'directorate'},{data:'stage'},{data:'managers'},{data:'teachers'},{data:'students'},{data:'isActive',render:status}]},
+ directorateManagers:{h:['الاسم','المديرية','البريد','الهاتف','الحساب'],c:[{data:'name'},{data:'directorate'},{data:'email'},{data:'phone'},{data:'isActive',render:status}]},
+ schoolManagers:{h:['الاسم','المدرسة','المديرية','البريد','الهاتف','الحساب'],c:[{data:'name'},{data:'school'},{data:'directorate'},{data:'email'},{data:'phone'},{data:'isActive',render:status}]},
+ teachers:{h:['الاسم','المدرسة','المديرية','البريد','الهاتف','الحساب'],c:[{data:'name'},{data:'school'},{data:'directorate'},{data:'email'},{data:'phone'},{data:'isActive',render:status}]},
+ students:{h:['الاسم','المدرسة','المديرية','الصف','البريد','الهاتف','الحساب'],c:[{data:'name'},{data:'school'},{data:'directorate'},{data:'className'},{data:'email'},{data:'phone'},{data:'isActive',render:status}]}
+},cfg=configs[type];cfg.c.forEach(x=>x.render??=(v=>esc(v)));document.querySelector('thead tr').innerHTML=cfg.h.map(x=>`<th>${x}</th>`).join('');
+$(async()=>{const message=sessionStorage.getItem("ministryNotification");if(message){sessionStorage.removeItem("ministryNotification");notifySuccess(message)}try{const r=await fetch(`/api/ministry/directory/${type}`);if(!r.ok)throw new Error('تعذر تحميل البيانات.');const table=$('#ministryDirectory').DataTable({data:await r.json(),columns:cfg.c,pageLength:10,lengthMenu:[[5,10,25,50],[5,10,25,50]],order:[[0,'asc']],language:{search:'بحث: 🔍',searchPlaceholder:'ابحث في البيانات',lengthMenu:'عرض _MENU_ سجل',info:'عرض _START_ إلى _END_ من أصل _TOTAL_ سجل',infoEmpty:'لا توجد سجلات',zeroRecords:'لا توجد نتائج مطابقة',emptyTable:'لا توجد بيانات',paginate:{next:'التالي',previous:'السابق'}}});$(table.table().node()).wrap('<div class="ministry-directory-scroll"></div>')}catch(e){notifyError(e.message)}});
+</script>
+}

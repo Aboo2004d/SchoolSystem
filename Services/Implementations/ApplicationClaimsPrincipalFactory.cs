@@ -12,6 +12,9 @@ public sealed class ApplicationClaimsPrincipalFactory : UserClaimsPrincipalFacto
     protected override async Task<ClaimsIdentity> GenerateClaimsAsync(ApplicationUser user)
     {
         var identity = await base.GenerateClaimsAsync(user);
+        var roles = await UserManager.GetRolesAsync(user);
+        foreach (var role in roles.Where(role => !identity.HasClaim(identity.RoleClaimType, role)))
+            identity.AddClaim(new Claim(identity.RoleClaimType, role));
         identity.AddClaim(new Claim("active", user.IsActive ? "true" : "false"));
         return identity;
     }

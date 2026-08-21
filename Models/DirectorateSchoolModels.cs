@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace SchoolSystem.Models;
 
-public sealed class DirectorateSchoolRequest
+public class DirectorateSchoolRequest
 {
     [Required, StringLength(200, MinimumLength = 2)]
     public string Name { get; set; } = string.Empty;

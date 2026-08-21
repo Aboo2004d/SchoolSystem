@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SchoolSystem.Data;
 
@@ -11,9 +12,11 @@ using SchoolSystem.Data;
 namespace SchoolSystem.Migrations
 {
     [DbContext(typeof(SystemSchoolDbContext))]
-    partial class SystemSchoolDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260820124442_AddMinistriesTransfersAndAssignments")]
+    partial class AddMinistriesTransfersAndAssignments
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1361,9 +1364,6 @@ namespace SchoolSystem.Migrations
                     b.Property<Guid>("SubjectId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<int>("SubjectIdentityNumber")
-                        .HasColumnType("int");
-
                     b.Property<string>("SubjectType")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -1380,8 +1380,6 @@ namespace SchoolSystem.Migrations
                     b.HasIndex("SourceMinistryId");
 
                     b.HasIndex("SubjectType", "SubjectId", "Status");
-
-                    b.HasIndex("SubjectType", "SubjectIdentityNumber", "Status");
 
                     b.ToTable("TransferRequest", (string)null);
                 });

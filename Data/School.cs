@@ -11,6 +11,10 @@ public partial class School
 
     public bool IsActive { get; set; } = true;
 
+    public string OwnershipType { get; set; } = SchoolOwnershipTypes.Government;
+
+    public string EducationLevel { get; set; } = SchoolEducationLevels.Primary;
+
     public string Name { get; set; } = null!;
 
     public Guid? IdStatusSchool { get; set; }
@@ -50,4 +54,10 @@ public partial class School
     public virtual ICollection<TheClass> TheClasses { get; set; } = new List<TheClass>();
 
     public virtual Directorate Directorate { get; set; } = null!;
+
+    public virtual ICollection<TeacherPlacement> TeacherPlacements { get; set; } = new List<TeacherPlacement>();
+
+    public virtual ICollection<SchoolManagerAssignment> ManagerAssignments { get; set; } = new List<SchoolManagerAssignment>();
+
+    public virtual ICollection<StudentEnrollment> StudentEnrollments { get; set; } = new List<StudentEnrollment>();
 }

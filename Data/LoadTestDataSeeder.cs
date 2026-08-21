@@ -36,12 +36,55 @@ public static class LoadTestDataSeeder
         var db = services.GetRequiredService<SystemSchoolDbContext>();
         db.Database.SetCommandTimeout(TimeSpan.FromMinutes(5));
 
-        var roles = await db.Roles.Where(x => x.Name == RoleNames.DirectorateManager || x.Name == RoleNames.Manager || x.Name == RoleNames.Teacher || x.Name == RoleNames.Student)
+        var roles = await db.Roles.Where(x => x.Name == RoleNames.MinistryManager || x.Name == RoleNames.DirectorateManager || x.Name == RoleNames.Manager || x.Name == RoleNames.Teacher || x.Name == RoleNames.Student)
             .ToDictionaryAsync(x => x.Name!, x => x.Id, cancellationToken);
         var hasher = services.GetRequiredService<IPasswordHasher<ApplicationUser>>();
         var normalizer = services.GetRequiredService<ILookupNormalizer>();
         var passwordTemplate = new ApplicationUser();
         var sharedHash = hasher.HashPassword(passwordTemplate, options.Password);
+
+        var ministries = new List<Ministry>(2);
+        for (var index = 1; index <= 2; index++)
+        {
+            var code = $"MIN-{index:00}";
+            var ministry = await db.Ministries.SingleOrDefaultAsync(x => x.Code == code, cancellationToken);
+            if (ministry is null)
+            {
+                ministry = new Ministry
+                {
+                    Id = Guid.NewGuid(), Code = code, Name = $"وزارة الاختبار {index}", IsActive = true
+                };
+                db.Ministries.Add(ministry);
+            }
+            else
+            {
+                ministry.IsActive = true;
+            }
+            ministries.Add(ministry);
+        }
+        await db.SaveChangesAsync(cancellationToken);
+        for (var index = 1; index <= ministries.Count; index++)
+        {
+            var ministry = ministries[index - 1];
+            var userName = $"ministry{index}";
+            var user = await db.Users.SingleOrDefaultAsync(x => x.UserName == userName, cancellationToken);
+            user ??= MakeUser(userName, $"{userName}@loadtest.local", sharedHash, normalizer);
+            user.IsActive = true;
+            if (db.Entry(user).State == EntityState.Detached) db.Users.Add(user);
+            if (!await db.UserRoles.AnyAsync(x => x.UserId == user.Id && x.RoleId == roles[RoleNames.MinistryManager], cancellationToken))
+                db.UserRoles.Add(new IdentityUserRole<Guid> { UserId = user.Id, RoleId = roles[RoleNames.MinistryManager] });
+
+            var profile = await db.MinistryManagers.SingleOrDefaultAsync(x => x.MinistryId == ministry.Id, cancellationToken);
+            if (profile is null)
+                db.MinistryManagers.Add(new MinistryManager { Id = Guid.NewGuid(), MinistryId = ministry.Id, ApplicationUserId = user.Id, Name = $"مسؤول الوزارة {index}", Email = user.Email, Phone = $"057{index:0000000}", IdNumber = 300000000 + index });
+            else
+            {
+                profile.ApplicationUserId = user.Id;
+                profile.IsDeleted = false;
+            }
+        }
+        await db.SaveChangesAsync(cancellationToken);
+        Progress("Ministries and their Identity manager accounts are ready.");
 
         var directorates = new List<Directorate>(options.Directorates);
         for (var index = 1; index <= options.Directorates; index++)
@@ -52,7 +95,7 @@ public static class LoadTestDataSeeder
             {
                 directorate = new Directorate
                 {
-                    Id = Guid.NewGuid(), Code = code, Name = $"مديرية الاختبار {index}",
+                    Id = Guid.NewGuid(), MinistryId = ministries[(index - 1) % ministries.Count].Id, Code = code, Name = $"مديرية الاختبار {index}",
                     City = $"مدينة {index}", Area = $"منطقة {index}", IsActive = true
                 };
                 db.Directorates.Add(directorate);
@@ -60,6 +103,7 @@ public static class LoadTestDataSeeder
             else
             {
                 directorate.IsActive = true;
+                directorate.MinistryId = ministries[(index - 1) % ministries.Count].Id;
             }
             directorates.Add(directorate);
         }

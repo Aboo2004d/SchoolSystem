@@ -1,0 +1,96 @@
+@{
+    ViewData["Title"] = "طلبات النقل";
+}
+
+<div class="container py-4" dir="rtl">
+    @Html.AntiForgeryToken()
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+        <div>
+            <h1 class="fw-bold mb-1"><i class="bi bi-arrow-left-right ms-2"></i>طلبات النقل</h1>
+            <p class="text-muted mb-0">نقل الطلاب والمعلمين ومديري المدارس باستخدام رقم الهوية.</p>
+        </div>
+        <a class="btn btn-outline-secondary" href="javascript:history.back()"><i class="bi bi-arrow-right-circle ms-1"></i>عودة</a>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-primary text-white fw-bold">إنشاء طلب نقل</div>
+        <div class="card-body">
+            <form id="transferForm" class="row g-3">
+                <div class="col-md-3"><label class="form-label">نوع الشخص</label><select id="subjectType" class="form-select" required><option value="Teacher">معلم</option><option value="Student">طالب</option><option value="SchoolManager">مدير مدرسة</option></select></div>
+                <div class="col-md-3"><label class="form-label">رقم الهوية</label><input id="identityNumber" class="form-control" inputmode="numeric" required /></div>
+                <div class="col-md-3"><label class="form-label">المدرسة المستقبلة</label><select id="destinationSchoolId" class="form-select" required></select></div>
+                <div class="col-md-3 d-none" id="classField"><label class="form-label">الصف المستقبل</label><select id="destinationClassId" class="form-select"></select></div>
+                <div class="col-12"><label class="form-label">سبب النقل</label><textarea id="reason" class="form-control" rows="2" maxlength="1000"></textarea></div>
+                <div class="col-12"><button class="btn btn-primary" type="submit"><i class="bi bi-send ms-1"></i>إرسال طلب النقل</button></div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white">
+            <ul class="nav nav-tabs card-header-tabs" role="tablist">
+                <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#incoming" type="button">طلبات واردة</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#outgoing" type="button">طلبات صادرة</button></li>
+            </ul>
+        </div>
+        <div class="card-body tab-content">
+            <div id="incoming" class="tab-pane fade show active"><div class="table-responsive"><table id="incomingTable" class="table table-striped align-middle w-100"><thead><tr><th>النوع</th><th>رقم الهوية</th><th>الحالة</th><th>التاريخ</th><th>الإجراءات</th></tr></thead><tbody></tbody></table></div></div>
+            <div id="outgoing" class="tab-pane fade"><div class="table-responsive"><table id="outgoingTable" class="table table-striped align-middle w-100"><thead><tr><th>النوع</th><th>رقم الهوية</th><th>الحالة</th><th>التاريخ</th></tr></thead><tbody></tbody></table></div></div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+(() => {
+    const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+    const notify = (message, type = 'success') => type === 'error' ? notifyError(message) : notifySuccess(message);
+    const labels = { Teacher: 'معلم', Student: 'طالب', SchoolManager: 'مدير مدرسة', PendingSourceApproval: 'بانتظار موافقة الجهة الحالية', PendingDestinationApproval: 'بانتظار موافقة الجهة المستقبلة', Completed: 'مكتمل', Rejected: 'مرفوض', Cancelled: 'ملغي' };
+    const schoolSelect = document.getElementById('destinationSchoolId');
+    const classSelect = document.getElementById('destinationClassId');
+    const subjectTypeSelect = document.getElementById('subjectType');
+    const identityInput = document.getElementById('identityNumber');
+    const reasonInput = document.getElementById('reason');
+    let options = [];
+
+    async function json(url, init) {
+        const response = await fetch(url, init);
+        const body = response.status === 204 ? null : await response.json().catch(() => null);
+        if (!response.ok) throw new Error(body?.message || 'تعذر إتمام العملية.');
+        return body;
+    }
+    async function loadOptions() {
+        options = await json('/api/transfers/options');
+        schoolSelect.innerHTML = '<option value="">اختر المدرسة</option>' + options.map(x => `<option value="${x.id}">${x.name} — ${x.directorate}</option>`).join('');
+    }
+    function loadClasses() {
+        const school = options.find(x => x.id === schoolSelect.value);
+        classSelect.innerHTML = '<option value="">اختر الصف</option>' + (school?.classes || []).map(x => `<option value="${x.id}">${x.name}</option>`).join('');
+    }
+    function rows(items, incoming) {
+        return items.map(x => `<tr><td>${labels[x.subjectType] || x.subjectType}</td><td>${x.identityNumber}</td><td>${labels[x.status] || x.status}</td><td>${new Date(x.createdAtUtc).toLocaleDateString('ar')}</td>${incoming ? `<td>${x.status.startsWith('Pending') ? `<button class="btn btn-sm btn-success decide" data-id="${x.id}" data-approve="true">موافقة</button> <button class="btn btn-sm btn-outline-danger decide" data-id="${x.id}" data-approve="false">رفض</button>` : '-'}</td>` : ''}</tr>`).join('');
+    }
+    async function loadTables() {
+        const [incoming, outgoing] = await Promise.all([json('/api/transfers?direction=incoming'), json('/api/transfers?direction=outgoing')]);
+        document.querySelector('#incomingTable tbody').innerHTML = rows(incoming, true);
+        document.querySelector('#outgoingTable tbody').innerHTML = rows(outgoing, false);
+    }
+    subjectTypeSelect.addEventListener('change', e => document.getElementById('classField').classList.toggle('d-none', e.target.value !== 'Student'));
+    schoolSelect.addEventListener('change', loadClasses);
+    document.getElementById('transferForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        try {
+            const body = { subjectType: subjectTypeSelect.value, identityNumber: Number(identityInput.value), destinationSchoolId: schoolSelect.value, destinationClassId: subjectTypeSelect.value === 'Student' ? classSelect.value || null : null, reason: reasonInput.value };
+            const result = await json('/api/transfers', { method: 'POST', headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token }, body: JSON.stringify(body) });
+            notify(result.message); e.target.reset(); document.getElementById('classField').classList.add('d-none'); await loadTables();
+        } catch (error) { notify(error.message, 'error'); }
+    });
+    document.addEventListener('click', async e => {
+        const button = e.target.closest('.decide'); if (!button) return;
+        try { const result = await json(`/api/transfers/${button.dataset.id}/decision`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token }, body: JSON.stringify({ approve: button.dataset.approve === 'true' }) }); notify(result.message); await loadTables(); }
+        catch (error) { notify(error.message, 'error'); }
+    });
+    Promise.all([loadOptions(), loadTables()]).catch(error => notify(error.message, 'error'));
+})();
+</script>
+}

@@ -103,41 +103,44 @@ Directory.CreateDirectory(Path.Combine(Directory.GetCurrentDirectory(), "Private
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
-{
     app.UseDeveloperExceptionPage();
-    try
-    {
-        await using var scope = app.Services.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<SystemSchoolDbContext>();
-        await db.Database.MigrateAsync();
-
-        var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
-        foreach (var role in new[] { RoleNames.Admin, RoleNames.DirectorateManager, RoleNames.Manager, RoleNames.Teacher, RoleNames.Student })
-            if (!await roleManager.RoleExistsAsync(role))
-                await roleManager.CreateAsync(new IdentityRole<Guid>(role));
-
-        //await IdentityDataSeeder.SeedMainAdminAsync(scope.ServiceProvider, app.Configuration);
-        await LoadTestDataSeeder.SeedAsync(scope.ServiceProvider, app.Configuration);
-
-        if (args.Contains("--seed-only", StringComparer.OrdinalIgnoreCase))
-        {
-            app.Logger.LogInformation("Identity seed completed successfully.");
-            return;
-        }
-    }
-    catch (Exception exception)
-    {
-        app.Logger.LogCritical(exception,
-            "Database migration failed. Verify the Development connection string and SQL Server availability.");
-        return;
-    }
-}
 else
 {
     app.UseExceptionHandler("/Home/Error");
     app.UseHsts();
 }
 
+try
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var db = scope.ServiceProvider.GetRequiredService<SystemSchoolDbContext>();
+    await db.Database.MigrateAsync();
+
+    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
+    foreach (var role in new[] { RoleNames.Admin, RoleNames.MinistryManager, RoleNames.DirectorateManager, RoleNames.Manager, RoleNames.Teacher, RoleNames.Student })
+        if (!await roleManager.RoleExistsAsync(role))
+            await roleManager.CreateAsync(new IdentityRole<Guid>(role));
+
+    // The official main administrator is the only production seed and is created only
+    // when SeedAdmin:Enabled and its secure deployment settings are provided.
+    await IdentityDataSeeder.SeedMainAdminAsync(scope.ServiceProvider, app.Configuration);
+
+    // Synthetic load data is strictly opt-in and can never run outside Development.
+    if (app.Environment.IsDevelopment())
+        await LoadTestDataSeeder.SeedAsync(scope.ServiceProvider, app.Configuration);
+
+    if (args.Contains("--seed-only", StringComparer.OrdinalIgnoreCase))
+    {
+        app.Logger.LogInformation("Database and identity seed completed successfully.");
+        return;
+    }
+}
+catch (Exception exception)
+{
+    app.Logger.LogCritical(exception,
+        "Database initialization failed. Verify the connection string and secure seed configuration.");
+    return;
+}
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseStaticFiles(new StaticFileOptions

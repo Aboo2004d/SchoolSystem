@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
@@ -49,10 +49,98 @@ public partial class SystemSchoolDbContext : IdentityDbContext<ApplicationUser, 
 
     public virtual DbSet<DirectorateManager> DirectorateManagers { get; set; }
 
+    public virtual DbSet<Ministry> Ministries { get; set; }
+
+    public virtual DbSet<MinistryManager> MinistryManagers { get; set; }
+
+    public virtual DbSet<TeacherPlacement> TeacherPlacements { get; set; }
+
+    public virtual DbSet<SchoolManagerAssignment> SchoolManagerAssignments { get; set; }
+
+    public virtual DbSet<StudentEnrollment> StudentEnrollments { get; set; }
+
+    public virtual DbSet<TransferRequest> TransferRequests { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
+        modelBuilder.Entity<Ministry>(entity =>
+        {
+            entity.ToTable("Ministry");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.Code).IsUnique();
+            entity.Property(x => x.Code).HasMaxLength(30).IsRequired();
+            entity.Property(x => x.Name).HasMaxLength(200).IsRequired();
+        });
+
+        modelBuilder.Entity<MinistryManager>(entity =>
+        {
+            entity.ToTable("MinistryManager");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.MinistryId).IsUnique();
+            entity.HasIndex(x => x.ApplicationUserId).IsUnique().HasFilter("[ApplicationUserId] IS NOT NULL");
+            entity.Property(x => x.Name).HasMaxLength(150).IsRequired();
+            entity.Property(x => x.Phone).HasMaxLength(30);
+            entity.Property(x => x.Email).HasMaxLength(256);
+            entity.HasOne(x => x.Ministry).WithOne(x => x.Manager)
+                .HasForeignKey<MinistryManager>(x => x.MinistryId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.ApplicationUser).WithOne(x => x.MinistryManager)
+                .HasForeignKey<MinistryManager>(x => x.ApplicationUserId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<TeacherPlacement>(entity =>
+        {
+            entity.ToTable("TeacherPlacement");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TeacherId, x.SchoolId }).IsUnique().HasFilter("[IsActive] = 1");
+            entity.HasIndex(x => x.TeacherId).IsUnique().HasFilter("[IsActive] = 1 AND [IsPrimary] = 1");
+            entity.HasOne(x => x.Teacher).WithMany(x => x.Placements)
+                .HasForeignKey(x => x.TeacherId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.School).WithMany(x => x.TeacherPlacements)
+                .HasForeignKey(x => x.SchoolId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<SchoolManagerAssignment>(entity =>
+        {
+            entity.ToTable("SchoolManagerAssignment");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.ManagerId, x.SchoolId }).IsUnique().HasFilter("[IsActive] = 1");
+            entity.HasIndex(x => x.ManagerId).IsUnique().HasFilter("[IsActive] = 1 AND [IsPrimary] = 1");
+            entity.HasOne(x => x.Manager).WithMany(x => x.SchoolAssignments)
+                .HasForeignKey(x => x.ManagerId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.School).WithMany(x => x.ManagerAssignments)
+                .HasForeignKey(x => x.SchoolId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<StudentEnrollment>(entity =>
+        {
+            entity.ToTable("StudentEnrollment");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.StudentId).IsUnique().HasFilter("[IsActive] = 1");
+            entity.HasOne(x => x.Student).WithMany(x => x.Enrollments)
+                .HasForeignKey(x => x.StudentId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.School).WithMany(x => x.StudentEnrollments)
+                .HasForeignKey(x => x.SchoolId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Class).WithMany()
+                .HasForeignKey(x => x.ClassId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<TransferRequest>(entity =>
+        {
+            entity.ToTable("TransferRequest");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.SubjectType).HasMaxLength(30).IsRequired();
+            entity.Property(x => x.Status).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.Reason).HasMaxLength(1000);
+            entity.Property(x => x.DecisionNote).HasMaxLength(1000);
+            entity.HasIndex(x => new { x.SubjectType, x.SubjectId, x.Status });
+            entity.HasIndex(x => new { x.SubjectType, x.SubjectIdentityNumber, x.Status });
+            entity.HasIndex(x => x.SourceDirectorateId);
+            entity.HasIndex(x => x.DestinationDirectorateId);
+            entity.HasIndex(x => x.SourceMinistryId);
+            entity.HasIndex(x => x.DestinationMinistryId);
+        });
         modelBuilder.Entity<Directorate>(entity =>
         {
             entity.ToTable("Directorate");
@@ -60,6 +148,9 @@ public partial class SystemSchoolDbContext : IdentityDbContext<ApplicationUser, 
             entity.HasIndex(x => x.Code).IsUnique();
             entity.Property(x => x.Code).HasMaxLength(30).IsRequired();
             entity.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            entity.HasIndex(x => x.MinistryId);
+            entity.HasOne(x => x.Ministry).WithMany(x => x.Directorates)
+                .HasForeignKey(x => x.MinistryId).OnDelete(DeleteBehavior.Restrict);
             entity.Property(x => x.City).HasMaxLength(100);
             entity.Property(x => x.Area).HasMaxLength(100);
             entity.Property(x => x.Phone).HasMaxLength(30);
@@ -263,6 +354,8 @@ public partial class SystemSchoolDbContext : IdentityDbContext<ApplicationUser, 
 
             entity.Property(e => e.Name).HasMaxLength(200);
             entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.OwnershipType).HasMaxLength(30).HasDefaultValue(SchoolOwnershipTypes.Government);
+            entity.Property(e => e.EducationLevel).HasMaxLength(30).HasDefaultValue(SchoolEducationLevels.Primary);
 
             entity.HasIndex(e => e.DirectorateId);
             entity.HasOne(e => e.Directorate).WithMany(e => e.Schools)
@@ -408,6 +501,9 @@ public partial class SystemSchoolDbContext : IdentityDbContext<ApplicationUser, 
             entity.ToTable("TeacherLectuerClass");
 
             entity.HasIndex(e => e.IdSchool, "IX_TeacherLectuer_IdSchool");
+
+            entity.HasIndex(e => new { e.IdSchool, e.IdClass, e.IdLectuer }, "UX_TeacherLectuer_ActiveSchoolClassSubject")
+                .IsUnique().HasFilter("[IsDeletedTeacherLectuerClass] = 0 AND [IsDeletedClass] = 0 AND [IsDeletedLectuer] = 0 AND [IsDeletedTeacher] = 0 AND [IsDeletedSchool] = 0");
 
             entity.Property(e => e.Id).HasColumnName("id");
 

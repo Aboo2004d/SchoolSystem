@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -44,18 +44,6 @@ namespace SchoolSystem.Migrations
                     table.PrimaryKey("PK_Directorate", x => x.Id);
                 });
 
-            // Preserve every pre-existing school without guessing a real administrative owner.
-            // Load-test schools are reassigned across seeded directorates by LoadTestDataSeeder.
-            migrationBuilder.InsertData(
-                table: "Directorate",
-                columns: new[] { "Id", "Code", "Name", "IsActive", "CreatedAtUtc" },
-                values: new object[]
-                {
-                    new Guid("11111111-1111-1111-1111-111111111111"), "LEGACY",
-                    "مديرية انتقالية للمدارس السابقة", true, new DateTime(2026, 8, 18, 0, 0, 0, DateTimeKind.Utc)
-                });
-
-            migrationBuilder.Sql("UPDATE [School] SET [DirectorateId] = '11111111-1111-1111-1111-111111111111', [IsActive] = 1");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "DirectorateId",

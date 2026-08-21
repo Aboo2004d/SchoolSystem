@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 @inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
 @{ var csrfToken = Antiforgery.GetAndStoreTokens(Context).RequestToken; }
 <html lang="ar" dir="rtl">
@@ -246,9 +246,19 @@
                                     @username
                                 </a>
                                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-                                    @if (role == "DirectorateManager")
+                                    @if (role == "Admin")
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="Ministry" asp-action="Index">لوحة الوزارة</a></li>
+                                        <li><a class="dropdown-item" asp-controller="Transfers" asp-action="Index">طلبات النقل</a></li>
+                                    }
+                                    else if (role == "MinistryManager")
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="Ministry" asp-action="Index">لوحة الوزارة</a></li>
+                                    }
+                                    else if (role == "DirectorateManager")
                                     {
                                         <li><a class="dropdown-item" asp-controller="Directorate" asp-action="Index">لوحة المديرية</a></li>
+                                        <li><a class="dropdown-item" asp-controller="Transfers" asp-action="Index">طلبات النقل</a></li>
                                     }
                                     else if (role == "Manager")
                                     {

@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using AspNetCoreHero.ToastNotification.Abstractions;
 using MailKit.Net.Smtp;
 using Microsoft.AspNetCore.Authorization;
@@ -73,6 +74,10 @@ public class AccountController : Controller
             _notyf.Error("الحساب غير مرتبط بملف شخصي صالح.");
             return View(model);
         }
+
+        var roleClaims = (await _userManager.GetRolesAsync(user))
+            .Select(role => new Claim(ClaimTypes.Role, role));
+        await _signInManager.SignInWithClaimsAsync(user, isPersistent: false, roleClaims);
 
         _notyf.Success("تم تسجيل الدخول بنجاح.");
         return RedirectToAction("Index", "Home");
@@ -253,11 +258,11 @@ public class AccountController : Controller
     }
 
     [HttpGet]
-    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.DirectorateManager + "," + RoleNames.Manager + "," + RoleNames.Student + "," + RoleNames.Teacher)]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.MinistryManager + "," + RoleNames.DirectorateManager + "," + RoleNames.Manager + "," + RoleNames.Student + "," + RoleNames.Teacher)]
     public IActionResult NewPassword() => View();
 
     [HttpPost]
-    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.DirectorateManager + "," + RoleNames.Manager + "," + RoleNames.Student + "," + RoleNames.Teacher)]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.MinistryManager + "," + RoleNames.DirectorateManager + "," + RoleNames.Manager + "," + RoleNames.Student + "," + RoleNames.Teacher)]
     public async Task<IActionResult> NewPassword(NewPasswordViewModel model)
     {
         if (!ModelState.IsValid)
@@ -289,6 +294,7 @@ public class AccountController : Controller
     {
         switch (role)
         {
+            case RoleNames.MinistryManager:
             case RoleNames.DirectorateManager:
                 return false; // Directorate accounts are provisioned administratively, never by public registration.
             case RoleNames.Admin:
@@ -322,6 +328,13 @@ public class AccountController : Controller
 
         switch (role)
         {
+            case RoleNames.MinistryManager:
+                var ministryManager = await _context.MinistryManagers.AsNoTracking()
+                    .SingleOrDefaultAsync(x => x.ApplicationUserId == user.Id && !x.IsDeleted && x.Ministry.IsActive);
+                if (ministryManager is null) return false;
+                (id, school, name) = (ministryManager.Id, Guid.Empty, ministryManager.Name);
+                HttpContext.Session.SetGuid("Ministry", ministryManager.MinistryId);
+                break;
             case RoleNames.DirectorateManager:
                 var directorateManager = await _context.DirectorateManagers.AsNoTracking()
                     .SingleOrDefaultAsync(x => x.ApplicationUserId == user.Id && !x.IsDeleted && x.Directorate.IsActive);
